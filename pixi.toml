@@ -11,6 +11,7 @@ license = "MIT"
 mojo = "==1.2.0"
 emberjson = ">=0.4.0,<0.5"
 mist = ">=26.3.0,<27"
+openssl = ">=3,<4"
 python = ">=3.12,<3.14"
 
 [target.linux-64.dependencies]
@@ -18,6 +19,11 @@ patchelf = "*"
 
 [target.linux-aarch64.dependencies]
 patchelf = "*"
+
+# Without both the triple and the deployment target, mojo stamps the binary with
+# the build machine's macOS as its minimum, and it will not start on older ones.
+[target.osx-arm64.tasks]
+build = { cmd = "mkdir -p build && mojo build --target-triple arm64-apple-macosx13.0 -I src src/main.mojo -o build/eva", env = { MACOSX_DEPLOYMENT_TARGET = "13.0" }, description = "Build the eva binary (macOS 13+)" }
 
 [tasks]
 build = { cmd = "mkdir -p build && mojo build -I src src/main.mojo -o build/eva", description = "Build the eva binary" }

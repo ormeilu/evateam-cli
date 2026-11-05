@@ -1,40 +1,52 @@
 """EvaTeam JSON-RPC 2.2 client.
 
-Mojo's standard library has no TLS, so the HTTPS POST itself goes through
-Python's urllib. Building the request and reading the reply stay in Mojo.
+HTTPS goes through the vendored `requests` package (src/requests): sockets via
+libc and TLS via OpenSSL, loaded at run time. A release ships its own
+libssl/libcrypto next to the binary, so eva needs nothing from the system but a
+CA bundle, which it looks up in the usual places.
 """
 
+from std.ffi import external_call, c_int
 from std.os import getenv
-from std.sys import stderr
 from std.os.path import exists, expanduser
-from std.python import Python, PythonObject
+from std.sys import stderr
+from std.time import perf_counter_ns
+
+import requests
 
 from eva.json import JsonDoc, NO_NODE, quote
-from eva.pyfind import ensure_python
 
-comptime HTTP_HELPER = """
-import ssl, urllib.request, urllib.error
+# Where systems keep the PEM bundle of trusted CAs, most common first.
+comptime CA_BUNDLES = (
+    "/etc/ssl/cert.pem,"  # macOS, Alpine, Arch
+    "/etc/ssl/certs/ca-certificates.crt,"  # Debian, Ubuntu
+    "/etc/pki/tls/certs/ca-bundle.crt,"  # Fedora, RHEL
+    "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem,"
+    "/etc/ssl/ca-bundle.pem"  # openSUSE
+)
 
-def post(url, token, body, timeout, insecure):
-    req = urllib.request.Request(
-        url,
-        data=body.encode("utf-8"),
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + token,
-            "User-Agent": "eva-cli",
-        },
-    )
-    ctx = ssl._create_unverified_context() if insecure else None
-    try:
-        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
-            return r.status, r.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as e:
-        return e.code, e.read().decode("utf-8", "replace")
-    except (urllib.error.URLError, OSError) as e:
-        return 0, str(getattr(e, "reason", e))
-"""
+
+def ca_bundle() -> String:
+    """The CA bundle to verify servers with, or "" for OpenSSL's defaults.
+
+    EVA_CA_BUNDLE wins, then REQUESTS_CA_BUNDLE and SSL_CERT_FILE, then the
+    system's own bundle. A bundled OpenSSL's compiled-in default points at the
+    machine it was built on, so falling back to it would fail every handshake.
+    """
+    for var_name in ["EVA_CA_BUNDLE", "REQUESTS_CA_BUNDLE", "SSL_CERT_FILE"]:
+        var v = getenv(var_name)
+        if v != "":
+            return v
+    for path in CA_BUNDLES.split(","):
+        if exists(String(path)):
+            return String(path)
+    return ""
+
+
+def new_callid() -> String:
+    """Unique per call; the server echoes it back and warns when it is missing."""
+    var pid = external_call["getpid", c_int]()
+    return "eva-" + String(pid) + "-" + String(perf_counter_ns())
 
 
 struct Config(Copyable, Movable):
@@ -137,7 +149,7 @@ struct Reply(Movable):
 struct Client(Movable):
     var cfg: Config
     var verbose: Bool
-    var _post: PythonObject
+    var ca: String
 
     def __init__(out self, var cfg: Config, verbose: Bool) raises:
         if cfg.url == "":
@@ -152,11 +164,7 @@ struct Client(Movable):
             )
         self.cfg = cfg^
         self.verbose = verbose
-        ensure_python()
-        var ns = Python.dict()
-        var builtins = Python.import_module("builtins")
-        _ = builtins.exec(HTTP_HELPER, ns)
-        self._post = ns["post"]
+        self.ca = ca_bundle()
 
     def call(
         self,
@@ -166,9 +174,8 @@ struct Client(Movable):
         flags: String = "",
     ) raises -> Reply:
         """Call `method`. kwargs, args and flags are JSON text or ""."""
-        var uuid = Python.import_module("uuid")
         var body = String('{"jsonrpc":"2.2","no_meta":true,"callid":')
-        body += quote(String(uuid.uuid4()))
+        body += quote(new_callid())
         body += ',"method":'
         body += quote(method)
         if kwargs != "":
@@ -181,15 +188,29 @@ struct Client(Movable):
         if self.verbose:
             print("→ POST", self.cfg.url + "/api/", body, file=stderr)
 
-        var resp = self._post(
-            self.cfg.url + "/api/", self.cfg.token, body, 30, self.cfg.insecure
-        )
-        var status = Int(py=resp[0])
-        var text = String(resp[1])
+        var headers = Dict[String, String]()
+        headers["Authorization"] = "Bearer " + self.cfg.token
+        headers["User-Agent"] = "eva-cli"
+        var ca: Optional[String] = None
+        if self.ca != "":
+            ca = self.ca
+        var status: Int
+        var text: String
+        try:
+            var resp = requests.post(
+                self.cfg.url + "/api/",
+                json=body,
+                headers=headers^,
+                timeout=30.0,
+                verify=not self.cfg.insecure,
+                ca_bundle=ca,
+            )
+            status = resp.status_code
+            text = resp.text()
+        except e:
+            raise Error("cannot reach " + self.cfg.url + ": " + String(e))
         if self.verbose:
             print("← HTTP", status, text[byte = 0 : min(text.byte_length(), 600)], file=stderr)
-        if status == 0:
-            raise Error("cannot reach " + self.cfg.url + ": " + text)
         if status == 401:
             raise Error("401 unauthorized: the token in EVA_API_KEY was rejected")
 
@@ -219,4 +240,3 @@ struct Client(Movable):
             raise Error("HTTP " + String(status) + " from " + method)
         var result = doc.get(root, "result")
         return Reply(doc^, result)
-

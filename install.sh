@@ -6,7 +6,7 @@
 # It downloads the release archive for this machine, checks its sha256,
 # unpacks it into ~/.local/share/eva/<version> and links ~/.local/bin/eva to it.
 # Running it again updates to the newest release; so does `eva upgrade`.
-# eva needs a Python 3.10 or newer on PATH for its HTTPS calls.
+# The archive carries its own Mojo runtime and OpenSSL; nothing else is needed.
 #
 # Environment:
 #   EVA_VERSION       install this version instead of the latest (e.g. 0.2.0)
@@ -104,12 +104,4 @@ case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *) say "add $BIN_DIR to PATH" ;;
 esac
-found=""
-for py in python3.14 python3.13 python3.12 python3.11 python3.10 python3; do
-  if command -v "$py" >/dev/null 2>&1 && "$py" -c 'import sys; sys.exit(sys.version_info < (3, 10))' 2>/dev/null; then
-    found=$py
-    break
-  fi
-done
-[ -n "$found" ] || say "eva needs Python 3.10 or newer on PATH for HTTPS: brew install python3, apt install python3"
 say "next: put EVA_URL and EVA_API_KEY in ~/.config/eva-cli/env, then run: eva config"

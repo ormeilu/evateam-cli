@@ -38,8 +38,8 @@ agent reading the output can tell the tracker's data from instructions.
 
 ## Install
 
-eva is built for macOS on Apple silicon and Linux on x86_64 and arm64 (glibc
-2.34 or newer). Pick one way to install it.
+eva is built for macOS 13 or newer on Apple silicon and Linux on x86_64 and
+arm64 (glibc 2.34 or newer). It does not need Python. Pick one way to install it.
 
 With the install script. It downloads the release archive for your machine
 from GitHub, checks its sha256, unpacks it into `~/.local/share/eva/<version>`
@@ -50,8 +50,8 @@ and links `~/.local/bin/eva`. Run it again, or `eva upgrade`, to update;
 curl -fsSL https://raw.githubusercontent.com/ormeilu/evateam-cli/main/install.sh | sh
 ```
 
-The archive carries Mojo's runtime libraries, so the only thing eva needs from
-the system is a Python 3.10 or newer on PATH, which it uses for HTTPS.
+The archive carries Mojo's runtime libraries and OpenSSL; all eva needs from
+the system is its CA certificates, which every system has.
 
 With pixi, from the conda channel
 [`prefix.dev/ormeilu/ormeilu`](https://prefix.dev/channels/@ormeilu/ormeilu):
@@ -89,11 +89,12 @@ lives in Modular's.
 
 `eva upgrade` updates eva the same way it was installed.
 
-The routes differ in size. The archive is under 1 MB: the binary plus the three
-runtime libraries it uses. PyPI and conda pull the libraries from Modular's
-`mojo-compiler` package instead, about 70 MB from PyPI, and around 300 MB of
-pixi environment, since the conda package brings the whole compiler. The PyPI
-and conda installs use the Python they come with for HTTPS.
+The archive and the wheel are about 3.5 MB each: the binary, Mojo's three
+runtime libraries and OpenSSL. The wheel installs the binary straight into
+the environment's `bin/`, with no Python wrapper. The conda package takes the
+libraries from Modular's `mojo-compiler` package instead, and the pixi
+environment grows to around 300 MB, since that package brings the whole
+compiler and Python with it.
 
 From source, with [pixi](https://pixi.sh):
 
@@ -114,8 +115,10 @@ EVA_URL=https://eva.example.ru
 EVA_API_KEY=…
 ```
 
-`EVA_INSECURE=1` skips TLS verification, for self-hosted servers with their own
-certificate. `eva config` shows what was picked up and from where, without
+eva verifies the server against the system's CA bundle (`/etc/ssl/cert.pem`,
+`/etc/ssl/certs/ca-certificates.crt` and the like). If your EvaTeam uses a
+corporate CA, point `EVA_CA_BUNDLE` at its PEM file. `EVA_INSECURE=1` turns
+verification off. `eva config` shows what was picked up and from where, without
 printing the token.
 
 ## Commands
@@ -155,10 +158,13 @@ such as `CmfTask.list` and keyword arguments. The pieces:
 - `src/eva/json.mojo`: a JSON parser and writer. Nodes sit in one arena and
   refer to their children by index, which avoids a recursive type. Numbers keep
   their source text, so ids and timestamps pass through unchanged.
-- `src/eva/client.mojo`: configuration and the RPC call. Mojo's standard
-  library has no TLS yet, so the HTTPS request itself goes through Python's
-  `urllib` via Mojo's Python interop. Request building and reply parsing are
-  Mojo.
+- `src/eva/client.mojo`: configuration, the RPC call and the CA bundle
+  lookup.
+- `src/requests/`: a Mojo HTTP client from
+  [mojo-requests-poc](https://github.com/ormeilu/mojo-requests-poc) (Apache-2.0,
+  licence alongside), ported to Mojo 1.2. Sockets and DNS go through libc, TLS
+  through OpenSSL loaded with `dlopen`, first from `lib/` next to the binary,
+  then from the system. eva uses no Python interop.
 - `src/eva/render.mojo`: terminal and pipe output, HTML to text, colour via
   [mist](https://github.com/thatstoasty/mist) from the
   [modular-community](https://prefix.dev/channels/modular-community) channel.
@@ -175,9 +181,8 @@ pixi run e2e      # builds eva and runs it against tests/mock_server.py
 ```
 
 `pixi run conda-package` builds the conda package from `recipe/recipe.yaml`
-into `output/`. `pixi run wheel macosx_13_0_arm64` packs `build/eva` into a wheel in `dist/`,
-with its rpath pointed at `mojo-compiler`'s libraries in the same
-site-packages. A tag `vX.Y.Z` matching `pixi.toml` runs
+into `output/`. `pixi run wheel macosx_13_0_arm64` packs `build/eva` into a wheel in `dist/`:
+the binary in `.data/scripts`, the libraries in `.data/data/lib/evateam-cli`. A tag `vX.Y.Z` matching `pixi.toml` runs
 `.github/workflows/release.yml`: wheels and conda packages for three
 platforms, the end-to-end suite against each one installed the way a user
 would, then PyPI, prefix.dev and a GitHub release.

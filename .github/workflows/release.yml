@@ -115,7 +115,8 @@ jobs:
             bash tests/e2e.sh
       - name: Install the archive with install.sh and run the suite
         run: |
-          # The archive brings its own libraries; Python comes from PATH.
+          # The archive brings its own Mojo runtime and OpenSSL; the venv on PATH
+          # only runs the mock server.
           env -i HOME=/tmp/eva-home PATH=/tmp/eva-venv/bin:/usr/bin:/bin \
             EVA_ARCHIVE="$(ls dist/eva-*.tar.gz)" sh install.sh
           env -i HOME=/tmp/eva-home PATH=/tmp/eva-venv/bin:/usr/bin:/bin \

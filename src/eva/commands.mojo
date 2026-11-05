@@ -1,7 +1,8 @@
 """The command tree. Each command builds kwargs as a JsonDoc, calls one or two
 API methods and prints the reply."""
 
-from std.python import Python
+from std.ffi import external_call, c_int
+from std.memory.alloc import unsafe_alloc
 
 from eva.args import Args
 from eva.client import Client, Reply, load_config
@@ -492,10 +493,28 @@ def task_log(client: Client, args: Args, ui: Out) raises:
     var msg = args.get("message", "m")
     if msg != "":
         d.set_str(kw, "text", msg)
-    var dt = Python.import_module("datetime")
-    d.set_str(kw, "date", String(dt.datetime.now()))
+    d.set_str(kw, "date", local_now())
     _ = client.call("CmfTask.timetracker_change_time", d.dump(kw), "[" + quote_str(id) + "]")
     print("logged " + String(minutes) + " min on " + ui.bold(code))
+
+
+def local_now() -> String:
+    """Local time as YYYY-MM-DD HH:MM:SS, via libc."""
+    var t = unsafe_alloc[Int](1)
+    t[unsafe_offset=0] = Int(external_call["time", Int](Int(0)))
+    # struct tm is 36-56 bytes depending on the platform; 128 leaves room.
+    var tm = unsafe_alloc[UInt8](128)
+    _ = external_call["localtime_r", Int](t, tm)
+    var buf = unsafe_alloc[UInt8](64)
+    var fmt = "%Y-%m-%d %H:%M:%S"
+    var n = Int(external_call["strftime", Int](buf, Int(64), fmt.unsafe_ptr(), tm))
+    var bytes = List[UInt8]()
+    for i in range(n):
+        bytes.append(buf[unsafe_offset=i])
+    t.unsafe_free()
+    tm.unsafe_free()
+    buf.unsafe_free()
+    return String(from_utf8_lossy=Span(bytes))
 
 
 def parse_minutes(s: String) raises -> Int:

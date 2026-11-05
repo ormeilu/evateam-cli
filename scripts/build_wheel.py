@@ -3,27 +3,26 @@
 PLATFORM_TAG is a wheel platform tag such as macosx_13_0_arm64 or
 manylinux_2_34_x86_64. The version comes from pixi.toml. No build backend is
 involved: a wheel is a zip with three metadata files.
+
+The wheel holds no Python. The binary goes in the wheel's .data/scripts, which
+installers put straight into the environment's bin/, and the libraries in
+.data/data/lib/evateam-cli, which lands in <prefix>/lib/evateam-cli: the
+binary's rpath is ../lib/evateam-cli and its TLS layer looks there for libssl.
+A subdirectory keeps them clear of a conda env's own libssl.
 """
 
 import base64
 import hashlib
-import re
 import stat
 import sys
 import tempfile
 import zipfile
 from pathlib import Path
 
-from relocate import relocated_binary
+from bundle import libraries, licenses, version
+from relocate import ROOT, relocated_binary
 
-ROOT = Path(__file__).resolve().parent.parent
 NAME = "evateam_cli"
-MOJO_VERSION = "1.2.0"
-
-
-def version() -> str:
-    text = (ROOT / "pixi.toml").read_text()
-    return re.search(r'^version = "([^"]+)"', text, re.M).group(1)
 
 
 def record_line(path: str, data: bytes) -> str:
@@ -35,17 +34,19 @@ def main() -> None:
     tag = sys.argv[1]
     ver = version()
     dist_info = f"{NAME}-{ver}.dist-info"
+    data = f"{NAME}-{ver}.data"
     readme = (ROOT / "README.md").read_text()
     files: dict[str, tuple[bytes, int]] = {}
 
-    for src in sorted((ROOT / "python" / NAME).glob("*.py")):
-        files[f"{NAME}/{src.name}"] = (src.read_bytes(), 0o644)
     with tempfile.TemporaryDirectory() as tmp:
-        # The wheel puts eva in site-packages/evateam_cli/bin/ and mojo-compiler
-        # puts the runtime in site-packages/modular/lib/.
-        eva = relocated_binary(Path(tmp) / "eva", "../../modular/lib")
-        files[f"{NAME}/bin/eva"] = (eva.read_bytes(), 0o755)
-    files[f"{dist_info}/licenses/LICENSE"] = ((ROOT / "LICENSE").read_bytes(), 0o644)
+        eva = relocated_binary(Path(tmp) / "eva", "../lib/evateam-cli")
+        files[f"{data}/scripts/eva"] = (eva.read_bytes(), 0o755)
+    for lib in libraries():
+        files[f"{data}/data/lib/evateam-cli/{lib.name}"] = (lib.read_bytes(), 0o755)
+    license_files = licenses()
+    for shipped, src in license_files.items():
+        files[f"{dist_info}/licenses/{shipped}"] = (src.read_bytes(), 0o644)
+    license_headers = "".join(f"License-File: {name}\n" for name in license_files)
     files[f"{dist_info}/METADATA"] = (
         f"""Metadata-Version: 2.4
 Name: evateam-cli
@@ -53,10 +54,7 @@ Version: {ver}
 Summary: EvaTeam from the command line, written in Mojo
 Author: Ilya Lubenets
 License-Expression: MIT
-License-File: LICENSE
-Project-URL: Source, https://github.com/ormeilu/evateam-cli
-Requires-Python: >=3.10
-Requires-Dist: mojo-compiler=={MOJO_VERSION}
+{license_headers}Project-URL: Source, https://github.com/ormeilu/evateam-cli
 Description-Content-Type: text/markdown
 
 {readme}""".encode(),
@@ -66,7 +64,6 @@ Description-Content-Type: text/markdown
         f"Wheel-Version: 1.0\nGenerator: evateam-cli build_wheel.py\nRoot-Is-Purelib: false\nTag: py3-none-{tag}\n".encode(),
         0o644,
     )
-    files[f"{dist_info}/entry_points.txt"] = (b"[console_scripts]\neva = evateam_cli:main\n", 0o644)
 
     record = [record_line(p, d) for p, (d, _) in files.items()]
     record.append(f"{dist_info}/RECORD,,")
@@ -75,11 +72,11 @@ Description-Content-Type: text/markdown
     out = ROOT / "dist" / f"{NAME}-{ver}-py3-none-{tag}.whl"
     out.parent.mkdir(exist_ok=True)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
-        for path, (data, mode) in files.items():
+        for path, (blob, mode) in files.items():
             info = zipfile.ZipInfo(path, date_time=(1980, 1, 1, 0, 0, 0))
             info.external_attr = (stat.S_IFREG | mode) << 16
             info.compress_type = zipfile.ZIP_DEFLATED
-            zf.writestr(info, data)
+            zf.writestr(info, blob)
     print(out)
 
 
