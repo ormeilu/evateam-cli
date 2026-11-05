@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: prefix-dev/setup-pixi@v0.11.3
+        with:
+          pixi-version: v0.83.0
+          cache: true
+      - run: pixi run test
+      - run: pixi run e2e
+      - uses: actions/upload-artifact@v7
+        with:
+          name: eva-${{ runner.os }}-${{ runner.arch }}
+          path: build/eva

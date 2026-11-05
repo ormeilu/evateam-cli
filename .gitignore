@@ -1,0 +1,5 @@
+.pixi/
+build/
+.env
+*.mojoc
+__pycache__/
