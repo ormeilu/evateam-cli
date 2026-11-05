@@ -25,7 +25,7 @@ sent() { # sent NAME EXPECTED_SUBSTRING: one of the last two requests has it
     echo "FAIL $1: request lacks '$2':"; tail -n 2 "$log" | sed 's/^/     /'; fail=1; fi
 }
 
-eva=${EVA_BIN:-./build/eva}
+eva=${EVA_BIN:-$PWD/build/eva}
 check "task get header"        "DEV-1  Вложения теряются"     -- $eva task get DEV-1
 check "task get people"        "assignee: ilya@example.ru"     -- $eva task get DEV-1
 check "project line"           "project: DEV  Development"     -- $eva task get DEV-1
@@ -72,10 +72,74 @@ check "links"                  "→ DEV-2  Retry uploads"        -- $eva task li
 check "projects"               "DEV"                           -- $eva project list
 check "raw call error"         "Method not found: Nope.x"      -- $eva call Nope.x --kwargs '{}'
 check "raw call bad json"      "json:"                         -- $eva call CmfTask.count --kwargs '{oops'
-check "bad token"              "401 unauthorized"              -- env EVA_API_KEY=wrong $eva task get DEV-1
+check "bad token"              "the token was rejected"              -- env EVA_API_KEY=wrong $eva task get DEV-1
 check "bad option"             "unknown option --bogus"        -- $eva task list --bogus 1
 check "bad duration"           "cannot read a duration"        -- $eva task log DEV-1 abc
 # By name, so getaddrinfo and its platform's struct layout are exercised.
 check "hostname resolves"      "DEV-1  Вложения теряются"     -- env EVA_URL="http://localhost:$(cat "$port_file")" $eva task get DEV-1
 check "unreachable"            "cannot reach"                  -- env EVA_URL=http://127.0.0.1:9 $eva task get DEV-1
+
+# ---- security ----
+port=$(cat "$port_file")
+no() { # no NAME FORBIDDEN_SUBSTRING -- command...: the output must not contain it
+  local name=$1 bad=$2; shift 3
+  local got
+  got=$("$@" 2>&1) || true
+  if [[ $got != *"$bad"* ]]; then echo "ok   $name"; else
+    echo "FAIL $name: output contains a forbidden string:"; echo "$got" | sed 's/^/     /'; fail=1; fi
+}
+no    "no terminal escapes"    $'\e'                          -- $eva task get DEV-6
+no    "no bell or OSC"         $'\a'                          -- $eva task get DEV-6
+check "escapes stripped"       "DEV-6  Evil [2J]0;pwnedname"   -- $eva task get DEV-6
+fence=$($eva task get DEV-6 2>&1 | grep -c '^</untrusted>$' || true)
+if [ "$fence" = 1 ]; then echo "ok   fence closed once"; else echo "FAIL fence closed $fence times"; fail=1; fi
+check "fence tag defused"      "&lt;/untrusted>"               -- $eva task get DEV-6
+no    "verbose hides token"    "test-token"                    -- $eva -v task get DEV-1
+check "redirect not followed"  "does not follow it with your token" -- env EVA_URL="http://127.0.0.1:$port/redir" $eva task get DEV-1
+check "plain http refused"     "plain http"                    -- env EVA_URL=http://example.com $eva task get DEV-1
+check "localhost lookalike"    "plain http"                    -- env EVA_URL=http://localhost.example.com $eva task get DEV-1
+check "userinfo lookalike"     "plain http"                    -- env EVA_URL=http://localhost@example.com $eva task get DEV-1
+check "bad profile name"       "not allowed"                   -- $eva --profile "../x" task get DEV-1
+
+sandbox=$(mktemp -d)
+printf 'EVA_URL=https://attacker.example\n' >"$sandbox/.env"
+check "half .env refused"      "sets EVA_URL but not EVA_API_KEY" -- env -u EVA_URL -u EVA_API_KEY HOME="$sandbox" sh -c "cd '$sandbox' && $eva task get DEV-1"
+check "login checks the token" "not saved"                     -- sh -c "printf 'wrong\n' | env -u EVA_URL -u EVA_API_KEY HOME='$sandbox' $eva auth login --profile e2e --url http://127.0.0.1:$port"
+if [ -e "$sandbox/.config/eva-cli/profiles" ]; then echo "FAIL rejected login left a profile"; fail=1; else echo "ok   rejected login saved nothing"; fi
+check "login needs https"      "plain http"                    -- sh -c "printf 'x\n' | env -u EVA_URL -u EVA_API_KEY HOME='$sandbox' $eva auth login --profile e2e --url http://example.com"
+check "no token argument"      "unknown option --token"        -- env HOME="$sandbox" $eva auth login --token x --url https://e
+rm -rf "$sandbox"
+
+# ---- IPv6: connect() must get a correct sockaddr_in6 ----
+v6=$(mktemp -d)
+MOCK_LOG=$log MOCK_HOST=::1 python tests/mock_server.py >"$v6/port" 2>"$v6/err" &
+v6_server=$!
+for _ in $(seq 100); do [ -s "$v6/port" ] && break; sleep 0.1; done
+if [ -s "$v6/port" ]; then
+  check "ipv6 connect"           "DEV-1  Вложения теряются"     -- env EVA_URL="http://[::1]:$(cat "$v6/port")" $eva task get DEV-1
+else
+  echo "skip ipv6: no ::1 here"
+fi
+kill $v6_server 2>/dev/null; wait $v6_server 2>/dev/null || true
+rm -rf "$v6"
+
+# ---- TLS: a local HTTPS mock with a self-signed certificate ----
+if command -v openssl >/dev/null 2>&1; then
+  tls=$(mktemp -d)
+  openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=localhost \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+    -keyout "$tls/key.pem" -out "$tls/cert.pem" >/dev/null 2>&1
+  MOCK_LOG=$log MOCK_CERT=$tls/cert.pem MOCK_KEY=$tls/key.pem python tests/mock_server.py >"$tls/port" &
+  tls_server=$!
+  for _ in $(seq 300); do [ -s "$tls/port" ] && break; sleep 0.1; done
+  tls_url="https://localhost:$(cat "$tls/port")"
+  check "https with its CA"      "DEV-1  Вложения теряются"     -- env EVA_URL="$tls_url" EVA_CA_BUNDLE="$tls/cert.pem" $eva task get DEV-1
+  check "https verifies certs"   "cannot reach"                 -- env EVA_URL="$tls_url" EVA_CA_BUNDLE= $eva task get DEV-1
+  check "https wrong name"       "cannot reach"                 -- env EVA_URL="https://127.0.0.2:$(cat "$tls/port")" EVA_CA_BUNDLE="$tls/cert.pem" $eva task get DEV-1
+  check "insecure skips verify"  "DEV-1  Вложения теряются"     -- env EVA_URL="$tls_url" EVA_INSECURE=1 $eva task get DEV-1
+  kill $tls_server 2>/dev/null; wait $tls_server 2>/dev/null || true
+  rm -rf "$tls"
+else
+  echo "skip TLS checks: no openssl"
+fi
 exit $fail
