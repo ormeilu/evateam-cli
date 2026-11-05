@@ -1,5 +1,5 @@
 context:
-  version: 0.3.0
+  version: 0.4.0
   mojo_version: '=1.2.0'
 package:
   name: evateam-cli
@@ -10,16 +10,15 @@ build:
   number: 0
   script:
     - mkdir -p ${{ PREFIX }}/bin
-    # Pin the CPU and, on macOS, the minimum OS to Modular's own floor instead of
-    # the build machine's; conda-build sets MACOSX_DEPLOYMENT_TARGET, and the
-    # triple makes mojo honour it.
-    - |
+    - >
       case "$(uname -s)-$(uname -m)" in
         Darwin-*) TARGET="--target-triple arm64-apple-macosx${MACOSX_DEPLOYMENT_TARGET:-11.0} --target-cpu apple-m1" ;;
         Linux-x86_64) TARGET="--target-cpu x86-64-v3" ;;
         *) TARGET="--target-cpu neoverse-n1" ;;
       esac
-      mojo build $TARGET -I src -I ${{ PREFIX }}/lib/mojo src/main.mojo -o ${{ PREFIX }}/bin/eva
+
+      mojo build $TARGET -I src -I ${{ PREFIX }}/lib/mojo src/main.mojo -o ${{
+      PREFIX }}/bin/eva
 requirements:
   build:
     - mojo-compiler ${{ mojo_version }}
@@ -28,11 +27,8 @@ requirements:
     - mist >=26.3.0,<27
     - openssl >=3,<4
   run:
-    # Runtime libraries (libKGENCompilerRTShared and friends) live in lib/.
     - mojo-compiler ${{ mojo_version }}
-    # eva's TLS layer dlopens libssl from lib/ (rpath ../lib).
     - openssl >=3,<4
-    # Modular's runtime needs GLIBCXX_3.4.30.
     - if: linux
       then: libstdcxx >=12
 tests:
