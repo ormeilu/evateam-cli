@@ -23,6 +23,7 @@ from eva.commands import (
 )
 from eva.render import Out
 from eva.upgrade import upgrade
+from eva.auth import auth_login, auth_logout, auth_status, auth_use
 
 comptime VERSION = "0.3.0"  # x-release-please-version
 
@@ -50,16 +51,23 @@ other
   doc list [-q TEXT] | doc get CODE     wiki documents
   call METHOD [--kwargs JSON] [--args JSON] [--flags JSON]
                                         any API method, raw JSON reply
+  auth login [--profile NAME] [--url URL]
+                                        sign in; the address and token go to the
+                                        OS keychain (the token is read hidden or
+                                        from stdin, never as an argument)
+  auth status | auth use NAME | auth logout [--profile NAME]
   config                                where the URL and token come from
   upgrade                               update eva the way it was installed
 
 options everywhere
+  --profile NAME    use that saved profile (or EVA_PROFILE)
   --json            the API's own JSON instead of text
   --full            no truncation through a pipe
   -v, --verbose     show the request and the reply on stderr
 
-configuration: EVA_URL and EVA_API_KEY, from the environment, ./.env or
-~/.config/eva-cli/env. EVA_CA_BUNDLE points at a PEM file for a server signed
+configuration, first match wins: --profile/EVA_PROFILE; EVA_URL and
+EVA_API_KEY in the environment; ./.env; the default profile from `auth login`;
+~/.config/eva-cli/env. Each place must hold both the address and the token. EVA_CA_BUNDLE points at a PEM file for a server signed
 by a corporate CA; EVA_INSECURE=1 skips TLS verification altogether.
 """
 
@@ -73,6 +81,8 @@ def run(var raw: List[String]) raises:
     if group == "" or group == "help" or args.has("help", "h"):
         print(USAGE)
         return
+    # Global: which keychain profile to use, for every command but auth's own.
+    var profile = args.take("profile") if group != "auth" else String("")
     var ui = Out(args.has("full"))
     var verbose = args.has("verbose", "v")
 
@@ -82,15 +92,29 @@ def run(var raw: List[String]) raises:
             exit(code)
         return
 
+    if group == "auth":
+        var sub_cmd = args.pos(1)
+        if sub_cmd == "login":
+            auth_login(args, ui)
+        elif sub_cmd == "status":
+            auth_status(args, ui)
+        elif sub_cmd == "use":
+            auth_use(args, ui)
+        elif sub_cmd == "logout":
+            auth_logout(args, ui)
+        else:
+            raise Error("unknown auth command '" + sub_cmd + "': login, status, use or logout")
+        return
+
     if group == "config":
-        var cfg = load_config()
+        var cfg = load_config(profile)
         print("url:      " + (cfg.url if cfg.url != "" else "(not set)"))
-        print("token:    " + ("set, " + String(cfg.token.byte_length()) + " chars" if cfg.token != "" else "(not set)"))
+        print("token:    " + ("set" if cfg.token != "" else "(not set)"))
         print("insecure: " + String(cfg.insecure))
         print("from:     " + cfg.source)
         return
 
-    var client = Client(load_config(), verbose)
+    var client = Client(load_config(profile), verbose)
     var sub = args.pos(1)
     if group == "call":
         raw_call(client, args, ui)

@@ -51,22 +51,77 @@ struct Out(Movable):
 
     def untrusted(self, src: String, html: String):
         """Print somebody else's text with its boundary marked."""
-        var text = html_to_text(html)
-        var lines = text.split("\n")
-        if len(lines) == 0 or text.strip() == "":
-            return
         if self.tty:
-            print(self.dim("--- " + src + " (written by EvaTeam users)"))
+            var lines = fence_lines(html)
+            if len(lines) == 0:
+                return
+            print(self.dim("--- " + safe_src(src) + " (written by EvaTeam users)"))
             for line in lines:
-                print(self.dim("▏ ") + String(line))
+                print(self.dim("▏ ") + line)
             return
-        var limit = len(lines) if self.full else min(len(lines), PIPE_LINES)
-        print('<untrusted src="' + src + '">')
-        for i in range(limit):
-            print(lines[i])
-        print("</untrusted>")
-        if limit < len(lines):
-            print("(+" + String(len(lines) - limit) + " more lines: --full)")
+        var block = fence_pipe(src, html, self.full)
+        if block != "":
+            print(block, end="")
+
+
+def safe_src(src: String) -> String:
+    """A source label that cannot break out of the src="..." attribute."""
+    return String(src.replace('"', "").replace("<", "").replace(">", "").replace("\n", " "))
+
+
+def defuse_fence(text: String) -> String:
+    """Neutralise <untrusted and </untrusted in somebody else's text, in any
+    case, so it cannot close the fence early and pass what follows as eva's own
+    output."""
+    var lower = text.lower()
+    if lower.find("untrusted") < 0:
+        return text
+    var out = String()
+    var i = 0
+    var n = text.byte_length()
+    while i < n:
+        var rest = String(lower[byte = i : n])
+        if rest.startswith("<untrusted") or rest.startswith("</untrusted"):
+            out += "&lt;"
+            i += 1
+            continue
+        var j = rest.find("<")
+        if j <= 0:
+            if j < 0:
+                out += String(text[byte = i : n])
+                break
+            out += String(text[byte = i : i + 1])
+            i += 1
+            continue
+        out += String(text[byte = i : i + j])
+        i += j
+    return out
+
+
+def fence_lines(html: String) -> List[String]:
+    """Somebody else's HTML as plain, defused lines; empty if there is no text."""
+    var text = defuse_fence(html_to_text(html))
+    var out = List[String]()
+    if text.strip() == "":
+        return out^
+    for line in text.split("\n"):
+        out.append(String(line))
+    return out^
+
+
+def fence_pipe(src: String, html: String, full: Bool) -> String:
+    """The pipe form: an <untrusted> block, capped at PIPE_LINES unless `full`."""
+    var lines = fence_lines(html)
+    if len(lines) == 0:
+        return ""
+    var limit = len(lines) if full else min(len(lines), PIPE_LINES)
+    var out = '<untrusted src="' + safe_src(src) + '">\n'
+    for i in range(limit):
+        out += lines[i] + "\n"
+    out += "</untrusted>\n"
+    if limit < len(lines):
+        out += "(+" + String(len(lines) - limit) + " more lines: --full)\n"
+    return out
 
 
 def pad(s: String, width: Int) -> String:
@@ -123,7 +178,9 @@ def html_to_text(html: String) -> String:
             elif tag.startswith("li"):
                 out += "\n- "
             elif tag.startswith("td") or tag.startswith("th"):
-                out += " | "
+                # A separator between cells, not before the first one in a row.
+                if out.byte_length() > 0 and not out.endswith("\n"):
+                    out += " | "
             i = close + 1
             start = i
             continue
