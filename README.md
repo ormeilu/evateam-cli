@@ -39,8 +39,8 @@ shown 2 of 14 — next: --page 2
 
 ## Установка
 
-Сборки есть для macOS на Apple Silicon и для Linux на x86_64 и arm64 (glibc
-2.34 и новее). Способов установки несколько, хватит любого.
+Сборки есть для macOS 13 и новее на Apple Silicon и для Linux на x86_64 и
+arm64 (glibc 2.34 и новее). Python для работы не нужен. Способов установки несколько, хватит любого.
 
 Скриптом. Он скачивает из GitHub архив релиза под вашу машину, сверяет
 sha256, распаковывает в `~/.local/share/eva/<версия>` и ставит ссылку
@@ -51,8 +51,8 @@ sha256, распаковывает в `~/.local/share/eva/<версия>` и с�
 curl -fsSL https://raw.githubusercontent.com/ormeilu/evateam-cli/main/install.sh | sh
 ```
 
-Рантайм-библиотеки Mojo лежат в самом архиве, так что от системы нужен только
-Python 3.10 или новее в `PATH`: через него `eva` ходит по HTTPS.
+Рантайм-библиотеки Mojo и OpenSSL лежат в самом архиве, от системы нужен
+только набор корневых сертификатов, который есть везде.
 
 Через pixi, из conda-канала
 [`prefix.dev/ormeilu/ormeilu`](https://prefix.dev/channels/@ormeilu/ormeilu):
@@ -90,12 +90,11 @@ mise use -g pypi:evateam-cli
 
 `eva upgrade` обновляет `eva` тем же способом, каким её поставили.
 
-По размеру способы сильно различаются. Архив весит меньше мегабайта: бинарник
-и три рантайм-библиотеки. PyPI и conda берут библиотеки из пакета
-`mojo-compiler` от Modular: из PyPI это около 70 МБ, а окружение pixi
-вырастает примерно до 300 МБ, потому что conda-пакет тянет весь компилятор.
-При установке из PyPI и conda для HTTPS используется Python, который ставится
-вместе с пакетом.
+Архив и wheel весят около 3,5 МБ: бинарник, три рантайм-библиотеки Mojo и
+OpenSSL. Из wheel бинарник ставится прямо в `bin/` окружения, Python-обёртки
+нет. Conda-пакет берёт библиотеки из пакета `mojo-compiler` от Modular, и
+окружение pixi вырастает примерно до 300 МБ: этот пакет тянет за собой весь
+компилятор и Python.
 
 Из исходников, с [pixi](https://pixi.sh):
 
@@ -116,8 +115,10 @@ EVA_URL=https://eva.example.ru
 EVA_API_KEY=…
 ```
 
-`EVA_INSECURE=1` отключает проверку TLS, это для своих серверов с собственным
-сертификатом. `eva config` показывает, что и откуда подхватилось; сам токен не
+Сертификаты сервера `eva` проверяет по системному набору (`/etc/ssl/cert.pem`,
+`/etc/ssl/certs/ca-certificates.crt` и т. п.). Если EvaTeam подписан
+корпоративным центром сертификации, укажите его PEM-файл в `EVA_CA_BUNDLE`.
+`EVA_INSECURE=1` отключает проверку TLS совсем. `eva config` показывает, что и откуда подхватилось; сам токен не
 печатается.
 
 ## Команды
@@ -158,12 +159,12 @@ EvaTeam работает по JSON-RPC 2.2: каждый вызов — это `
   ссылаются на детей по индексу, так обходится без рекурсивного типа. Числа
   сохраняют исходный текст, поэтому идентификаторы и даты проходят без
   изменений.
-- `src/eva/client.mojo`: настройки и вызов RPC. В стандартной библиотеке Mojo
-  пока нет TLS, поэтому сам HTTPS-запрос уходит через `urllib` из Python
-  (через интероп Mojo с Python). Сборка запроса и разбор ответа написаны на
-  Mojo.
-- `src/eva/pyfind.mojo`: ищет libpython до старта интеропа. Если
-  `MOJO_PYTHON_LIBRARY` не задан, берёт первый Python 3.10+ в `PATH`.
+- `src/eva/client.mojo`: настройки и вызов RPC, выбор набора сертификатов.
+- `src/requests/`: HTTP-клиент на Mojo из
+  [mojo-requests-poc](https://github.com/ormeilu/mojo-requests-poc) (Apache-2.0,
+  лицензия лежит рядом), перенесённый на Mojo 1.2. Сокеты и DNS через libc,
+  TLS через OpenSSL, который подгружается `dlopen`: сначала из `lib/` рядом с
+  бинарником, потом из системы. Python-интеропа в `eva` нет.
 - `src/eva/render.mojo`: вывод в терминал и в пайп, HTML в текст, цвета через
   [mist](https://github.com/thatstoasty/mist) из канала
   [modular-community](https://prefix.dev/channels/modular-community).
@@ -185,8 +186,8 @@ pixi run e2e      # собирает eva и гоняет её против tests
 
 Сборка пакетов:
 
-- `pixi run wheel macosx_13_0_arm64` упаковывает `build/eva` в wheel в `dist/`;
-  rpath указывает на библиотеки `mojo-compiler` в том же site-packages;
+- `pixi run wheel macosx_13_0_arm64` упаковывает `build/eva` в wheel в `dist/`:
+  бинарник в `.data/scripts`, библиотеки в `.data/data/lib/evateam-cli`;
 - `pixi run archive aarch64-apple-darwin` собирает архив релиза;
 - `pixi run conda-package` собирает conda-пакет по `recipe/recipe.yaml` в
   `output/`.

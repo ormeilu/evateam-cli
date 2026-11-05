@@ -10,18 +10,21 @@ build:
   number: 0
   script:
     - mkdir -p ${{ PREFIX }}/bin
-    - >-
-      mojo build -I src -I ${{ PREFIX }}/lib/mojo src/main.mojo -o ${{ PREFIX
-      }}/bin/eva
+    # conda-build sets MACOSX_DEPLOYMENT_TARGET; the triple makes mojo honour it.
+    - if [ "$(uname)" = Darwin ]; then TRIPLE="--target-triple arm64-apple-macosx${MACOSX_DEPLOYMENT_TARGET:-11.0}"; else TRIPLE=""; fi
+    - mojo build $TRIPLE -I src -I ${{ PREFIX }}/lib/mojo src/main.mojo -o ${{ PREFIX }}/bin/eva
 requirements:
   build:
     - mojo-compiler ${{ mojo_version }}
   host:
     - mojo-compiler ${{ mojo_version }}
     - mist >=26.3.0,<27
+    - openssl >=3,<4
   run:
+    # Runtime libraries (libKGENCompilerRTShared and friends) live in lib/.
     - mojo-compiler ${{ mojo_version }}
-    - python >=3.10
+    # eva's TLS layer dlopens libssl from lib/ (rpath ../lib).
+    - openssl >=3,<4
 tests:
   - script:
       - eva --version

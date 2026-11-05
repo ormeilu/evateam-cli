@@ -77,7 +77,7 @@ def run(var raw: List[String]) raises:
     var verbose = args.has("verbose", "v")
 
     if group == "upgrade" or group == "self-update":
-        var code = upgrade(String(argv()[0]))
+        var code = upgrade()
         if code != 0:
             exit(code)
         return
