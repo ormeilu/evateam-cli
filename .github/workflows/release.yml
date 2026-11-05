@@ -65,7 +65,7 @@ jobs:
 
   build:
     needs: plan
-    if: needs.plan.outputs.build == 'true'
+    if: ${{ !cancelled() && needs.plan.outputs.build == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -130,7 +130,7 @@ jobs:
 
   conda:
     needs: plan
-    if: needs.plan.outputs.build == 'true'
+    if: ${{ !cancelled() && needs.plan.outputs.build == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -163,7 +163,7 @@ jobs:
 
   publish-pypi:
     needs: [plan, build, conda]
-    if: needs.plan.outputs.publish == 'true'
+    if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' && needs.build.result == 'success' && needs.conda.result == 'success' }}
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -179,7 +179,7 @@ jobs:
 
   publish-conda:
     needs: [plan, build, conda]
-    if: needs.plan.outputs.publish == 'true'
+    if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' && needs.build.result == 'success' && needs.conda.result == 'success' }}
     runs-on: ubuntu-latest
     environment: prefix
     permissions:
@@ -200,7 +200,7 @@ jobs:
 
   publish-github:
     needs: [plan, build, conda]
-    if: needs.plan.outputs.publish == 'true'
+    if: ${{ !cancelled() && needs.plan.outputs.publish == 'true' && needs.build.result == 'success' && needs.conda.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
