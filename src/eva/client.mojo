@@ -164,7 +164,10 @@ struct Client(Movable):
         flags: String = "",
     ) raises -> Reply:
         """Call `method`. kwargs, args and flags are JSON text or ""."""
-        var body = String('{"jsonrpc":"2.2","no_meta":true,"method":')
+        var uuid = Python.import_module("uuid")
+        var body = String('{"jsonrpc":"2.2","no_meta":true,"callid":')
+        body += quote(String(uuid.uuid4()))
+        body += ',"method":'
         body += quote(method)
         if kwargs != "":
             body += ',"kwargs":' + kwargs
@@ -205,6 +208,11 @@ struct Client(Movable):
             if msg == "":
                 msg = doc.text(err)
             raise Error(method + ": " + msg + " (code " + doc.text_at(err, "code") + ")")
+        # A business rule that refuses the call (a required field, a closed
+        # task) comes back as HTTP 200 with "abort" and no "error".
+        var abort = doc.get(root, "abort")
+        if abort != NO_NODE and doc.text(abort) != "":
+            raise Error(method + " refused: " + doc.text(abort))
         if status != 200:
             raise Error("HTTP " + String(status) + " from " + method)
         var result = doc.get(root, "result")

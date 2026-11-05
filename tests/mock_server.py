@@ -11,6 +11,14 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 TOKEN = "test-token"
 
+TRANS = [
+    {"id": "CmfTrans:done", "name": "Done", "status_to_id": "CmfStatus:3",
+     "status_to": {"code": "closed", "name": "Done"},
+     "status_from": [{"id": "CmfStatus:1"}, {"id": "CmfStatus:2"}]},
+    {"id": "CmfTrans:create", "name": "Создание", "status_to_id": "CmfStatus:1",
+     "status_to": {"code": "backlog", "name": "Backlog"}, "status_from": []},
+]
+
 TASKS = [
     {
         "id": "CmfTask:1",
@@ -18,6 +26,8 @@ TASKS = [
         "name": "Вложения теряются при переносе задачи",
         "cache_status_type": "IN_PROGRESS",
         "status": {"name": "В работе", "code": "STC-2"},
+        "status_id": "CmfStatus:2",
+        "workflow_id": "CmfWorkflow:1",
         "responsible": {"name": "Илья", "login": "ilya@example.ru"},
         "cmf_author": {"name": "Reporter", "login": "rep@example.ru"},
         "parent": {"code": "DEV", "name": "Development"},
@@ -103,6 +113,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, {"jsonrpc": "2.2", "result": [{"code": "DEV", "name": "Development"}]})
         if method == "CmfProject.count":
             return self.reply(200, {"jsonrpc": "2.2", "result": 1})
+        if method == "CmfTrans.list":
+            return self.reply(200, {"jsonrpc": "2.2", "result": TRANS})
+        if method == "CmfTask.task_transition_run":
+            if kw.get("changed_fields", {}).get("cf_kind") != "dev":
+                return self.reply(200, {"jsonrpc": "2.2", "abort": "Необходимо заполнить Вид услуги"})
+            return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method == "CmfTask.create":
             return self.reply(200, {"jsonrpc": "2.2", "result": "CmfTask:3"})
         if method in ("CmfTask.update", "CmfComment.create", "CmfTask.timetracker_change_time"):

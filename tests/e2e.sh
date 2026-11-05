@@ -43,14 +43,21 @@ check "task list project"      "shown 1 of 1"                  -- $eva task list
 sent  "project filter"         '["project.code","==","DEV"]'
 check "create"                 "created DEV-3"                 -- $eva task create -p DEV -t "New one" -d "line1
 line2" -a ilya@example.ru
-check "update"                 "updated DEV-1: name, status"   -- $eva task update DEV-1 -t Renamed -s closed
+check "update"                 "updated DEV-1: name"           -- $eva task update DEV-1 -t Renamed
 sent  "update args"            '"args":["CmfTask:1"]'
 check "update set"             "deadline"                      -- $eva task update DEV-1 --set '{"deadline":"2026-12-01"}'
+check "statuses"               "closed                     Done" -- $eva task statuses DEV-1
+check "move refused"           "refused: Необходимо заполнить Вид услуги" -- $eva task move DEV-1 closed
+check "move"                   "moved DEV-1: В работе → Done"  -- $eva task move DEV-1 Done --set '{"cf_kind":"dev"}' -m ok
+sent  "move args"              '"args":["CmfTask:1","CmfTrans:done"]'
+sent  "move fields"            '"changed_fields":{"cf_kind":"dev","status":"CmfStatus:3"}'
+check "move impossible"        "cannot move to backlog; it can move to: closed (Done)" -- $eva task move DEV-1 backlog
 check "comment"                "commented on DEV-1"            -- $eva task comment DEV-1 "<b>hi</b>"
 sent  "comment escaped"        '"text":"<p>&lt;b&gt;hi&lt;/b&gt;</p>"'
 check "comments"               "Воспроизвёл"                   -- $eva task comments DEV-1
 check "log"                    "logged 90 min on DEV-1"        -- $eva task log DEV-1 1h30m -m done
 sent  "log minutes"            '"time_spent":90'
+sent  "log keeps estimate"     '"remaining_estimate":null'
 check "links"                  "→ DEV-2  Retry uploads"        -- $eva task links DEV-1
 check "projects"               "DEV"                           -- $eva project list
 check "raw call error"         "Method not found: Nope.x"      -- $eva call Nope.x --kwargs '{}'
