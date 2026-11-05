@@ -129,19 +129,54 @@ allowlist for Claude Code: reading commands allowed, writing ones asked about.
 ## Configure
 
 Create a token in EvaTeam: «Моя страница» → «Безопасность» → «Сгенерировать
-API токен». Then set two variables, in the environment, in `./.env` or in
-`~/.config/eva-cli/env`:
+API токен». Then sign in:
 
 ```bash
-EVA_URL=https://eva.example.ru
-EVA_API_KEY=…
+eva auth login
 ```
+
+eva asks for the address and the token. The token is typed without echo,
+checked against the server before anything is saved, and then the address and
+token go to the OS keychain: the Keychain on macOS, the Secret Service (GNOME
+Keyring, KWallet) on Linux. No file on disk holds them.
+
+```bash
+eva auth status                  # profiles, who is signed in, whether they work
+eva auth login --profile sandbox --url https://eva-test.example.ru
+eva auth use sandbox             # the default profile
+eva --profile sandbox task get X # one command with another profile
+eva auth logout --profile sandbox
+```
+
+For scripts and CI, pipe the token on stdin
+(`printf '%s\n' "$TOKEN" | eva auth login --url …`) or set `EVA_URL` and
+`EVA_API_KEY` in the environment, which take precedence over profiles. eva also
+reads `./.env` and `~/.config/eva-cli/env`. `eva config` shows what came from
+where.
 
 eva verifies the server against the system's CA bundle (`/etc/ssl/cert.pem`,
 `/etc/ssl/certs/ca-certificates.crt` and the like). If your EvaTeam uses a
 corporate CA, point `EVA_CA_BUNDLE` at its PEM file. `EVA_INSECURE=1` turns
-verification off. `eva config` shows what was picked up and from where, without
-printing the token.
+verification off.
+
+## Security
+
+- The token is never a command-line argument, since arguments show in `ps` and
+  stay in shell history. It is typed without echo or read from stdin.
+- The address and the token come from one place. If a `.env` in someone else's
+  repository sets only `EVA_URL`, eva refuses to run rather than send the
+  keychain's token there.
+- The token travels over HTTPS only; plain `http://` is allowed for `localhost`
+  or with an explicit `EVA_INSECURE=1`.
+- eva does not follow API redirects, and the `requests` client drops
+  `Authorization` and cookies when a redirect changes host, port or scheme.
+- Descriptions, comments and documents are fenced as somebody else's text, and
+  the fence cannot be closed from inside. Control characters are stripped from
+  everything the server sends, so a task name cannot carry escape codes into the
+  terminal.
+- eva warns when a file holding a token is readable by group or others.
+- The test suite passes under AddressSanitizer, the Keychain and libsecret FFI
+  included.
 
 ## Commands
 
@@ -198,9 +233,24 @@ was compiled for Mojo 1.1 and does not load under 1.2.
 ## Develop
 
 ```bash
-pixi run test     # unit tests: JSON, rendering, argument parsing
-pixi run e2e      # builds eva and runs it against tests/mock_server.py
+pixi run test       # unit tests: 9 suites, a compiler warning fails the run
+pixi run e2e        # builds eva and runs it against tests/mock_server.py
+pixi run asan       # the same under AddressSanitizer
+pixi run coverage   # line coverage of src/ by the unit and e2e tests
 ```
+
+`tests/mock_server.py` is a small JSON-RPC server with canned tasks, a hostile
+one among them: escape codes in its name and an attempt to close `<untrusted>`
+in its description. The end-to-end script checks what eva prints and what it
+sends, talks to the mock over HTTP, IPv6 and HTTPS with a self-signed
+certificate, and checks each rule in Security above. The test of the real
+keychain writes to it, so it runs only with `EVA_TEST_KEYRING=1`.
+
+Mojo has no coverage flag, so `pixi run coverage` goes through LLVM:
+`mojo build -O0 -g --emit llvm`, the `insert-gcov-profiling` pass, a clang
+build, and the counters of every binary merged into `coverage/summary.txt` and
+`coverage/missed-lines.txt`. The number runs high: gcov can count a line as run
+when Mojo lowers it without a branch of its own.
 
 `pixi run conda-package` builds the conda package from `recipe/recipe.yaml`
 into `output/`. `pixi run wheel macosx_13_0_arm64` packs `build/eva` into a wheel in `dist/`:
@@ -218,9 +268,6 @@ PR with the changelog and the version in `pixi.toml`, `src/main.mojo` and
 `recipe/recipe.yaml`. Merging it tags the release, and the same workflow builds
 and publishes everything. `pixi run archive aarch64-apple-darwin` builds a
 release archive locally.
-
-`tests/mock_server.py` is a small JSON-RPC server with two canned tasks. The
-end-to-end script checks both what `eva` prints and what it sends.
 
 ## Status
 

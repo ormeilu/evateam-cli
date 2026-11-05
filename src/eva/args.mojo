@@ -11,6 +11,7 @@ def is_bool_flag(name: String) -> Bool:
         or name == "verbose"
         or name == "v"
         or name == "version"
+        or name == "insecure"
     )
 
 
@@ -57,6 +58,21 @@ struct Args(Movable):
             if self.keys[i] == long or (short != "" and self.keys[i] == short):
                 out = self.values[i]
         return out
+
+    def take(mut self, long: String) -> String:
+        """Remove --long from the options and return its last value, or ""."""
+        var value = String()
+        var keys = List[String]()
+        var values = List[String]()
+        for i in range(len(self.keys)):
+            if self.keys[i] == long:
+                value = self.values[i]
+            else:
+                keys.append(self.keys[i])
+                values.append(self.values[i])
+        self.keys = keys^
+        self.values = values^
+        return value
 
     def has(self, long: String, short: String = "") -> Bool:
         for i in range(len(self.keys)):

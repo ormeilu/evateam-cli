@@ -138,7 +138,7 @@ struct JsonDoc(Movable):
             return ""
         if k == J_ARR or k == J_OBJ:
             return self.dump(n)
-        return self.nodes[n].text
+        return clean(self.nodes[n].text)
 
     def text_at(self, n: Int, dotted: String) raises -> String:
         return self.text(self.path(n, dotted))
@@ -202,6 +202,37 @@ struct JsonDoc(Movable):
 
 def parse_json(src: String, mut doc: JsonDoc) raises -> Int:
     return doc.parse(src)
+
+
+def clean(s: String) -> String:
+    """Text from the server, safe to print: C0 controls other than tab and
+    newline, DEL and C1 controls removed, so a task name cannot carry ANSI
+    escape sequences into the terminal."""
+    var b = s.as_bytes()
+    var dirty = False
+    for i in range(len(b)):
+        var c = Int(b[i])
+        if (c < 0x20 and c != 0x09 and c != 0x0A) or c == 0x7F:
+            dirty = True
+            break
+        if c == 0xC2 and i + 1 < len(b) and Int(b[i + 1]) >= 0x80 and Int(b[i + 1]) <= 0x9F:
+            dirty = True
+            break
+    if not dirty:
+        return s
+    var out = List[UInt8]()
+    var i = 0
+    while i < len(b):
+        var c = Int(b[i])
+        if (c < 0x20 and c != 0x09 and c != 0x0A) or c == 0x7F:
+            i += 1
+            continue
+        if c == 0xC2 and i + 1 < len(b) and Int(b[i + 1]) >= 0x80 and Int(b[i + 1]) <= 0x9F:
+            i += 2
+            continue
+        out.append(b[i])
+        i += 1
+    return String(from_utf8_lossy=Span(out))
 
 
 def write_quoted(s: String, mut out: String):

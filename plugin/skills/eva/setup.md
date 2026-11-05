@@ -18,25 +18,46 @@ glibc 2.34+; nothing else on the machine is needed. The PyPI package is
 `evateam-cli`; the command is `eva`. `eva upgrade` updates it the same way it
 was installed, and `eva --version` says what is there.
 
-## The address and the token
+## Signing in
 
-eva reads two settings, from the environment first, then `./.env`, then
-`~/.config/eva-cli/env`, as `KEY=value` lines:
+The user creates a token in EvaTeam («Моя страница» → «Безопасность» →
+«Сгенерировать API токен») and runs, in their own terminal:
 
+```bash
+eva auth login                       # asks for the address and, without echo, the token
+eva auth login --profile sandbox --url https://eva-test.company.ru
 ```
-EVA_URL=https://eva.company.ru
-EVA_API_KEY=...
+
+eva checks the token against the server, then stores the address and token in
+the OS keychain under a profile (`default` unless named). Suggest the command;
+the user types the token. It never goes into the conversation, a command line
+you run, or a file you write: each of those keeps a copy.
+
+```bash
+eva auth status                      # profiles, the account each signs in as
+eva auth use sandbox                 # change the default profile
+eva --profile sandbox task get X     # one command against another profile
+eva auth logout --profile sandbox    # remove it from the keychain
 ```
 
-The URL is the one the user opens EvaTeam at; a trailing `/api` is fine. The
-token is created by the user in EvaTeam: «Моя страница» → «Безопасность» →
-«Сгенерировать API токен». It acts with their permissions.
+A Linux machine without a Secret Service (a server, a container) has no
+keychain. There `auth login` says so, and the user sets `EVA_URL` and
+`EVA_API_KEY` in the environment, or in `~/.config/eva-cli/env` with
+`chmod 600`. CI does the same with its secret store.
 
-The token reaches eva through a file the user writes or a variable the user
-exports. Ask them to put it in `~/.config/eva-cli/env` themselves; it never goes
-through the conversation, into a command line you run, or into a file you
-write, since all three leave copies behind. `eva config` then confirms it is
-set without printing it.
+## Errors that are protections
+
+eva refuses some setups on purpose. Read the message; it says what to change.
+
+- `… sets EVA_URL but not EVA_API_KEY`: the address and the token must come
+  from the same place, so a `.env` in some repository cannot redirect the
+  user's saved token. Ask the user which EvaTeam they meant.
+- `… is plain http, which would send the token unencrypted`: use the https
+  address.
+- `… redirects … eva does not follow it with your token`: the address moved;
+  the user signs in to the new one.
+- `warning: … other users can read it`: a token file with loose permissions;
+  suggest `chmod 600` or moving to `eva auth login`.
 
 ## Certificates
 
@@ -65,6 +86,7 @@ static allowlist is safe. For Claude Code, in `.claude/settings.json`:
       "Bash(eva doc list:*)",
       "Bash(eva doc get:*)",
       "Bash(eva config:*)",
+      "Bash(eva auth status:*)",
       "Bash(eva --help:*)",
       "Bash(eva --version:*)"
     ],
@@ -75,7 +97,10 @@ static allowlist is safe. For Claude Code, in `.claude/settings.json`:
       "Bash(eva task comment:*)",
       "Bash(eva task log:*)",
       "Bash(eva call:*)",
-      "Bash(eva upgrade:*)"
+      "Bash(eva upgrade:*)",
+      "Bash(eva auth login:*)",
+      "Bash(eva auth use:*)",
+      "Bash(eva auth logout:*)"
     ]
   }
 }

@@ -10,11 +10,17 @@ from std.ffi import external_call, c_int
 from std.os import getenv
 from std.os.path import exists, expanduser
 from std.sys import stderr
+from std.memory.alloc import unsafe_alloc
+from std.random import random_ui64
+from std.sys import CompilationTarget
 from std.time import perf_counter_ns
 
 import requests
 
-from eva.json import JsonDoc, NO_NODE, quote
+from eva.json import JsonDoc, NO_NODE, clean, quote
+from eva.keyring import keyring_get, keyring_name
+from eva.profiles import check_profile_name, load_profiles
+from requests._dns import _cstr
 
 # Where systems keep the PEM bundle of trusted CAs, most common first.
 comptime CA_BUNDLES = (
@@ -46,21 +52,24 @@ def ca_bundle() -> String:
 def new_callid() -> String:
     """Unique per call; the server echoes it back and warns when it is missing."""
     var pid = external_call["getpid", c_int]()
-    return "eva-" + String(pid) + "-" + String(perf_counter_ns())
+    return "eva-" + String(pid) + "-" + String(perf_counter_ns()) + "-" + String(random_ui64(0, 1 << 32))
 
 
 struct Config(Copyable, Movable):
     var url: String
     var token: String
     var insecure: Bool
-    # Where the settings came from, for `eva config`.
+    # Where the settings came from, for `eva config` and `eva auth status`.
     var source: String
+    # The keychain profile in use, or "".
+    var profile: String
 
     def __init__(out self):
         self.url = ""
         self.token = ""
         self.insecure = False
         self.source = ""
+        self.profile = ""
 
 
 def strip_quotes(v: String) -> String:
@@ -73,14 +82,39 @@ def strip_quotes(v: String) -> String:
     return s
 
 
-def read_env_file(path: String, mut cfg: Config) raises -> Bool:
-    """Fill unset fields from a KEY=VALUE file. True if it set anything."""
+def is_truthy(v: String) -> Bool:
+    var s = v.lower()
+    return s == "1" or s == "true" or s == "yes"
+
+
+def _take_pair(mut cfg: Config, url: String, token: String, source: String) raises -> Bool:
+    """Use `url` and `token` if `source` has them. One without the other is an
+    error rather than a gap to fill from elsewhere: a stray EVA_URL in a .env
+    must not receive the token kept somewhere else."""
+    if url == "" and token == "":
+        return False
+    if url == "" or token == "":
+        var has = "EVA_URL" if url != "" else "EVA_API_KEY"
+        var lacks = "EVA_API_KEY" if url != "" else "EVA_URL"
+        raise Error(
+            source + " sets " + has + " but not " + lacks + "; eva takes both from"
+            " one place, so that a token is never sent to an address from somewhere else"
+        )
+    cfg.url = url
+    cfg.token = token
+    cfg.source = source
+    return True
+
+
+def _file_pair(mut cfg: Config, path: String, label: String) raises -> Bool:
     if not exists(path):
         return False
     var text: String
     with open(path, "r") as f:
         text = f.read()
-    var touched = False
+    var url = String()
+    var token = String()
+    var insecure = False
     for raw in text.split("\n"):
         var line = String(raw.strip())
         if line.byte_length() == 0 or line.startswith("#"):
@@ -93,47 +127,166 @@ def read_env_file(path: String, mut cfg: Config) raises -> Bool:
             continue
         var key = String(line[byte=0:eq].strip())
         var val = strip_quotes(String(line[byte = eq + 1 :]))
-        if key == "EVA_URL" and cfg.url == "":
-            cfg.url = val
-            touched = True
-        elif (key == "EVA_API_KEY" or key == "EVA_TOKEN") and cfg.token == "":
-            cfg.token = val
-            touched = True
-        elif key == "EVA_INSECURE" and is_truthy(val):
-            cfg.insecure = True
-    return touched
+        if key == "EVA_URL":
+            url = val
+        elif key == "EVA_API_KEY" or key == "EVA_TOKEN":
+            token = val
+        elif key == "EVA_INSECURE":
+            insecure = is_truthy(val)
+    if not _take_pair(cfg, url, token, label):
+        return False
+    cfg.insecure = cfg.insecure or insecure
+    if token != "" and _group_or_world_readable(path):
+        print(
+            "eva: warning: " + label + " holds a token and other users can read it;"
+            " chmod 600 it, or move the token to the keychain with `eva auth login`",
+            file=stderr,
+        )
+    return True
 
 
-def is_truthy(v: String) -> Bool:
-    var s = v.lower()
-    return s == "1" or s == "true" or s == "yes"
+def _group_or_world_readable(path: String) -> Bool:
+    """stat(2) the file; True if group or others may read or write it."""
+    var buf = unsafe_alloc[UInt8](512)
+    var c = _cstr(path)
+    var rc = external_call["stat", c_int](c, buf)
+    c.unsafe_free()
+    var mode = 0
+    if rc == 0:
+        # Where struct stat keeps st_mode: after a 4-byte st_dev on macOS; after
+        # st_dev, st_ino and st_nlink (8 bytes each) on x86_64 Linux; after
+        # st_dev and st_ino on the generic layout aarch64 Linux uses.
+        comptime if CompilationTarget.is_macos():
+            mode = Int(buf[unsafe_offset=4]) | (Int(buf[unsafe_offset=5]) << 8)
+        elif CompilationTarget.is_x86():
+            mode = Int(buf[unsafe_offset=24]) | (Int(buf[unsafe_offset=25]) << 8)
+        else:
+            mode = Int(buf[unsafe_offset=16]) | (Int(buf[unsafe_offset=17]) << 8)
+    buf.unsafe_free()
+    return rc == 0 and (mode & 0o077) != 0
 
 
-def load_config() raises -> Config:
-    """Environment first, then ./.env, then ~/.config/eva-cli/env."""
+def secret_json(url: String, token: String, insecure: Bool) -> String:
+    var d = JsonDoc()
+    var o = d.object()
+    d.set_str(o, "url", url)
+    d.set_str(o, "token", token)
+    if insecure:
+        var t = d.boolean(True)
+        d.set(o, "insecure", t)
+    return d.dump(o)
+
+
+def _keychain_pair(mut cfg: Config, profile: String, required: Bool) raises -> Bool:
+    var secret: Optional[String]
+    try:
+        secret = keyring_get(profile)
+    except e:
+        if required:
+            raise Error("profile '" + profile + "': " + String(e))
+        return False
+    if not secret:
+        if required:
+            raise Error(
+                "no profile '" + profile + "' in " + keyring_name()
+                + "; `eva auth login --profile " + profile + "` creates it"
+            )
+        return False
+    var d = JsonDoc()
+    var root = d.parse(secret.value())
+    var ok = _take_pair(
+        cfg, d.text_at(root, "url"), d.text_at(root, "token"),
+        "profile '" + profile + "' in " + keyring_name(),
+    )
+    if ok:
+        cfg.profile = profile
+        cfg.insecure = cfg.insecure or d.text_at(root, "insecure") == "true"
+    return ok
+
+
+def url_host(url: String) -> String:
+    """The host of scheme://[user@]host[:port]/..., lower-cased; "" if none."""
+    var start = url.find("://")
+    var rest = String(url[byte = start + 3 :]) if start >= 0 else url
+    var end = rest.byte_length()
+    for sep in ["/", "?", "#"]:
+        var k = rest.find(sep)
+        if k >= 0 and k < end:
+            end = k
+    var authority = String(rest[byte=0:end])
+    var at = authority.rfind("@")
+    if at >= 0:
+        var after = String(authority[byte = at + 1 :])
+        authority = after^
+    if authority.startswith("["):
+        var close = authority.find("]")
+        return String(authority[byte = 0 : close + 1]).lower() if close > 0 else authority.lower()
+    var colon = authority.find(":")
+    if colon >= 0:
+        var host_only = String(authority[byte=0:colon])
+        authority = host_only^
+    return authority.lower()
+
+
+def normalize_url(raw: String, insecure: Bool) raises -> String:
+    """https://host[/path] without a trailing / or /api. A token travels over
+    plain http only to this machine, or when EVA_INSECURE says so."""
+    var url = String(raw.strip())
+    while url.endswith("/"):
+        var trimmed = String(url[byte = 0 : url.byte_length() - 1])
+        url = trimmed^
+    if url.endswith("/api"):
+        var base = String(url[byte = 0 : url.byte_length() - 4])
+        url = base^
+    if url == "":
+        return url
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "https://" + url
+    if url.startswith("http://") and not insecure:
+        var host = url_host(url)
+        var local = host == "localhost" or host == "127.0.0.1" or host == "[::1]"
+        if not local:
+            raise Error(
+                url + " is plain http, which would send the token unencrypted; use https,"
+                " or set EVA_INSECURE=1 if this server really has no TLS"
+            )
+    return url
+
+
+def load_config(profile_flag: String = "") raises -> Config:
+    """Where the address and token come from, first match wins:
+
+    1. --profile or EVA_PROFILE: that keychain profile and nothing else;
+    2. EVA_URL and EVA_API_KEY in the environment;
+    3. ./.env;
+    4. the default keychain profile;
+    5. ~/.config/eva-cli/env.
+
+    Each source must supply both values.
+    """
     var cfg = Config()
-    cfg.url = getenv("EVA_URL")
-    cfg.token = getenv("EVA_API_KEY")
-    if cfg.token == "":
-        cfg.token = getenv("EVA_TOKEN")
     cfg.insecure = is_truthy(getenv("EVA_INSECURE"))
-    var sources = List[String]()
-    if cfg.url != "" or cfg.token != "":
-        sources.append("env")
-    if read_env_file(".env", cfg):
-        sources.append("./.env")
-    var home_file = expanduser("~/.config/eva-cli/env")
-    if read_env_file(home_file, cfg):
-        sources.append(home_file)
-    cfg.source = ", ".join(sources) if len(sources) > 0 else "nothing"
-    while cfg.url.endswith("/"):
-        var trimmed = String(cfg.url[byte = 0 : cfg.url.byte_length() - 1])
-        cfg.url = trimmed^
-    if cfg.url.endswith("/api"):
-        var base = String(cfg.url[byte = 0 : cfg.url.byte_length() - 4])
-        cfg.url = base^
-    if cfg.url != "" and not cfg.url.startswith("http"):
-        cfg.url = "https://" + cfg.url
+    var profile = profile_flag if profile_flag != "" else getenv("EVA_PROFILE")
+    var found: Bool
+    if profile != "":
+        check_profile_name(profile)
+        found = _keychain_pair(cfg, profile, True)
+    else:
+        var env_token = getenv("EVA_API_KEY")
+        if env_token == "":
+            env_token = getenv("EVA_TOKEN")
+        found = _take_pair(cfg, getenv("EVA_URL"), env_token, "the environment")
+        if not found:
+            found = _file_pair(cfg, ".env", "./.env")
+        if not found:
+            var profiles = load_profiles()
+            var name = profiles.default if profiles.default != "" else String("default")
+            found = _keychain_pair(cfg, name, profiles.default != "")
+        if not found:
+            found = _file_pair(cfg, expanduser("~/.config/eva-cli/env"), "~/.config/eva-cli/env")
+    if not found:
+        cfg.source = "nothing"
+    cfg.url = normalize_url(cfg.url, cfg.insecure)
     return cfg^
 
 
@@ -152,15 +305,10 @@ struct Client(Movable):
     var ca: String
 
     def __init__(out self, var cfg: Config, verbose: Bool) raises:
-        if cfg.url == "":
+        if cfg.url == "" or cfg.token == "":
             raise Error(
-                "EVA_URL is not set: export EVA_URL=https://eva.example.ru"
-                " or put it in ./.env"
-            )
-        if cfg.token == "":
-            raise Error(
-                "EVA_API_KEY is not set: create a token on your EvaTeam page,"
-                " Безопасность → Сгенерировать API токен"
+                "not signed in: run `eva auth login`, or set EVA_URL and EVA_API_KEY"
+                " in the environment"
             )
         self.cfg = cfg^
         self.verbose = verbose
@@ -196,23 +344,40 @@ struct Client(Movable):
             ca = self.ca
         var status: Int
         var text: String
+        var location = String()
         try:
-            var resp = requests.post(
+            # Redirects are not followed: the token is meant for this address
+            # alone, and a JSON-RPC endpoint has no reason to move.
+            var session = requests.Session()
+            var resp = session.post(
                 self.cfg.url + "/api/",
                 json=body,
                 headers=headers^,
                 timeout=30.0,
                 verify=not self.cfg.insecure,
                 ca_bundle=ca,
+                allow_redirects=False,
             )
             status = resp.status_code
+            if resp.headers.contains("location"):
+                location = resp.headers["location"]
             text = resp.text()
         except e:
             raise Error("cannot reach " + self.cfg.url + ": " + String(e))
+        if status >= 300 and status < 400:
+            raise Error(
+                self.cfg.url + "/api/ redirects (HTTP " + String(status) + ") to " + clean(location)
+                + "; eva does not follow it with your token. If that is the real address,"
+                " sign in to it with `eva auth login`"
+            )
         if self.verbose:
-            print("← HTTP", status, text[byte = 0 : min(text.byte_length(), 600)], file=stderr)
-        if status == 401:
-            raise Error("401 unauthorized: the token in EVA_API_KEY was rejected")
+            print("← HTTP", status, clean(String(text[byte = 0 : min(text.byte_length(), 600)])), file=stderr)
+        if status == 401 or status == 403:
+            raise Error(
+                "HTTP " + String(status) + ": the token was rejected ("
+                + clean(String(text[byte = 0 : min(text.byte_length(), 120)].strip()))
+                + "); sign in again with `eva auth login`"
+            )
 
         var doc = JsonDoc()
         var root: Int
@@ -223,7 +388,7 @@ struct Client(Movable):
                 "HTTP "
                 + String(status)
                 + ", reply is not JSON: "
-                + String(text[byte = 0 : min(text.byte_length(), 200)])
+                + clean(String(text[byte = 0 : min(text.byte_length(), 200)]))
             )
         var err = doc.get(root, "error")
         if err != NO_NODE and not doc.is_null(err):

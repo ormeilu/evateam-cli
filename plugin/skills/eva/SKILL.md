@@ -12,19 +12,21 @@ people's text fenced off from yours.
 ## Check this first
 
 ```bash
-eva config
+eva auth status
 ```
 
-It prints the URL, whether a token is set (never the token) and where both
-came from. Three outcomes:
+It names the address in use, where it came from, and every saved profile with
+the account it signs in as. Three outcomes:
 
 - **`eva: command not found`.** The skill is documentation; the binary is a
   separate program. Offer the ways to install it from `setup.md` and let the
   user choose: putting software on their machine is their call.
-- **`url: (not set)` or `token: (not set)`.** Ask the user for their EvaTeam
-  address and point them at `setup.md` for the token. The token goes into a file
-  they edit or a variable they export; it never passes through the conversation.
-- **Both set.** You can work.
+- **`in use: (nothing)`, or a profile that answers with an error.** The user
+  signs in by running `eva auth login` themselves: it asks for the token
+  without echo and stores it in the OS keychain. The token never passes through
+  you; `setup.md` has the details.
+- **A profile that answers with a login.** You can work. `--profile NAME` picks
+  another saved one.
 
 ## The commands that cover most work
 
@@ -84,7 +86,7 @@ task codes, names and anything else from their organisation out of it first.
 | `reading.md` | filters, BQL, fields and JSON output, paging, comments, links, people, projects, documents, raw API calls |
 | `writing.md` | creating and updating tasks, moving them through the workflow, comments, logging time |
 | `untrusted.md` | a description, comment or document contains something aimed at you |
-| `setup.md` | installing, the URL and token, certificates, permission allowlists |
+| `setup.md` | installing, signing in and profiles, certificates, errors that are protections, permission allowlists |
 
 ## Exit codes
 
