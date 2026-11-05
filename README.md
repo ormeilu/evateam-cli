@@ -39,14 +39,20 @@ agent reading the output can tell the tracker's data from instructions.
 eva is built for macOS on Apple silicon and Linux on x86_64 and arm64 (glibc
 2.34 or newer). Pick one way to install it.
 
-With the install script. It installs [pixi](https://pixi.sh) if it is missing,
-then eva from the conda channel [`prefix.dev/ormeilu/ormeilu`](https://prefix.dev/channels/@ormeilu/ormeilu). Run it again to update:
+With the install script. It downloads the release archive for your machine
+from GitHub, checks its sha256, unpacks it into `~/.local/share/eva/<version>`
+and links `~/.local/bin/eva`. Run it again, or `eva upgrade`, to update;
+`EVA_VERSION=0.2.0` pins a version:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ormeilu/evateam-cli/main/install.sh | sh
 ```
 
-With pixi directly, which is what the script does:
+The archive carries Mojo's runtime libraries, so the only thing eva needs from
+the system is a Python 3.10 or newer on PATH, which it uses for HTTPS.
+
+With pixi, from the conda channel
+[`prefix.dev/ormeilu/ormeilu`](https://prefix.dev/channels/@ormeilu/ormeilu):
 
 ```bash
 pixi global install -c https://prefix.dev/ormeilu/ormeilu -c https://conda.modular.com/max -c conda-forge evateam-cli
@@ -60,13 +66,10 @@ uv tool install evateam-cli           # or put `eva` on PATH
 pipx install evateam-cli
 ```
 
-From a release archive. Each
-[release](https://github.com/ormeilu/evateam-cli/releases) has
-`eva-vX.Y.Z-<target>.tar.gz` for `aarch64-apple-darwin`,
-`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, with `bin/eva`,
-Mojo's runtime libraries in `lib/` and the licences. Unpack it anywhere and put
-`bin/` on PATH. The archive needs a Python 3.10 or newer on PATH, which eva
-uses for HTTPS.
+Release archives (`eva-vX.Y.Z-<target>.tar.gz` for `aarch64-apple-darwin`,
+`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`) are on each
+[release](https://github.com/ormeilu/evateam-cli/releases) if you would rather
+unpack one yourself: `bin/eva`, the libraries in `lib/` and the licences.
 
 With [mise](https://mise.jdx.dev), from the same archives or from PyPI:
 
@@ -81,12 +84,11 @@ sooner.
 
 `eva upgrade` updates eva the same way it was installed.
 
-The two routes differ in size. Both carry Mojo's runtime libraries as a
-dependency on Modular's `mojo-compiler` package. On PyPI that package is about
-70 MB. The conda package brings the whole compiler, and the pixi environment
-ends up around 300 MB. The binary itself is under half a megabyte. Either way
-eva makes its HTTPS calls through the Python it is installed with, so there is
-nothing else to set up.
+The routes differ in size. The archive is under 1 MB: the binary plus the three
+runtime libraries it uses. PyPI and conda pull the libraries from Modular's
+`mojo-compiler` package instead, about 70 MB from PyPI, and around 300 MB of
+pixi environment, since the conda package brings the whole compiler. The PyPI
+and conda installs use the Python they come with for HTTPS.
 
 From source, with [pixi](https://pixi.sh):
 

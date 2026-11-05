@@ -1,7 +1,8 @@
 """`eva upgrade`: update eva the same way it was installed.
 
-The install method shows in where the binary lives: a pixi global
-environment, a uv or pipx tool venv, or a source checkout.
+The install method shows in where the binary lives: a release archive
+unpacked by install.sh, a pixi global environment, a uv or pipx tool venv, or
+a source checkout.
 """
 
 from std.python import Python
@@ -10,6 +11,8 @@ from eva.pyfind import ensure_python
 
 comptime UPGRADE_HELPER = """
 import os, shutil, subprocess, sys
+
+INSTALL_URL = "https://raw.githubusercontent.com/ormeilu/evateam-cli/main/install.sh"
 
 def upgrade(argv0):
     exe = os.path.realpath(shutil.which(argv0) or argv0)
@@ -28,6 +31,10 @@ def upgrade(argv0):
         else:
             print("eva was installed with pip: pip install -U evateam-cli", flush=True)
             return 0
+    elif os.path.isfile(os.path.join(os.path.dirname(os.path.dirname(exe)), "LICENSE-MODULAR")):
+        # A release archive unpacked by install.sh into <install dir>/<version>/.
+        install_dir = os.path.dirname(os.path.dirname(os.path.dirname(exe)))
+        cmd = ["sh", "-c", "curl -fsSL " + INSTALL_URL + ' | EVA_INSTALL_DIR="$0" sh', install_dir]
     else:
         print("eva at " + exe + " looks built from source: git pull && pixi run build", flush=True)
         return 0

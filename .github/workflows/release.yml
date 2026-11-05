@@ -113,14 +113,13 @@ jobs:
           # Outside the pixi environment, as a user would run it.
           env -i HOME="$HOME" PATH=/tmp/eva-venv/bin:/usr/bin:/bin EVA_BIN=/tmp/eva-venv/bin/eva \
             bash tests/e2e.sh
-      - name: End-to-end test of the unpacked archive
+      - name: Install the archive with install.sh and run the suite
         run: |
-          mkdir -p /tmp/eva-archive
-          tar xzf dist/eva-*.tar.gz -C /tmp/eva-archive
-          eva=$(ls -d /tmp/eva-archive/eva-*/bin/eva)
           # The archive brings its own libraries; Python comes from PATH.
-          env -i HOME="$HOME" PATH=/tmp/eva-venv/bin:/usr/bin:/bin EVA_BIN="$eva" \
-            bash tests/e2e.sh
+          env -i HOME=/tmp/eva-home PATH=/tmp/eva-venv/bin:/usr/bin:/bin \
+            EVA_ARCHIVE="$(ls dist/eva-*.tar.gz)" sh install.sh
+          env -i HOME=/tmp/eva-home PATH=/tmp/eva-venv/bin:/usr/bin:/bin \
+            EVA_BIN=/tmp/eva-home/.local/bin/eva bash tests/e2e.sh
       - uses: actions/upload-artifact@v7
         with:
           name: dist-${{ matrix.target }}
@@ -149,10 +148,11 @@ jobs:
       - run: >-
           pixi exec rattler-build build --recipe recipe/recipe.yaml --output-dir output
           -c https://conda.modular.com/max -c https://prefix.dev/modular-community -c conda-forge
-      - name: Install with install.sh from the built package and run the suite
+      - name: Install with pixi global from the built package and run the suite
         run: |
           export PIXI_HOME=/tmp/pixihome
-          EVA_CHANNEL="file://$PWD/output" sh install.sh
+          pixi global install -c "file://$PWD/output" -c https://conda.modular.com/max \
+            -c conda-forge evateam-cli
           python3 -m venv /tmp/mock-venv
           env -i HOME="$HOME" PATH=/tmp/pixihome/bin:/tmp/mock-venv/bin:/usr/bin:/bin \
             EVA_BIN=/tmp/pixihome/bin/eva bash tests/e2e.sh
