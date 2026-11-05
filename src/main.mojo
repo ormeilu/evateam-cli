@@ -25,7 +25,7 @@ from eva.render import Out
 from eva.upgrade import upgrade
 from eva.auth import auth_login, auth_logout, auth_status, auth_use
 
-comptime VERSION = "0.3.0"  # x-release-please-version
+comptime VERSION = "0.4.0"  # x-release-please-version
 
 comptime USAGE = """eva — EvaTeam from the command line
 
