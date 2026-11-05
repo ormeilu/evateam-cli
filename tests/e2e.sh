@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the built eva binary against tests/mock_server.py.
+# Runs eva against tests/mock_server.py: build/eva, or the command in EVA_BIN.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -7,7 +7,7 @@ log=$(mktemp)
 port_file=$(mktemp)
 MOCK_LOG=$log python tests/mock_server.py >"$port_file" &
 server=$!
-trap 'kill $server 2>/dev/null; rm -f "$log" "$port_file"' EXIT
+trap 'kill $server 2>/dev/null; wait $server 2>/dev/null; rm -f "$log" "$port_file"' EXIT
 for _ in $(seq 50); do [ -s "$port_file" ] && break; sleep 0.1; done
 
 export EVA_URL="http://127.0.0.1:$(cat "$port_file")/api/" EVA_API_KEY=test-token
@@ -24,7 +24,7 @@ sent() { # sent NAME EXPECTED_SUBSTRING: one of the last two requests has it
     echo "FAIL $1: request lacks '$2':"; tail -n 2 "$log" | sed 's/^/     /'; fail=1; fi
 }
 
-eva=./build/eva
+eva=${EVA_BIN:-./build/eva}
 check "task get header"        "DEV-1  Вложения теряются"     -- $eva task get DEV-1
 check "task get people"        "assignee: ilya@example.ru"     -- $eva task get DEV-1
 check "description fenced"     '<untrusted src="DEV-1/text">' -- $eva task get DEV-1

@@ -13,9 +13,16 @@ emberjson = ">=0.4.0,<0.5"
 mist = ">=26.3.0,<27"
 python = ">=3.12,<3.14"
 
+[target.linux-64.dependencies]
+patchelf = "*"
+
+[target.linux-aarch64.dependencies]
+patchelf = "*"
+
 [tasks]
 build = { cmd = "mkdir -p build && mojo build -I src src/main.mojo -o build/eva", description = "Build the eva binary" }
 run = { cmd = "mojo run -I src src/main.mojo", description = "Run without building" }
 test = { cmd = "mojo run -I src tests/test_all.mojo", description = "Run unit tests" }
 e2e = { cmd = "bash tests/e2e.sh", depends-on = ["build"], description = "Run the binary against a mock server" }
+wheel = { cmd = "python scripts/build_wheel.py", depends-on = ["build"], description = "Pack build/eva into a wheel: pixi run wheel PLATFORM_TAG" }
 fmt = { cmd = "mojo format src tests", description = "Format sources" }
