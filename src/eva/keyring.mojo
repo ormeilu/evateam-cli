@@ -6,7 +6,7 @@ Keyring, KWallet) through libsecret, loaded with dlopen, so a machine without
 it still runs eva and only `auth login` reports what is missing.
 """
 
-from std.ffi import OwnedDLHandle, c_int
+from std.ffi import OwnedDLHandle, RTLD, c_int
 from std.memory.alloc import unsafe_alloc
 from std.sys import CompilationTarget
 
@@ -161,9 +161,12 @@ struct _Secret:
     var attr_name: Pointer[UInt8, MutUntrackedOrigin]
 
     def __init__(out self) raises:
+        # RTLD_NODELETE (glibc 0x1000): the GTypes libsecret registers stay in
+        # gobject after dlclose, and loading it again over them deadlocks.
+        comptime flags = RTLD.NOW | RTLD.GLOBAL | 0x1000
         try:
-            self.ss = OwnedDLHandle("libsecret-1.so.0")
-            self.glib = OwnedDLHandle("libglib-2.0.so.0")
+            self.ss = OwnedDLHandle("libsecret-1.so.0", flags)
+            self.glib = OwnedDLHandle("libglib-2.0.so.0", flags)
         except:
             raise Error(
                 "no keyring here: libsecret (the Secret Service client) is not"
