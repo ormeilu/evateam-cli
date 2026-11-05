@@ -18,6 +18,7 @@
 # so it works regardless of kernel IPv6 support. We use it for both v4 and v6 literal parsing.
 
 from std.ffi import external_call, c_int
+from std.memory import bitcast
 from std.memory.alloc import unsafe_alloc
 from std.sys import CompilationTarget
 from std.time import sleep
@@ -67,7 +68,11 @@ struct SockAddrIn6:
     var sin6_family: UInt16
     var sin6_port: UInt16
     var sin6_flowinfo: UInt32
-    var sin6_addr: SIMD[DType.uint8, 16]
+    # Two halves, not SIMD[uint8, 16]: SIMD's 16-byte alignment would put the
+    # field at offset 16 instead of C's 8, and every read and write of it
+    # would miss (and read past a 28-byte sockaddr_in6).
+    var sin6_addr_lo: UInt64
+    var sin6_addr_hi: UInt64
     var sin6_scope_id: UInt32
 
 
@@ -121,6 +126,15 @@ struct ResolvedAddress(Movable):
 
     def is_ipv6(self) -> Bool:
         return self.family == Int8(6)
+
+
+def in6_bytes(lo: UInt64, hi: UInt64) -> SIMD[DType.uint8, 16]:
+    """The 16 address bytes from the two halves, in memory order."""
+    return bitcast[DType.uint8, 16](SIMD[DType.uint64, 2](lo, hi))
+
+
+def in6_halves(b: SIMD[DType.uint8, 16]) -> SIMD[DType.uint64, 2]:
+    return bitcast[DType.uint64, 2](b)
 
 
 def _v4(addr: UInt32) -> ResolvedAddress:
@@ -358,7 +372,7 @@ def _getaddrinfo(
                 var sockaddr_ptr = Pointer[
                     SockAddrIn6, MutUntrackedOrigin
                 ](unsafe_from_address=Int(ai_addr))
-                v6_bytes = sockaddr_ptr[].sin6_addr
+                v6_bytes = in6_bytes(sockaddr_ptr[].sin6_addr_lo, sockaddr_ptr[].sin6_addr_hi)
                 v6_pf = family
                 have_v6 = True
         cur = Pointer[AddrInfo, MutUntrackedOrigin](

@@ -444,18 +444,17 @@ def _self_exe() -> String:
         var rc = external_call["_NSGetExecutablePath", c_int](buf, size)
         size.unsafe_free()
         if rc == 0:
-            # realpath(path, NULL) mallocs the result; Int(0) is the full-width NULL.
-            var real = external_call["realpath", Pointer[UInt8, MutUntrackedOrigin]](
-                buf, Int(0)
-            )
-            if Int(real) != 0:
+            # realpath into our own PATH_MAX-sized buffer, so nothing needs free().
+            var real = unsafe_alloc[UInt8](4097)
+            var r = external_call["realpath", Int](buf, real)
+            if r != 0:
                 var bytes = List[UInt8]()
                 var i = 0
                 while real[unsafe_offset=i] != 0:
                     bytes.append(real[unsafe_offset=i])
                     i += 1
                 out = String(from_utf8_lossy=Span(bytes))
-                external_call["free", NoneType](real)
+            real.unsafe_free()
     else:
         var path = _cstr("/proc/self/exe")
         var n = external_call["readlink", Int](path, buf, 4096)

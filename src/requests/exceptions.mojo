@@ -333,6 +333,6 @@ def _starts_with(s: String, prefix: String) -> Bool:
     var p = prefix.unsafe_ptr()
     var sp = s.unsafe_ptr()
     for i in range(pl):
-        if sp[i] != p[i]:
+        if sp[unsafe_offset=i] != p[unsafe_offset=i]:
             return False
     return True
