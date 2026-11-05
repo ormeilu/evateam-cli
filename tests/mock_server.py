@@ -68,7 +68,7 @@ def matches(obj, flt):
         return cur == value
     if op == "!=":
         return cur != value
-    if op == "LIKE":
+    if op in ("LIKE", "ILIKE"):
         return value.strip("%").lower() in (cur or "").lower()
     return True
 
