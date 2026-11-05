@@ -60,6 +60,21 @@ uv tool install evateam-cli           # or put `eva` on PATH
 pipx install evateam-cli
 ```
 
+From a release archive. Each
+[release](https://github.com/ormeilu/evateam-cli/releases) has
+`eva-vX.Y.Z-<target>.tar.gz` for `aarch64-apple-darwin`,
+`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, with `bin/eva`,
+Mojo's runtime libraries in `lib/` and the licences. Unpack it anywhere and put
+`bin/` on PATH. The archive needs a Python 3.10 or newer on PATH, which eva
+uses for HTTPS.
+
+With [mise](https://mise.jdx.dev), from the same archives or from PyPI:
+
+```bash
+mise use -g github:ormeilu/evateam-cli
+mise use -g pypi:evateam-cli
+```
+
 `eva upgrade` updates eva the same way it was installed.
 
 The two routes differ in size. Both carry Mojo's runtime libraries as a
@@ -155,6 +170,16 @@ site-packages. A tag `vX.Y.Z` matching `pixi.toml` runs
 `.github/workflows/release.yml`: wheels and conda packages for three
 platforms, the end-to-end suite against each one installed the way a user
 would, then PyPI, prefix.dev and a GitHub release.
+
+Releases are cut by
+[release-please](https://github.com/googleapis/release-please) from
+[conventional commits](https://www.conventionalcommits.org/): `fix:` bumps the
+patch version, `feat:` the minor one (while below 1.0), and `feat!:` or a
+`BREAKING CHANGE:` footer the major one. Each push to main updates a release
+PR with the changelog and the version in `pixi.toml`, `src/main.mojo` and
+`recipe/recipe.yaml`. Merging it tags the release, and the same workflow builds
+and publishes everything. `pixi run archive aarch64-apple-darwin` builds a
+release archive locally.
 
 `tests/mock_server.py` is a small JSON-RPC server with two canned tasks. The
 end-to-end script checks both what `eva` prints and what it sends.

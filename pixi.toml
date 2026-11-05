@@ -26,4 +26,5 @@ test = { cmd = "mojo run -I src tests/test_all.mojo", description = "Run unit te
 e2e = { cmd = "bash tests/e2e.sh", depends-on = ["build"], description = "Run the binary against a mock server" }
 wheel = { cmd = "python scripts/build_wheel.py", depends-on = ["build"], description = "Pack build/eva into a wheel: pixi run wheel PLATFORM_TAG" }
 conda-package = { cmd = "rattler-build build --recipe recipe/recipe.yaml --output-dir output -c https://conda.modular.com/max -c https://prefix.dev/modular-community -c conda-forge", description = "Build the conda package into output/" }
+archive = { cmd = "python scripts/build_archive.py", depends-on = ["build"], description = "Pack a release archive: pixi run archive TARGET" }
 fmt = { cmd = "mojo format src tests", description = "Format sources" }

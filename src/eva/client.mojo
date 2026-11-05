@@ -10,6 +10,7 @@ from std.os.path import exists, expanduser
 from std.python import Python, PythonObject
 
 from eva.json import JsonDoc, NO_NODE, quote
+from eva.pyfind import ensure_python
 
 comptime HTTP_HELPER = """
 import ssl, urllib.request, urllib.error
@@ -151,6 +152,7 @@ struct Client(Movable):
             )
         self.cfg = cfg^
         self.verbose = verbose
+        ensure_python()
         var ns = Python.dict()
         var builtins = Python.import_module("builtins")
         _ = builtins.exec(HTTP_HELPER, ns)
