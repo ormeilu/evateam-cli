@@ -13,7 +13,7 @@ plain text, a capped description and a note saying what was left out.
 ```console
 $ eva task get DEV-1
 DEV-1  Вложения теряются при переносе задачи
-status: В работе   type: IN_PROGRESS
+status: В работе   stage: IN_PROGRESS
 assignee: ilya@example.ru   author: rep@example.ru
 parent: DEV  Development
 created: 2026-11-01T10:00:00+03:00   updated: 2026-11-02T10:00:00+03:00
@@ -122,12 +122,12 @@ end-to-end script checks both what `eva` prints and what it sends.
 
 ## Status
 
-The request shapes follow the examples in the
-[EvaTeam API docs](https://docs.evateam.ru/docs/docs/DOC-000199). They are
-tested against the mock, not yet against a live instance. Two guesses in
-particular may need a fix: paging uses the `slice` option as `[start, end]`,
-and `task list -p` filters on `parent_id`, which matches the docs' examples but
-leaves out tasks nested under an epic.
+Checked by hand against a live EvaTeam instance: every read command (`task get`,
+`task list` with each filter, `comments`, `links`, `project`, `person`, `doc`,
+`call`), paging and counts. The write commands (`create`, `update`, `comment`,
+`log`) follow the request shapes in the
+[EvaTeam API docs](https://docs.evateam.ru/docs/docs/DOC-000199) and are tested
+against the mock only.
 
 ## Licence
 
