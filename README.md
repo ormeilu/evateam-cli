@@ -36,18 +36,38 @@ agent reading the output can tell the tracker's data from instructions.
 
 ## Install
 
-From PyPI, on macOS (Apple silicon) and Linux (x86_64, arm64, glibc 2.34+):
+eva is built for macOS on Apple silicon and Linux on x86_64 and arm64 (glibc
+2.34 or newer). Pick one way to install it.
+
+With the install script. It installs [pixi](https://pixi.sh) if it is missing,
+then eva from the conda channel `prefix.dev/ormeilu`. Run it again to update:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ormeilu/evateam-cli/main/install.sh | sh
+```
+
+With pixi directly, which is what the script does:
+
+```bash
+pixi global install -c https://prefix.dev/ormeilu -c https://conda.modular.com/max -c conda-forge evateam-cli
+```
+
+From PyPI, if you prefer uv or pipx:
 
 ```bash
 uvx --from evateam-cli eva --help     # run without installing
 uv tool install evateam-cli           # or put `eva` on PATH
-pipx install evateam-cli              # same, with pipx
+pipx install evateam-cli
 ```
 
-The wheel holds the compiled `eva` binary and a small Python launcher. Mojo's
-runtime libraries come from Modular's `mojo-compiler` package on PyPI, so the
-first install downloads about 70 MB. HTTPS calls run on the Python that
-installed the package, so there is nothing else to set up.
+`eva upgrade` updates eva the same way it was installed.
+
+The two routes differ in size. Both carry Mojo's runtime libraries as a
+dependency on Modular's `mojo-compiler` package. On PyPI that package is about
+70 MB. The conda package brings the whole compiler, and the pixi environment
+ends up around 300 MB. The binary itself is under half a megabyte. Either way
+eva makes its HTTPS calls through the Python it is installed with, so there is
+nothing else to set up.
 
 From source, with [pixi](https://pixi.sh):
 
@@ -128,11 +148,13 @@ pixi run test     # unit tests: JSON, rendering, argument parsing
 pixi run e2e      # builds eva and runs it against tests/mock_server.py
 ```
 
-`pixi run wheel macosx_13_0_arm64` packs `build/eva` into a wheel in `dist/`,
+`pixi run conda-package` builds the conda package from `recipe/recipe.yaml`
+into `output/`. `pixi run wheel macosx_13_0_arm64` packs `build/eva` into a wheel in `dist/`,
 with its rpath pointed at `mojo-compiler`'s libraries in the same
 site-packages. A tag `vX.Y.Z` matching `pixi.toml` runs
-`.github/workflows/release.yml`: wheels for three platforms, the end-to-end
-suite against each installed wheel, then PyPI and a GitHub release.
+`.github/workflows/release.yml`: wheels and conda packages for three
+platforms, the end-to-end suite against each one installed the way a user
+would, then PyPI, prefix.dev and a GitHub release.
 
 `tests/mock_server.py` is a small JSON-RPC server with two canned tasks. The
 end-to-end script checks both what `eva` prints and what it sends.

@@ -22,6 +22,7 @@ from eva.commands import (
     raw_call,
 )
 from eva.render import Out
+from eva.upgrade import upgrade
 
 comptime VERSION = "0.1.0"
 
@@ -50,6 +51,7 @@ other
   call METHOD [--kwargs JSON] [--args JSON] [--flags JSON]
                                         any API method, raw JSON reply
   config                                where the URL and token come from
+  upgrade                               update eva the way it was installed
 
 options everywhere
   --json            the API's own JSON instead of text
@@ -73,6 +75,12 @@ def run(var raw: List[String]) raises:
         return
     var ui = Out(args.has("full"))
     var verbose = args.has("verbose", "v")
+
+    if group == "upgrade" or group == "self-update":
+        var code = upgrade(String(argv()[0]))
+        if code != 0:
+            exit(code)
+        return
 
     if group == "config":
         var cfg = load_config()

@@ -1,20 +1,15 @@
 """Launcher for the `eva` binary shipped in this wheel.
 
-The binary is compiled Mojo. It needs Mojo's runtime libraries, which come
-from the mojo-compiler package on PyPI, and a libpython for its HTTPS calls,
-which is the interpreter running this launcher.
+The binary is compiled Mojo. Its rpath finds Mojo's runtime libraries in the
+mojo-compiler package next to this one in site-packages. For its HTTPS calls
+it embeds a libpython, and this launcher points it at the interpreter that is
+running here.
 """
 
 import os
 import sys
 import sysconfig
-from importlib import metadata
 from pathlib import Path
-
-
-def _mojo_lib_dir() -> str:
-    dist = metadata.distribution("mojo-compiler")
-    return str(Path(dist.locate_file("modular/lib")).resolve())
 
 
 def _libpython() -> str | None:
@@ -42,11 +37,10 @@ def _libpython() -> str | None:
 def main() -> None:
     binary = Path(__file__).parent / "bin" / "eva"
     env = dict(os.environ)
-    libs = _mojo_lib_dir()
-    var = "DYLD_LIBRARY_PATH" if sys.platform == "darwin" else "LD_LIBRARY_PATH"
-    env[var] = libs + (os.pathsep + env[var] if env.get(var) else "")
     if "MOJO_PYTHON_LIBRARY" not in env:
         lib = _libpython()
         if lib:
             env["MOJO_PYTHON_LIBRARY"] = lib
+            # From a venv the embedded interpreter cannot find its own prefix.
+            env.setdefault("PYTHONHOME", sys.base_prefix)
     os.execve(binary, [str(binary), *sys.argv[1:]], env)
