@@ -1,14 +1,17 @@
-# eva — EvaTeam from the command line, in Mojo
+# eva — EvaTeam из командной строки, на Mojo
 
-`eva` is a command-line client for [EvaTeam](https://www.evateam.ru/), the
-Russian task tracker and wiki. It is a sibling of
-[ytcli](https://github.com/ormeilu/yandex-tracker-cli), which does the same for
-Yandex Tracker, and it is written in [Mojo](https://www.modular.com/mojo) for
-fun.
+[English version](README.en.md)
 
-Like ytcli, it has two readers in mind: a person at a terminal and an AI agent
-behind a pipe. The terminal gets colour and full descriptions. The pipe gets
-plain text, a capped description and a note saying what was left out.
+`eva` — консольный клиент для [EvaTeam](https://www.evateam.ru/), российского
+таск-трекера и вики. Он родственник
+[ytcli](https://github.com/ormeilu/yandex-tracker-cli), который делает то же
+для Яндекс Трекера, и написан на [Mojo](https://www.modular.com/mojo) ради
+интереса.
+
+Как и у ytcli, у `eva` два читателя: человек в терминале и ИИ-агент, который
+читает вывод через пайп. В терминале будут цвета и описания целиком. В пайп
+идёт обычный текст, описание обрезается, а в конце написано, сколько строк
+осталось за кадром.
 
 ```console
 $ eva task get DEV-1
@@ -30,67 +33,68 @@ DEV-7        Открыто        ilya@example.ru    Flaky upload test
 shown 2 of 14 — next: --page 2
 ```
 
-Task descriptions and comments are written by other people, so `eva` fences
-them: a `▏` margin in a terminal, an `<untrusted src="…">` tag in a pipe. An
-agent reading the output can tell the tracker's data from instructions.
+Описания задач и комментарии пишут другие люди, поэтому `eva` их огораживает:
+в терминале полем `▏` слева, в пайпе тегом `<untrusted src="…">`. Агент видит,
+где данные трекера, а где инструкции.
 
-## Install
+## Установка
 
-eva is built for macOS on Apple silicon and Linux on x86_64 and arm64 (glibc
-2.34 or newer). Pick one way to install it.
+Сборки есть для macOS на Apple Silicon и для Linux на x86_64 и arm64 (glibc
+2.34 и новее). Способов установки несколько, хватит любого.
 
-With the install script. It downloads the release archive for your machine
-from GitHub, checks its sha256, unpacks it into `~/.local/share/eva/<version>`
-and links `~/.local/bin/eva`. Run it again, or `eva upgrade`, to update;
-`EVA_VERSION=0.2.0` pins a version:
+Скриптом. Он скачивает из GitHub архив релиза под вашу машину, сверяет
+sha256, распаковывает в `~/.local/share/eva/<версия>` и ставит ссылку
+`~/.local/bin/eva`. Для обновления запустите его ещё раз или выполните
+`eva upgrade`; `EVA_VERSION=0.3.0` фиксирует версию:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ormeilu/evateam-cli/main/install.sh | sh
 ```
 
-The archive carries Mojo's runtime libraries, so the only thing eva needs from
-the system is a Python 3.10 or newer on PATH, which it uses for HTTPS.
+Рантайм-библиотеки Mojo лежат в самом архиве, так что от системы нужен только
+Python 3.10 или новее в `PATH`: через него `eva` ходит по HTTPS.
 
-With pixi, from the conda channel
+Через pixi, из conda-канала
 [`prefix.dev/ormeilu/ormeilu`](https://prefix.dev/channels/@ormeilu/ormeilu):
 
 ```bash
 pixi global install -c https://prefix.dev/ormeilu/ormeilu -c https://conda.modular.com/max -c conda-forge evateam-cli
 ```
 
-From PyPI, if you prefer uv or pipx:
+Из PyPI, если привычнее uv или pipx:
 
 ```bash
-uvx --from evateam-cli eva --help     # run without installing
-uv tool install evateam-cli           # or put `eva` on PATH
+uvx --from evateam-cli eva --help     # запустить без установки
+uv tool install evateam-cli           # или поставить eva в PATH
 pipx install evateam-cli
 ```
 
-Release archives (`eva-vX.Y.Z-<target>.tar.gz` for `aarch64-apple-darwin`,
-`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`) are on each
-[release](https://github.com/ormeilu/evateam-cli/releases) if you would rather
-unpack one yourself: `bin/eva`, the libraries in `lib/` and the licences.
+Архивы релизов (`eva-vX.Y.Z-<target>.tar.gz` для `aarch64-apple-darwin`,
+`x86_64-unknown-linux-gnu` и `aarch64-unknown-linux-gnu`) лежат в каждом
+[релизе](https://github.com/ormeilu/evateam-cli/releases), их можно
+распаковать и вручную. Внутри `bin/eva`, библиотеки в `lib/` и лицензии.
 
-With [mise](https://mise.jdx.dev), from the same archives or from PyPI:
+Через [mise](https://mise.jdx.dev), из тех же архивов или из PyPI:
 
 ```bash
 mise use -g github:ormeilu/evateam-cli
 mise use -g pypi:evateam-cli
 ```
 
-Recent mise versions hide releases younger than a day (`minimum_release_age`);
-name the version, e.g. `github:ormeilu/evateam-cli@0.2.0`, to install one
-sooner.
+Свежие версии mise прячут релизы моложе суток (`minimum_release_age`). Чтобы
+поставить такой релиз раньше, укажите версию явно, например
+`github:ormeilu/evateam-cli@0.3.0`.
 
-`eva upgrade` updates eva the same way it was installed.
+`eva upgrade` обновляет `eva` тем же способом, каким её поставили.
 
-The routes differ in size. The archive is under 1 MB: the binary plus the three
-runtime libraries it uses. PyPI and conda pull the libraries from Modular's
-`mojo-compiler` package instead, about 70 MB from PyPI, and around 300 MB of
-pixi environment, since the conda package brings the whole compiler. The PyPI
-and conda installs use the Python they come with for HTTPS.
+По размеру способы сильно различаются. Архив весит меньше мегабайта: бинарник
+и три рантайм-библиотеки. PyPI и conda берут библиотеки из пакета
+`mojo-compiler` от Modular: из PyPI это около 70 МБ, а окружение pixi
+вырастает примерно до 300 МБ, потому что conda-пакет тянет весь компилятор.
+При установке из PyPI и conda для HTTPS используется Python, который ставится
+вместе с пакетом.
 
-From source, with [pixi](https://pixi.sh):
+Из исходников, с [pixi](https://pixi.sh):
 
 ```bash
 git clone https://github.com/ormeilu/evateam-cli
@@ -98,10 +102,10 @@ cd evateam-cli
 pixi run build          # → build/eva
 ```
 
-## Configure
+## Настройка
 
-Create a token in EvaTeam: «Моя страница» → «Безопасность» → «Сгенерировать
-API токен». Then set two variables, in the environment, in `./.env` or in
+Создайте токен в EvaTeam: «Моя страница» → «Безопасность» → «Сгенерировать
+API токен». Потом задайте две переменные: в окружении, в `./.env` или в
 `~/.config/eva-cli/env`:
 
 ```bash
@@ -109,102 +113,106 @@ EVA_URL=https://eva.example.ru
 EVA_API_KEY=…
 ```
 
-`EVA_INSECURE=1` skips TLS verification, for self-hosted servers with their own
-certificate. `eva config` shows what was picked up and from where, without
-printing the token.
+`EVA_INSECURE=1` отключает проверку TLS, это для своих серверов с собственным
+сертификатом. `eva config` показывает, что и откуда подхватилось; сам токен не
+печатается.
 
-## Commands
+## Команды
 
-| Command | What it does |
+| Команда | Что делает |
 |---|---|
-| `eva task get CODE [--fields a,b]` | one task: status, people, parent, description |
-| `eva task list [-p PROJ] [-a LOGIN] [-s STATUS] [-q TEXT]` | search; `-s` takes `open`, `closed`, `in_progress`, `in_review`, `all` or a status code |
-| `eva task create -p PROJ -t TITLE [-d TEXT] [-a LOGIN] [--sprint SPR-1]` | new task |
-| `eva task update CODE [-t] [-d] [-a] [--set JSON]` | change fields; `--set` passes any field through |
-| `eva task statuses CODE` | the statuses the task's workflow lets it move to from here |
-| `eva task move CODE STATUS [-m TEXT] [--set JSON]` | change status through a workflow transition; `--set` fills fields the transition requires |
-| `eva task comment CODE TEXT` / `eva task comments CODE` | write or read comments |
-| `eva task log CODE 1h30m [-m TEXT]` | log time spent |
-| `eva task links CODE` | incoming and outgoing links |
-| `eva project list`, `eva person list`, `eva doc list` | lists, with `-q` to search by name |
-| `eva doc get CODE` | a wiki document as text |
-| `eva call METHOD --kwargs JSON` | any API method; prints the raw reply |
+| `eva task get CODE [--fields a,b]` | одна задача: статус, люди, родитель, описание |
+| `eva task list [-p PROJ] [-a LOGIN] [-s STATUS] [-q TEXT]` | поиск; `-s` принимает `open`, `closed`, `in_progress`, `in_review`, `all` или код статуса |
+| `eva task create -p PROJ -t TITLE [-d TEXT] [-a LOGIN] [--sprint SPR-1]` | новая задача |
+| `eva task update CODE [-t] [-d] [-a] [--set JSON]` | изменить поля; `--set` передаёт любое поле как есть |
+| `eva task statuses CODE` | в какие статусы воркфлоу пускает задачу из текущего |
+| `eva task move CODE STATUS [-m TEXT] [--set JSON]` | сменить статус через переход воркфлоу; `--set` заполняет поля, которых требует переход |
+| `eva task comment CODE TEXT` / `eva task comments CODE` | написать или прочитать комментарии |
+| `eva task log CODE 1h30m [-m TEXT]` | списать время |
+| `eva task links CODE` | входящие и исходящие связи |
+| `eva project list`, `eva person list`, `eva doc list` | списки, `-q` ищет по названию |
+| `eva doc get CODE` | документ вики текстом |
+| `eva call METHOD --kwargs JSON` | любой метод API, ответ как есть |
 
-Every list takes `-n/--limit` and `--page` and ends with `shown N of M`, so a
-page is never mistaken for the whole answer. `--json` prints the API's own
-JSON, `--full` turns off truncation in a pipe, and `-v` prints each request
-and reply on stderr.
+Все списки понимают `-n/--limit` и `--page` и заканчиваются строкой
+`shown N of M`, чтобы страницу не приняли за весь ответ. `--json` печатает
+JSON самого API, `--full` отключает обрезку в пайпе, `-v` выводит каждый запрос
+и ответ в stderr.
 
-`--filter` on `task list` adds a raw BQL condition, for anything the flags do
-not cover:
+`--filter` у `task list` добавляет условие на BQL как есть, для всего, чего нет
+среди флагов:
 
 ```bash
 eva task list --filter '["cmf_created_at", ">=", "2026-10-01"]'
 ```
 
-## How it is built
+## Как устроено
 
-EvaTeam speaks JSON-RPC 2.2: every call is a `POST /api/` with a method name
-such as `CmfTask.list` and keyword arguments. The pieces:
+EvaTeam работает по JSON-RPC 2.2: каждый вызов — это `POST /api/` с именем
+метода вроде `CmfTask.list` и именованными аргументами. Из чего состоит `eva`:
 
-- `src/eva/json.mojo`: a JSON parser and writer. Nodes sit in one arena and
-  refer to their children by index, which avoids a recursive type. Numbers keep
-  their source text, so ids and timestamps pass through unchanged.
-- `src/eva/client.mojo`: configuration and the RPC call. Mojo's standard
-  library has no TLS yet, so the HTTPS request itself goes through Python's
-  `urllib` via Mojo's Python interop. Request building and reply parsing are
+- `src/eva/json.mojo`: разбор и запись JSON. Узлы хранятся в одном массиве и
+  ссылаются на детей по индексу, так обходится без рекурсивного типа. Числа
+  сохраняют исходный текст, поэтому идентификаторы и даты проходят без
+  изменений.
+- `src/eva/client.mojo`: настройки и вызов RPC. В стандартной библиотеке Mojo
+  пока нет TLS, поэтому сам HTTPS-запрос уходит через `urllib` из Python
+  (через интероп Mojo с Python). Сборка запроса и разбор ответа написаны на
   Mojo.
-- `src/eva/render.mojo`: terminal and pipe output, HTML to text, colour via
-  [mist](https://github.com/thatstoasty/mist) from the
-  [modular-community](https://prefix.dev/channels/modular-community) channel.
-- `src/eva/commands.mojo`: the command tree.
+- `src/eva/pyfind.mojo`: ищет libpython до старта интеропа. Если
+  `MOJO_PYTHON_LIBRARY` не задан, берёт первый Python 3.10+ в `PATH`.
+- `src/eva/render.mojo`: вывод в терминал и в пайп, HTML в текст, цвета через
+  [mist](https://github.com/thatstoasty/mist) из канала
+  [modular-community](https://prefix.dev/channels/modular-community).
+- `src/eva/commands.mojo`: дерево команд.
 
-The JSON parser is home-made because the `emberjson` build in modular-community
-was compiled for Mojo 1.1 and does not load under 1.2.
+JSON-парсер свой: сборка `emberjson` в modular-community скомпилирована под
+Mojo 1.1 и под 1.2 не загружается.
 
-## Develop
+## Разработка
 
 ```bash
-pixi run test     # unit tests: JSON, rendering, argument parsing
-pixi run e2e      # builds eva and runs it against tests/mock_server.py
+pixi run test     # юнит-тесты: JSON, вывод, разбор аргументов
+pixi run e2e      # собирает eva и гоняет её против tests/mock_server.py
 ```
 
-`pixi run conda-package` builds the conda package from `recipe/recipe.yaml`
-into `output/`. `pixi run wheel macosx_13_0_arm64` packs `build/eva` into a wheel in `dist/`,
-with its rpath pointed at `mojo-compiler`'s libraries in the same
-site-packages. A tag `vX.Y.Z` matching `pixi.toml` runs
-`.github/workflows/release.yml`: wheels and conda packages for three
-platforms, the end-to-end suite against each one installed the way a user
-would, then PyPI, prefix.dev and a GitHub release.
+`tests/mock_server.py` — небольшой JSON-RPC сервер с двумя заготовленными
+задачами. Сквозной тест проверяет и то, что `eva` печатает, и то, что она
+отправляет.
 
-Releases are cut by
-[release-please](https://github.com/googleapis/release-please) from
-[conventional commits](https://www.conventionalcommits.org/): `fix:` bumps the
-patch version, `feat:` the minor one (while below 1.0), and `feat!:` or a
-`BREAKING CHANGE:` footer the major one. Each push to main updates a release
-PR with the changelog and the version in `pixi.toml`, `src/main.mojo` and
-`recipe/recipe.yaml`. Merging it tags the release, and the same workflow builds
-and publishes everything. `pixi run archive aarch64-apple-darwin` builds a
-release archive locally.
+Сборка пакетов:
 
-`tests/mock_server.py` is a small JSON-RPC server with two canned tasks. The
-end-to-end script checks both what `eva` prints and what it sends.
+- `pixi run wheel macosx_13_0_arm64` упаковывает `build/eva` в wheel в `dist/`;
+  rpath указывает на библиотеки `mojo-compiler` в том же site-packages;
+- `pixi run archive aarch64-apple-darwin` собирает архив релиза;
+- `pixi run conda-package` собирает conda-пакет по `recipe/recipe.yaml` в
+  `output/`.
 
-## Status
+Версии выпускает [release-please](https://github.com/googleapis/release-please)
+по [conventional commits](https://www.conventionalcommits.org/): `fix:`
+поднимает патч-версию, `feat:` минорную (пока версия ниже 1.0), а `feat!:` или
+футер `BREAKING CHANGE:` мажорную. Каждый пуш в main обновляет релизный PR:
+в нём changelog и версия в `pixi.toml`, `src/main.mojo` и `recipe/recipe.yaml`.
+После мержа PR появляется тег, и тот же `.github/workflows/release.yml`
+собирает wheel'ы, архивы и conda-пакеты под три платформы, гоняет сквозной
+тест на каждом из них, установленном так же, как его поставит пользователь, и
+публикует всё на PyPI, prefix.dev и в GitHub-релиз.
 
-Checked against a live EvaTeam instance, reads and writes: every command in the
-table above, paging and counts, and a test task taken from creation to Done.
+## Состояние
 
-Two things the docs do not say, found that way:
+Проверено на живом инстансе EvaTeam, и чтение, и запись: все команды из
+таблицы, страницы и подсчёт, тестовая задача от создания до Done.
 
-- Plain `CmfTask.update` with a new status is accepted and ignored. A status
-  change has to run a workflow transition (`CmfTask.task_transition_run`), which
-  is what `task move` does: it reads the task's workflow, finds the transition
-  from the current status and reports which targets exist when the one asked for
-  does not.
-- A refused call comes back as HTTP 200 with an `abort` message ("Необходимо
-  заполнить Вид услуги") and no `error`. `eva` treats it as an error.
+Так нашлись две вещи, о которых документация молчит:
 
-## Licence
+- Обычный `CmfTask.update` с новым статусом сервер принимает и молча
+  игнорирует. Статус меняется только переходом воркфлоу
+  (`CmfTask.task_transition_run`), это и делает `task move`: читает воркфлоу
+  задачи, находит переход из текущего статуса, а если нужного нет, перечисляет
+  доступные.
+- Отказ приходит как HTTP 200 с сообщением в `abort` («Необходимо заполнить
+  Вид услуги») и без `error`. `eva` считает такой ответ ошибкой.
+
+## Лицензия
 
 MIT
