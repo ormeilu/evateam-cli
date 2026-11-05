@@ -6,6 +6,7 @@
 
 from std.ffi import external_call, c_int
 from std.memory.alloc import unsafe_alloc
+from std.sys import CompilationTarget
 from .exceptions import ConnectionError, Timeout, ConnectTimeout, ReadTimeout
 
 
@@ -31,6 +32,16 @@ comptime RECV_FLAGS: c_int = 0
 comptime SO_ERROR: c_int = 0x1007
 comptime EAGAIN_MACOS: c_int = 35
 comptime EAGAIN_LINUX: c_int = 11
+
+
+def _sa_family(family: Int, size: Int) -> UInt16:
+    """The first two bytes of a sockaddr: a 16-bit family on Linux, but
+    ``u8 sin_len, u8 sin_family`` on macOS/BSD, which little-endian packs as
+    ``size | family << 8``."""
+    comptime if CompilationTarget.is_macos():
+        return UInt16(size) | (UInt16(family) << 8)
+    else:
+        return UInt16(family)
 
 
 @fieldwise_init
@@ -90,7 +101,7 @@ def _do_connect(fd: c_int, addr: ResolvedAddress, port: Int) -> c_int:
     """
     if addr.is_ipv4():
         var sa = unsafe_alloc[SockAddrIn](1)
-        sa[].sin_family = UInt16(AF_INET)
+        sa[].sin_family = _sa_family(Int(AF_INET), 16)
         sa[].sin_port = htons(UInt16(port))
         sa[].sin_addr = addr.ipv4
         sa[].sin_zero = SIMD[DType.uint8, 8]()
@@ -98,7 +109,7 @@ def _do_connect(fd: c_int, addr: ResolvedAddress, port: Int) -> c_int:
         sa.unsafe_free()
         return rc
     var sa = unsafe_alloc[SockAddrIn6](1)
-    sa[].sin6_family = UInt16(c_int(addr.pf))
+    sa[].sin6_family = _sa_family(Int(addr.pf), 28)
     sa[].sin6_port = htons(UInt16(port))
     sa[].sin6_flowinfo = UInt32(0)
     sa[].sin6_addr = addr.ipv6

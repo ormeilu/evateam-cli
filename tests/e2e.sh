@@ -70,5 +70,7 @@ check "raw call bad json"      "json:"                         -- $eva call CmfT
 check "bad token"              "401 unauthorized"              -- env EVA_API_KEY=wrong $eva task get DEV-1
 check "bad option"             "unknown option --bogus"        -- $eva task list --bogus 1
 check "bad duration"           "cannot read a duration"        -- $eva task log DEV-1 abc
+# By name, so getaddrinfo and its platform's struct layout are exercised.
+check "hostname resolves"      "DEV-1  Вложения теряются"     -- env EVA_URL="http://localhost:$(cat "$port_file")" $eva task get DEV-1
 check "unreachable"            "cannot reach"                  -- env EVA_URL=http://127.0.0.1:9 $eva task get DEV-1
 exit $fail

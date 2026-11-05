@@ -19,6 +19,7 @@
 
 from std.ffi import external_call, c_int
 from std.memory.alloc import unsafe_alloc
+from std.sys import CompilationTarget
 from std.time import sleep
 from .exceptions import ConnectionError
 
@@ -70,7 +71,10 @@ struct SockAddrIn6:
     var sin6_scope_id: UInt32
 
 
-# Minimal mirror of `struct addrinfo` (we only read ai_family, ai_addrlen, ai_addr, ai_next).
+# Minimal mirror of `struct addrinfo` (we only read ai_family, ai_addr, ai_next).
+# The two pointers after ai_addrlen swap places between platforms: macOS/BSD
+# has ai_canonname then ai_addr, glibc has ai_addr then ai_canonname. They are
+# stored as _p5/_p6 and read through addr().
 @fieldwise_init
 struct AddrInfo:
     var ai_flags: c_int
@@ -78,9 +82,16 @@ struct AddrInfo:
     var ai_socktype: c_int
     var ai_protocol: c_int
     var ai_addrlen: UInt64
-    var ai_canonname: UInt64
-    var ai_addr: UInt64
+    var _p5: UInt64
+    var _p6: UInt64
     var ai_next: UInt64
+
+    def addr(self) -> UInt64:
+        """The ai_addr pointer, wherever this platform keeps it."""
+        comptime if CompilationTarget.is_macos():
+            return self._p6
+        else:
+            return self._p5
 
 
 @fieldwise_init
@@ -278,8 +289,8 @@ def _getaddrinfo(
     hints[].ai_socktype = SOCK_STREAM
     hints[].ai_protocol = 0
     hints[].ai_addrlen = 0
-    hints[].ai_canonname = 0
-    hints[].ai_addr = 0
+    hints[]._p5 = 0
+    hints[]._p6 = 0
     hints[].ai_next = 0
 
     var result_addr = unsafe_alloc[Pointer[AddrInfo, MutUntrackedOrigin]](1)
@@ -333,7 +344,7 @@ def _getaddrinfo(
     var cur = first
     while Int(cur) != 0:
         var family = cur[].ai_family
-        var ai_addr = cur[].ai_addr
+        var ai_addr = cur[].addr()
         if ai_addr != 0:
             if family == AF_INET and not have_v4:
                 # ai_addr points to a sockaddr_in for AF_INET. Read sin_addr.
