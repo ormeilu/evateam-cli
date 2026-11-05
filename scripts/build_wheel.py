@@ -8,13 +8,13 @@ involved: a wheel is a zip with three metadata files.
 import base64
 import hashlib
 import re
-import shutil
 import stat
-import subprocess
 import sys
 import tempfile
 import zipfile
 from pathlib import Path
+
+from relocate import relocated_binary
 
 ROOT = Path(__file__).resolve().parent.parent
 NAME = "evateam_cli"
@@ -31,25 +31,6 @@ def record_line(path: str, data: bytes) -> str:
     return f"{path},sha256={digest},{len(data)}"
 
 
-def relocated_binary(tmp: Path) -> bytes:
-    """Point the binary's rpath at mojo-compiler's libraries in site-packages.
-
-    The wheel puts eva in site-packages/evateam_cli/bin/, and mojo-compiler
-    puts the runtime in site-packages/modular/lib/.
-    """
-    out = tmp / "eva"
-    shutil.copy(ROOT / "build" / "eva", out)
-    if sys.platform == "darwin":
-        load = subprocess.run(["otool", "-l", str(out)], capture_output=True, text=True, check=True).stdout
-        for old in re.findall(r"cmd LC_RPATH\n\s+cmdsize \d+\n\s+path (\S+)", load):
-            subprocess.run(["install_name_tool", "-delete_rpath", old, str(out)], check=True)
-        subprocess.run(["install_name_tool", "-add_rpath", "@loader_path/../../modular/lib", str(out)], check=True)
-        subprocess.run(["codesign", "--force", "--sign", "-", str(out)], check=True, capture_output=True)
-    else:
-        subprocess.run(["patchelf", "--set-rpath", "$ORIGIN/../../modular/lib", str(out)], check=True)
-    return out.read_bytes()
-
-
 def main() -> None:
     tag = sys.argv[1]
     ver = version()
@@ -60,7 +41,10 @@ def main() -> None:
     for src in sorted((ROOT / "python" / NAME).glob("*.py")):
         files[f"{NAME}/{src.name}"] = (src.read_bytes(), 0o644)
     with tempfile.TemporaryDirectory() as tmp:
-        files[f"{NAME}/bin/eva"] = (relocated_binary(Path(tmp)), 0o755)
+        # The wheel puts eva in site-packages/evateam_cli/bin/ and mojo-compiler
+        # puts the runtime in site-packages/modular/lib/.
+        eva = relocated_binary(Path(tmp) / "eva", "../../modular/lib")
+        files[f"{NAME}/bin/eva"] = (eva.read_bytes(), 0o755)
     files[f"{dist_info}/licenses/LICENSE"] = ((ROOT / "LICENSE").read_bytes(), 0o644)
     files[f"{dist_info}/METADATA"] = (
         f"""Metadata-Version: 2.4

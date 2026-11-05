@@ -6,6 +6,8 @@ environment, a uv or pipx tool venv, or a source checkout.
 
 from std.python import Python
 
+from eva.pyfind import ensure_python
+
 comptime UPGRADE_HELPER = """
 import os, shutil, subprocess, sys
 
@@ -42,6 +44,7 @@ def upgrade(argv0):
 
 
 def upgrade(argv0: String) raises -> Int:
+    ensure_python()
     var ns = Python.dict()
     var builtins = Python.import_module("builtins")
     _ = builtins.exec(UPGRADE_HELPER, ns)
