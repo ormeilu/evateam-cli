@@ -36,17 +36,26 @@ agent reading the output can tell the tracker's data from instructions.
 
 ## Install
 
-You need [pixi](https://pixi.sh). It pulls Mojo 1.2 and everything else.
+From PyPI, on macOS (Apple silicon) and Linux (x86_64, arm64, glibc 2.34+):
+
+```bash
+uvx --from evateam-cli eva --help     # run without installing
+uv tool install evateam-cli           # or put `eva` on PATH
+pipx install evateam-cli              # same, with pipx
+```
+
+The wheel holds the compiled `eva` binary and a small Python launcher. Mojo's
+runtime libraries come from Modular's `mojo-compiler` package on PyPI, so the
+first install downloads about 70 MB. HTTPS calls run on the Python that
+installed the package, so there is nothing else to set up.
+
+From source, with [pixi](https://pixi.sh):
 
 ```bash
 git clone https://github.com/ormeilu/evateam-cli
 cd evateam-cli
 pixi run build          # → build/eva
 ```
-
-The binary loads `libpython` at run time for HTTPS (see below), so run it from
-the pixi environment (`pixi run ./build/eva …`) or with a Python 3.12+ on
-`PATH`.
 
 ## Configure
 
@@ -118,6 +127,12 @@ was compiled for Mojo 1.1 and does not load under 1.2.
 pixi run test     # unit tests: JSON, rendering, argument parsing
 pixi run e2e      # builds eva and runs it against tests/mock_server.py
 ```
+
+`pixi run wheel macosx_13_0_arm64` packs `build/eva` into a wheel in `dist/`,
+with its rpath pointed at `mojo-compiler`'s libraries in the same
+site-packages. A tag `vX.Y.Z` matching `pixi.toml` runs
+`.github/workflows/release.yml`: wheels for three platforms, the end-to-end
+suite against each installed wheel, then PyPI and a GitHub release.
 
 `tests/mock_server.py` is a small JSON-RPC server with two canned tasks. The
 end-to-end script checks both what `eva` prints and what it sends.
