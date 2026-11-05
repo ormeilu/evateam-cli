@@ -4,3 +4,4 @@ build/
 *.mojoc
 __pycache__/
 dist/
+output/

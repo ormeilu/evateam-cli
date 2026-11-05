@@ -7,8 +7,9 @@ log=$(mktemp)
 port_file=$(mktemp)
 MOCK_LOG=$log python tests/mock_server.py >"$port_file" &
 server=$!
-trap 'kill $server 2>/dev/null; wait $server 2>/dev/null; rm -f "$log" "$port_file"' EXIT
-for _ in $(seq 50); do [ -s "$port_file" ] && break; sleep 0.1; done
+trap 'kill $server 2>/dev/null; wait $server 2>/dev/null || true; rm -f "$log" "$port_file"' EXIT
+for _ in $(seq 300); do [ -s "$port_file" ] && break; sleep 0.1; done
+[ -s "$port_file" ] || { echo "mock server did not start"; exit 1; }
 
 export EVA_URL="http://127.0.0.1:$(cat "$port_file")/api/" EVA_API_KEY=test-token
 fail=0

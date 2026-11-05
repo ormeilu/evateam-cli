@@ -1,7 +1,9 @@
 name: release
 
-# Push a tag vX.Y.Z (matching pixi.toml) to build the wheels, test them as a
-# user would install them, publish to PyPI and attach them to a GitHub release.
+# Push a tag vX.Y.Z (matching pixi.toml, src/main.mojo and recipe/recipe.yaml)
+# to build wheels and conda packages, test them as a user would install them,
+# and publish: wheels to PyPI and a GitHub release, conda packages to
+# prefix.dev/ormeilu. A manual run builds and tests without publishing.
 
 on:
   push:
@@ -33,6 +35,7 @@ jobs:
           v=$(sed -n 's/^version = "\(.*\)"/\1/p' pixi.toml | head -1)
           [ "${GITHUB_REF_NAME}" = "v$v" ] || { echo "tag ${GITHUB_REF_NAME} != pixi.toml $v"; exit 1; }
           grep -q "comptime VERSION = \"$v\"" src/main.mojo || { echo "src/main.mojo VERSION != $v"; exit 1; }
+          grep -q "version: \"$v\"" recipe/recipe.yaml || { echo "recipe/recipe.yaml version != $v"; exit 1; }
       - run: pixi run wheel ${{ matrix.tag }}
       - name: Check glibc symbols fit the manylinux tag
         if: runner.os == 'Linux'
@@ -54,8 +57,57 @@ jobs:
           name: wheel-${{ matrix.tag }}
           path: dist/*.whl
 
+  conda:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: prefix-dev/setup-pixi@v0.11.3
+        with:
+          pixi-version: v0.83.0
+          run-install: false
+      # The recipe's own test runs `eva --version` and `eva --help`.
+      - run: >-
+          pixi exec rattler-build build --recipe recipe/recipe.yaml --output-dir output
+          -c https://conda.modular.com/max -c https://prefix.dev/modular-community -c conda-forge
+      - name: Install with install.sh from the built package and run the suite
+        run: |
+          export PIXI_HOME=/tmp/pixihome
+          EVA_CHANNEL="file://$PWD/output" sh install.sh
+          python3 -m venv /tmp/mock-venv
+          env -i HOME="$HOME" PATH=/tmp/pixihome/bin:/tmp/mock-venv/bin:/usr/bin:/bin \
+            EVA_BIN=/tmp/pixihome/bin/eva bash tests/e2e.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: conda-${{ matrix.os }}
+          path: output/*/*.conda
+
+  publish-conda:
+    needs: [wheel, conda]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment: prefix
+    permissions:
+      id-token: write
+    steps:
+      - uses: prefix-dev/setup-pixi@v0.11.3
+        with:
+          pixi-version: v0.83.0
+          run-install: false
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: conda-*
+          path: output
+          merge-multiple: true
+      # Trusted publishing: rattler-build trades the GitHub OIDC token for a
+      # prefix.dev upload token, so no API key is stored in the repo.
+      - run: pixi exec rattler-build upload prefix --channel ormeilu output/*/*.conda
+
   publish:
-    needs: wheel
+    needs: [wheel, conda]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     environment: pypi
