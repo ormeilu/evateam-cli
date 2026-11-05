@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/ormeilu/evateam-cli/compare/v0.2.0...v0.3.0) (2026-11-05)
+
+
+### Features
+
+* install.sh installs the release binary directly ([ac99d2a](https://github.com/ormeilu/evateam-cli/commit/ac99d2a7762988e10d7828f0e419a2d29f110d42))
+
+
+### Bug Fixes
+
+* fetch Modular's licence files when the package cache lacks them ([e387075](https://github.com/ormeilu/evateam-cli/commit/e38707542d636a9e802f6045d7dd7475431c89ee))
+* run the release builds when release-please is skipped ([ac0ab2b](https://github.com/ormeilu/evateam-cli/commit/ac0ab2bd9228205cb1e0c47e977c351b8d79d35b))
+
 ## [0.2.0](https://github.com/ormeilu/evateam-cli/compare/v0.1.0...v0.2.0) (2026-11-05)
 
 
