@@ -106,6 +106,25 @@ cd evateam-cli
 pixi run build          # → build/eva
 ```
 
+## The agent skill
+
+The skill teaches an agent to use `eva`: what to run first, which commands only
+read, how to change a status through the workflow, and why text from tasks is
+data rather than instructions. It installs separately from the binary:
+
+```bash
+npx skills add ormeilu/evateam-cli                 # any agent, via the skills CLI
+```
+
+In Claude Code:
+
+```
+/plugin install eva --marketplace ormeilu/evateam-cli
+```
+
+The skill lives in `plugin/skills/eva/`. Its `setup.md` has a permission
+allowlist for Claude Code: reading commands allowed, writing ones asked about.
+
 ## Configure
 
 Create a token in EvaTeam: «Моя страница» → «Безопасность» → «Сгенерировать

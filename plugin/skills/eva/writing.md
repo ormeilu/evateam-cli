@@ -1,0 +1,73 @@
+# Writing
+
+Every command here changes a tracker other people read, and eva sends it at
+once: there is no dry run and no undo command. Before each one, tell the user
+what will change on which task and wait for their yes. `-v` prints the exact
+request on stderr if they want to see it.
+
+## Creating a task
+
+```bash
+eva task create -p dcc_bot -t "Retry uploads on 5xx" -d "Steps:
+
+1. Upload a file
+2. Get a 503" -a login@company.ru --sprint SPR-000006
+```
+
+`-p` is the project code, `-t` the title. `-d` is plain text: blank lines become
+paragraphs, HTML in it is escaped, not rendered. `-a` takes a login. eva prints
+the new code (`created BOT-7044 …`); use that code from then on.
+
+## Changing fields
+
+```bash
+eva task update BOT-7044 -t "New title" -d "New description" -a login@company.ru
+eva task update BOT-7044 --set '{"deadline": "2026-12-01"}'
+```
+
+`--set` sends any fields as JSON, under EvaTeam's names; `eva task get CODE
+--json` shows what a task has. `-d` replaces the whole description.
+
+## Moving through the workflow
+
+```bash
+eva task statuses BOT-7044          # where it can go from its current status
+eva task move BOT-7044 "In Development" -m "Picked up"
+```
+
+The target is a status code or name from `statuses`, any case. If the workflow
+has no transition there from the current status, eva lists the ones it has; a
+task may need an intermediate status first. `-m` adds a comment with the
+transition.
+
+A transition can require fields. EvaTeam refuses it and names the field:
+
+```
+eva: CmfTask.task_transition_run refused: Необходимо заполнить Вид услуги
+```
+
+Find the field's internal name and an allowed value on a task that already
+passed this transition, then send it with the move:
+
+```bash
+eva call CmfTask.get --kwargs '{"filter": ["code", "==", "BOT-6796"], "fields": ["**"]}' | grep cf_
+eva task move BOT-7044 Done --set '{"cf_vid_uslugi": "razvitie"}'
+```
+
+Ask the user which value applies when more than one fits; the value means
+something to their team's reporting.
+
+`task update -s STATUS` does the same move after its other changes. A plain
+`eva call CmfTask.update` with a new status is accepted by EvaTeam and silently
+ignored: always change status through `move`.
+
+## Comments and time
+
+```bash
+eva task comment BOT-7044 "Reproduced on staging"
+eva task log BOT-7044 1h30m -m "Investigation"     # 90, 90m, 2h, 1h30m
+eva task log BOT-7044 30m --remaining 2h           # also reset the estimate
+```
+
+A comment, like a description, is plain text. Time is logged for now, in the
+user's name; without `--remaining` the remaining estimate is left as it was.

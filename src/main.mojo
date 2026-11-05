@@ -59,8 +59,8 @@ options everywhere
   -v, --verbose     show the request and the reply on stderr
 
 configuration: EVA_URL and EVA_API_KEY, from the environment, ./.env or
-~/.config/eva-cli/env. EVA_INSECURE=1 skips TLS verification for
-self-hosted servers with their own certificate.
+~/.config/eva-cli/env. EVA_CA_BUNDLE points at a PEM file for a server signed
+by a corporate CA; EVA_INSECURE=1 skips TLS verification altogether.
 """
 
 
