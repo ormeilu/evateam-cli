@@ -96,7 +96,7 @@ jobs:
           v=$(sed -n 's/^version = "\([^"]*\)".*/\1/p' pixi.toml | head -1)
           [ "$TAG" = "v$v" ] || { echo "tag $TAG != pixi.toml $v"; exit 1; }
           grep -q "comptime VERSION = \"$v\"" src/main.mojo || { echo "src/main.mojo VERSION != $v"; exit 1; }
-          grep -q "version: \"$v\"" recipe/recipe.yaml || { echo "recipe/recipe.yaml version != $v"; exit 1; }
+          grep -qE "^  version: \"?$v\"?\$" recipe/recipe.yaml || { echo "recipe/recipe.yaml version != $v"; exit 1; }
       - run: pixi run wheel ${{ matrix.wheel }}
       - run: pixi run archive ${{ matrix.target }}
       - name: Check glibc symbols fit the manylinux tag
