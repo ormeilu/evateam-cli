@@ -18,7 +18,8 @@ $ eva task get DEV-1
 DEV-1  Вложения теряются при переносе задачи
 status: В работе   stage: IN_PROGRESS
 assignee: ilya@example.ru   author: rep@example.ru
-parent: DEV  Development
+project: DEV  Development
+parent task: DEV-100  Storage rework
 created: 2026-11-01T10:00:00+03:00   updated: 2026-11-02T10:00:00+03:00
 <untrusted src="DEV-1/text">
 Шаги:
@@ -146,7 +147,7 @@ EVA_API_KEY=…
 
 | Команда | Что делает |
 |---|---|
-| `eva task get CODE [--fields a,b]` | одна задача: статус, люди, родитель, описание |
+| `eva task get CODE [--fields a,b]` | одна задача: статус, люди, проект, родительская задача, подзадачи, описание |
 | `eva task list [-p PROJ] [-a LOGIN] [-s STATUS] [-q TEXT]` | поиск; `-s` принимает `open`, `closed`, `in_progress`, `in_review`, `all` или код статуса |
 | `eva task create -p PROJ -t TITLE [-d TEXT] [-a LOGIN] [--sprint SPR-1]` | новая задача |
 | `eva task update CODE [-t] [-d] [-a] [--set JSON]` | изменить поля; `--set` передаёт любое поле как есть |

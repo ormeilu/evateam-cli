@@ -29,7 +29,7 @@ came from. Three outcomes:
 ## The commands that cover most work
 
 ```bash
-eva task get BOT-7035                    # status, people, parent, description
+eva task get BOT-7035                    # status, people, parent task, subtasks, description
 eva task get BOT-7035 --fields name,status.name   # just those fields
 eva task list -a login@company.ru -s open        # a page of rows and a tally
 eva task list -p dcc_bot -q "langfuse" -n 10

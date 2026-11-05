@@ -31,6 +31,13 @@ TASKS = [
         "responsible": {"name": "Илья", "login": "ilya@example.ru"},
         "cmf_author": {"name": "Reporter", "login": "rep@example.ru"},
         "parent": {"code": "DEV", "name": "Development"},
+        "parent_task": {"code": "DEV-100", "name": "Storage rework"},
+        "child_tasks": [
+            {"code": "DEV-5", "name": "Closed child", "cache_status_type": "CLOSED",
+             "status": {"name": "Done"}, "responsible": None},
+            {"code": "DEV-4", "name": "Open child", "cache_status_type": "OPEN",
+             "status": {"name": "Backlog"}, "responsible": {"login": "ilya@example.ru"}},
+        ],
         "project": {"code": "DEV"},
         "cmf_created_at": "2026-11-01T10:00:00+03:00",
         "cmf_modified_at": "2026-11-02T10:00:00+03:00",

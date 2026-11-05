@@ -7,9 +7,11 @@ eva task get BOT-7035
 ```
 
 Code and name, status and its stage (`OPEN`, `IN_PROGRESS`, `IN_REVIEW`,
-`CLOSED`), assignee and author by login, the parent project, dates, then the
-description. Through a pipe the description is capped at 20 lines with
-`(+N more lines: --full)` after it; `--full` lifts the cap.
+`CLOSED`), assignee and author by login, the project, the parent task (an epic,
+say), dates, the subtasks, then the description. Subtasks come with a tally by
+stage, open ones first. Through a pipe the subtasks stop at 20 and the
+description at 20 lines, each followed by a `(+N more …: --full)` line; `--full`
+lifts both caps.
 
 `--fields a,b` prints only those fields, one `field: value` line each. Field
 names are EvaTeam's: `name`, `deadline`, `cmf_created_at`, `cache_status_type`,
