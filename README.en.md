@@ -17,7 +17,8 @@ $ eva task get DEV-1
 DEV-1  Вложения теряются при переносе задачи
 status: В работе   stage: IN_PROGRESS
 assignee: ilya@example.ru   author: rep@example.ru
-parent: DEV  Development
+project: DEV  Development
+parent task: DEV-100  Storage rework
 created: 2026-11-01T10:00:00+03:00   updated: 2026-11-02T10:00:00+03:00
 <untrusted src="DEV-1/text">
 Шаги:
@@ -146,7 +147,7 @@ printing the token.
 
 | Command | What it does |
 |---|---|
-| `eva task get CODE [--fields a,b]` | one task: status, people, parent, description |
+| `eva task get CODE [--fields a,b]` | one task: status, people, project, parent task, subtasks, description |
 | `eva task list [-p PROJ] [-a LOGIN] [-s STATUS] [-q TEXT]` | search; `-s` takes `open`, `closed`, `in_progress`, `in_review`, `all` or a status code |
 | `eva task create -p PROJ -t TITLE [-d TEXT] [-a LOGIN] [--sprint SPR-1]` | new task |
 | `eva task update CODE [-t] [-d] [-a] [--set JSON]` | change fields; `--set` passes any field through |

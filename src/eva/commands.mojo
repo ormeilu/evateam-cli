@@ -11,8 +11,13 @@ from eva.render import Out, pad, clip, text_to_html
 
 comptime TASK_FIELDS = (
     "*,status.name,status.code,responsible.name,responsible.login,"
-    "cmf_author.name,cmf_author.login,parent.code,parent.name"
+    "cmf_author.name,cmf_author.login,parent.code,parent.name,"
+    "parent_task.code,parent_task.name,child_tasks.code,child_tasks.name,"
+    "child_tasks.status.name,child_tasks.cache_status_type,child_tasks.responsible.login"
 )
+
+# Subtask rows shown through a pipe before `(+N more: --full)`.
+comptime PIPE_SUBTASKS = 20
 
 comptime LIST_FIELDS = (
     "code,name,cache_status_type,status.name,responsible.login,"
@@ -134,14 +139,70 @@ def task_get(client: Client, args: Args, ui: Out) raises:
         status = d.text_at(t, "cache_status_type")
     print("status: " + ui.status(status) + "   stage: " + d.text_at(t, "cache_status_type"))
     print("assignee: " + person(d, t, "responsible") + "   author: " + person(d, t, "cmf_author"))
-    var parent = d.text_at(t, "parent.code")
-    if parent != "":
-        print("parent: " + parent + "  " + d.text_at(t, "parent.name"))
+    var project = d.text_at(t, "parent.code")
+    if project != "":
+        print("project: " + project + "  " + d.text_at(t, "parent.name"))
+    var parent_task = d.text_at(t, "parent_task.code")
+    if parent_task != "":
+        print("parent task: " + parent_task + "  " + String(d.text_at(t, "parent_task.name").strip()))
     print(ui.dim("created: " + d.text_at(t, "cmf_created_at") + "   updated: " + d.text_at(t, "cmf_modified_at")))
     var deadline = d.text_at(t, "deadline")
     if deadline != "":
         print("deadline: " + deadline)
+    print_subtasks(d, d.get(t, "child_tasks"), ui)
     ui.untrusted(code + "/text", d.text_at(t, "text"))
+
+
+def print_subtasks(d: JsonDoc, list: Int, ui: Out) raises:
+    """Open subtasks first, then closed, with a count of each stage."""
+    var n = d.len(list)
+    if n == 0:
+        return
+    var open_rows = List[Int]()
+    var closed_rows = List[Int]()
+    var n_open = 0
+    var n_progress = 0
+    var n_review = 0
+    for i in range(n):
+        var c = d.at(list, i)
+        var stage = d.text_at(c, "cache_status_type")
+        if stage == "CLOSED":
+            closed_rows.append(c)
+        else:
+            open_rows.append(c)
+            if stage == "IN_PROGRESS":
+                n_progress += 1
+            elif stage == "IN_REVIEW":
+                n_review += 1
+            else:
+                n_open += 1
+    var tally = String(n_open) + " open, " + String(n_progress) + " in progress"
+    if n_review > 0:
+        tally += ", " + String(n_review) + " in review"
+    tally += ", " + String(len(closed_rows)) + " closed"
+    print("subtasks: " + String(n) + " (" + tally + ")")
+    var rows = open_rows^
+    for c in closed_rows:
+        rows.append(c)
+    var limit = n if ui.tty or ui.full else min(n, PIPE_SUBTASKS)
+    for i in range(limit):
+        var c = rows[i]
+        var status = d.text_at(c, "status.name")
+        if status == "":
+            status = d.text_at(c, "cache_status_type")
+        var who = d.text_at(c, "responsible.login")
+        print(
+            "  "
+            + ui.accent(pad(d.text_at(c, "code"), 12))
+            + " "
+            + ui.status(pad(clip(status, 18), 18))
+            + " "
+            + pad(clip(who if who != "" else "-", 18), 18)
+            + " "
+            + clip(d.text_at(c, "name"), 70)
+        )
+    if limit < n:
+        print(ui.dim("  (+" + String(n - limit) + " more subtasks: --full)"))
 
 
 def status_condition(mut d: JsonDoc, s: String) raises -> Int:
