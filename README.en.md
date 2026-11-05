@@ -39,7 +39,9 @@ agent reading the output can tell the tracker's data from instructions.
 ## Install
 
 eva is built for macOS 13 or newer on Apple silicon and Linux on x86_64 and
-arm64 (glibc 2.34 or newer). It does not need Python. Pick one way to install it.
+arm64 with glibc 2.34 or newer; Ubuntu 22.04, Debian 12 and Rocky Linux 9 are
+tested. The CPU has to meet Mojo's own floor: x86-64-v3 (Haswell or newer) or
+ARM Neoverse N1 (Graviton2 or newer). It does not need Python. Pick one way to install it.
 
 With the install script. It downloads the release archive for your machine
 from GitHub, checks its sha256, unpacks it into `~/.local/share/eva/<version>`
