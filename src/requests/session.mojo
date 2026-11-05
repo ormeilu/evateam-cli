@@ -148,6 +148,7 @@ struct Session(Movable):
             raise URLRequired("no URL supplied for request")
 
         var current_url = url
+        var current_headers = headers.copy()
         var redirect_method = method
         var current_data = data
         var current_json = json
@@ -199,7 +200,19 @@ struct Session(Movable):
                 return resp^
 
             # Resolve relative redirects against the current URL.
+            var previous_url = current_url
             current_url = _resolve_redirect(current_url, location)
+
+            # Credentials stay with the origin they were meant for: a redirect to
+            # another scheme, host or port (https to http included) drops them,
+            # as Python requests does.
+            if _origin(current_url) != _origin(previous_url) and current_headers != None:
+                var kept = Dict[String, String]()
+                for item in current_headers.value().items():
+                    var name = _ascii_lower(item.key)
+                    if name != "authorization" and name != "proxy-authorization" and name != "cookie":
+                        kept[item.key] = item.value
+                current_headers = kept^
 
             # 303 / 301/302 after POST → GET (matches Python requests behavior).
             if resp.status_code == 303 or (
@@ -216,7 +229,7 @@ struct Session(Movable):
                 redirect_method,
                 current_url,
                 none_params,
-                headers,
+                current_headers,
                 current_data,
                 current_json,
                 timeout,
@@ -986,3 +999,33 @@ def _parse_content_length(s: String) -> Optional[Int]:
             return None
         v = v * 10 + Int(b - 0x30)
     return v
+
+
+def _ascii_lower(s: String) -> String:
+    var out = String()
+    for cp in s.codepoints():
+        var i = Int(cp)
+        if i >= 65 and i <= 90:
+            out += String(Codepoint(unsafe_unchecked_codepoint=UInt32(i + 32)))
+        else:
+            out += String(cp)
+    return out
+
+
+def _origin(url: String) -> String:
+    """scheme://host[:port], lower-cased: what a credential is bound to."""
+    var start = url.find("://")
+    if start < 0:
+        return _ascii_lower(url)
+    var rest = String(url[byte = start + 3 :])
+    var end = rest.byte_length()
+    for sep in ["/", "?", "#"]:
+        var k = rest.find(sep)
+        if k >= 0 and k < end:
+            end = k
+    var authority = String(rest[byte=0:end])
+    var at = authority.rfind("@")
+    if at >= 0:
+        var host_part = String(authority[byte = at + 1 :])
+        authority = host_part^
+    return _ascii_lower(String(url[byte=0:start]) + "://" + authority)

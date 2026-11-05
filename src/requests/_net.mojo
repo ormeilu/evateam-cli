@@ -73,7 +73,11 @@ struct SockAddrIn6:
     var sin6_family: UInt16
     var sin6_port: UInt16
     var sin6_flowinfo: UInt32
-    var sin6_addr: SIMD[DType.uint8, 16]
+    # Two halves, not SIMD[uint8, 16]: SIMD's 16-byte alignment would put the
+    # field at offset 16 instead of C's 8, and every read and write of it
+    # would miss (and read past a 28-byte sockaddr_in6).
+    var sin6_addr_lo: UInt64
+    var sin6_addr_hi: UInt64
     var sin6_scope_id: UInt32
 
 
@@ -112,7 +116,9 @@ def _do_connect(fd: c_int, addr: ResolvedAddress, port: Int) -> c_int:
     sa[].sin6_family = _sa_family(Int(addr.pf), 28)
     sa[].sin6_port = htons(UInt16(port))
     sa[].sin6_flowinfo = UInt32(0)
-    sa[].sin6_addr = addr.ipv6
+    var halves = in6_halves(addr.ipv6)
+    sa[].sin6_addr_lo = halves[0]
+    sa[].sin6_addr_hi = halves[1]
     sa[].sin6_scope_id = UInt32(0)
     var rc = external_call["connect", c_int](fd, sa, c_int(28))
     sa.unsafe_free()
@@ -375,4 +381,4 @@ comptime CHUNK_SIZE = 8192
 # Re-export the resolver from _dns so callers only need _net. We import lazily here to avoid a
 # circular module reference at parse time; the helper just forwards.
 from ._dns import resolve as _dns_resolve
-from ._dns import ResolvedAddress
+from ._dns import ResolvedAddress, in6_halves
