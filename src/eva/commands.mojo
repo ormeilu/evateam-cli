@@ -129,7 +129,7 @@ def task_get(client: Client, args: Args, ui: Out) raises:
     var status = d.text_at(t, "status.name")
     if status == "":
         status = d.text_at(t, "cache_status_type")
-    print("status: " + ui.status(status) + "   type: " + d.text_at(t, "cache_status_type"))
+    print("status: " + ui.status(status) + "   stage: " + d.text_at(t, "cache_status_type"))
     print("assignee: " + person(d, t, "responsible") + "   author: " + person(d, t, "cmf_author"))
     var parent = d.text_at(t, "parent.code")
     if parent != "":
@@ -160,9 +160,10 @@ def task_filter(client: Client, mut d: JsonDoc, args: Args) raises -> Int:
     d.push(conds, c)
     var project = args.get("project", "p")
     if project != "":
-        var pid = id_of(client, "CmfProject", "code", project)
-        var v = d.string(pid)
-        c = d.triple("parent_id", "==", v)
+        # project.code also catches tasks nested under an epic; parent_id
+        # would not.
+        var v = d.string(project)
+        c = d.triple("project.code", "==", v)
         d.push(conds, c)
     var assignee = args.get("assignee", "a")
     if assignee != "":
@@ -217,7 +218,7 @@ def task_list(client: Client, args: Args, ui: Out) raises:
         print(
             ui.accent(pad(rd.text_at(t, "code"), 12))
             + " "
-            + ui.status(pad(clip(status, 14), 14))
+            + ui.status(pad(clip(status, 18), 18))
             + " "
             + pad(clip(person(rd, t, "responsible"), 18), 18)
             + " "

@@ -39,8 +39,8 @@ sent  "slice sent"             '"slice":[0,1]'
 check "task list open"         "shown 1 of 1"                  -- $eva task list -s in_progress
 sent  "status filter"          '["cache_status_type","==","IN_PROGRESS"]'
 check "task list query"        "DEV-2"                         -- $eva task list -q retry
-check "task list project"      "shown"                         -- $eva task list -p DEV -a ilya@example.ru
-sent  "project filter"         '["parent_id","==","CmfProject:42"]'
+check "task list project"      "shown 1 of 1"                  -- $eva task list -p DEV -a ilya@example.ru
+sent  "project filter"         '["project.code","==","DEV"]'
 check "create"                 "created DEV-3"                 -- $eva task create -p DEV -t "New one" -d "line1
 line2" -a ilya@example.ru
 check "update"                 "updated DEV-1: name, status"   -- $eva task update DEV-1 -t Renamed -s closed
