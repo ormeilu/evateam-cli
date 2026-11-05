@@ -9,9 +9,30 @@
       "package-name": "evateam-cli",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        { "type": "toml", "path": "pixi.toml", "jsonpath": "$.workspace.version" },
-        { "type": "yaml", "path": "recipe/recipe.yaml", "jsonpath": "$.context.version" },
-        { "type": "generic", "path": "src/main.mojo" }
+        {
+          "type": "toml",
+          "path": "pixi.toml",
+          "jsonpath": "$.workspace.version"
+        },
+        {
+          "type": "yaml",
+          "path": "recipe/recipe.yaml",
+          "jsonpath": "$.context.version"
+        },
+        {
+          "type": "generic",
+          "path": "src/main.mojo"
+        },
+        {
+          "type": "json",
+          "path": "plugin/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "plugin/.codex-plugin/plugin.json",
+          "jsonpath": "$.version"
+        }
       ]
     }
   }

@@ -1,0 +1,16 @@
+{
+  "name": "eva",
+  "description": "EvaTeam CLI for humans and agents.",
+  "owner": {
+    "name": "Ilya Lubenets",
+    "url": "https://github.com/ormeilu"
+  },
+  "plugins": [
+    {
+      "name": "eva",
+      "description": "Read and change EvaTeam tasks from the command line. Compact output by default; reading commands cannot write. Requires the eva binary, installed separately.",
+      "source": "./plugin",
+      "category": "productivity"
+    }
+  ]
+}
