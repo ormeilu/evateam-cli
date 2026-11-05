@@ -123,8 +123,10 @@ def task_get(client: Client, args: Args, ui: Out) raises:
     ref d = r.doc
     var t = r.result
     if args.get("fields") != "":
-        for i in range(d.len(t)):
-            print(d.key_at(t, i) + ": " + d.text(d.at(t, i)))
+        # Only what was asked for: the server adds ids, and a dotted path
+        # comes back nested.
+        for f in split_csv(args.get("fields")):
+            print(f + ": " + d.text_at(t, f))
         return
     print(ui.bold(d.text_at(t, "code")) + "  " + d.text_at(t, "name"))
     var status = d.text_at(t, "status.name")
@@ -178,7 +180,7 @@ def task_filter(client: Client, mut d: JsonDoc, args: Args) raises -> Int:
     var q = args.get("query", "q")
     if q != "":
         var v = d.string("%" + q + "%")
-        c = d.triple("name", "LIKE", v)
+        c = d.triple("name", "ILIKE", v)
         d.push(conds, c)
     var raw = args.get("filter")
     if raw != "":
@@ -618,7 +620,7 @@ def like_filter(field: String, q: String, base: String) -> String:
             pass
     if q != "":
         var v = d.string("%" + q + "%")
-        var c = d.triple(field, "LIKE", v)
+        var c = d.triple(field, "ILIKE", v)
         d.push(conds, c)
     if d.len(conds) == 0:
         return ""
