@@ -13,6 +13,8 @@ from eva.commands import (
     task_comments,
     task_log,
     task_links,
+    task_move,
+    task_statuses,
     project_list,
     person_list,
     doc_get,
@@ -33,6 +35,9 @@ tasks
             [-q TEXT] [--filter BQL] [--order -field] [-n 25] [--page 1]
   task create -p PROJ -t TITLE [-d TEXT] [-a LOGIN] [--sprint SPR-1]
   task update CODE [-t TITLE] [-d TEXT] [-s STATUS] [-a LOGIN] [--set JSON]
+  task move CODE STATUS [-m COMMENT] [--set JSON]
+                                        change status through the workflow
+  task statuses CODE                    where the task can move from here
   task comment CODE TEXT                add a comment
   task comments CODE                    read the comments
   task log CODE 1h30m [-m TEXT]         log time spent
@@ -98,6 +103,10 @@ def run(var raw: List[String]) raises:
             task_log(client, args, ui)
         elif sub == "links":
             task_links(client, args, ui)
+        elif sub == "move":
+            task_move(client, args, ui)
+        elif sub == "statuses":
+            task_statuses(client, args, ui)
         else:
             raise Error("unknown task command '" + sub + "', see eva --help")
     elif group == "project" or group == "projects":

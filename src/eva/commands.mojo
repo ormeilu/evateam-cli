@@ -283,7 +283,7 @@ def task_create(client: Client, args: Args, ui: Out) raises:
 def task_update(client: Client, args: Args, ui: Out) raises:
     args.check_known(
         ["name", "title", "t", "description", "d", "assignee", "a", "status", "s",
-         "set", "json", "format", "verbose", "v"]
+         "comment", "m", "set", "json", "format", "verbose", "v"]
     )
     var code = args.need(2, "task code")
     var d = JsonDoc()
@@ -299,10 +299,8 @@ def task_update(client: Client, args: Args, ui: Out) raises:
     if desc != "":
         d.set_str(kw, "text", text_to_html(desc))
         changed.append("text")
+    # Status changes go through a workflow transition, after the other fields.
     var status = args.get("status", "s")
-    if status != "":
-        d.set_str(kw, "status", status)
-        changed.append("status")
     var assignee = args.get("assignee", "a")
     if assignee != "":
         var ref_obj = d.object()
@@ -318,12 +316,129 @@ def task_update(client: Client, args: Args, ui: Out) raises:
         for i in range(d.len(extra)):
             d.set(kw, d.key_at(extra, i), d.at(extra, i))
             changed.append(d.key_at(extra, i))
-    if len(changed) == 0:
+    if len(changed) == 0 and status == "":
         raise Error("nothing to change: pass -t, -d, -s, -a or --set")
-    var id = id_of(client, "CmfTask", "code", code)
-    var args_json = "[" + quote_str(id) + "]"
-    _ = client.call("CmfTask.update", d.dump(kw), args_json)
-    print("updated " + ui.bold(code) + ": " + ", ".join(changed))
+    if len(changed) > 0:
+        var id = id_of(client, "CmfTask", "code", code)
+        var args_json = "[" + quote_str(id) + "]"
+        _ = client.call("CmfTask.update", d.dump(kw), args_json)
+        print("updated " + ui.bold(code) + ": " + ", ".join(changed))
+    if status != "":
+        # --set already went into the update above.
+        move_task(client, code, status, args.get("comment", "m"), "", ui)
+
+
+# ---- workflow transitions ----
+
+
+struct Transitions(Movable):
+    """The transitions a task can take from its current status."""
+
+    var task_id: String
+    var current: String
+    var trans_ids: List[String]
+    var trans_names: List[String]
+    var to_ids: List[String]
+    var to_codes: List[String]
+    var to_names: List[String]
+
+    def __init__(out self):
+        self.task_id = ""
+        self.current = ""
+        self.trans_ids = List[String]()
+        self.trans_names = List[String]()
+        self.to_ids = List[String]()
+        self.to_codes = List[String]()
+        self.to_names = List[String]()
+
+
+def transitions_for(client: Client, code: String) raises -> Transitions:
+    var t = get_by_code(
+        client, "CmfTask", code, split_csv("id,status_id,status.name,workflow_id")
+    )
+    var out = Transitions()
+    out.task_id = t.doc.text_at(t.result, "id")
+    out.current = t.doc.text_at(t.result, "status.name")
+    var status_id = t.doc.text_at(t.result, "status_id")
+    var wf = t.doc.text_at(t.result, "workflow_id")
+    if wf == "":
+        raise Error(code + ": the task has no workflow")
+
+    var d = JsonDoc()
+    var kw = d.object()
+    var v = d.string(wf)
+    var f = d.triple("workflow_id", "==", v)
+    d.set(kw, "filter", f)
+    var fl = d.str_array(
+        split_csv("name,status_to_id,status_to.code,status_to.name,status_from.id")
+    )
+    d.set(kw, "fields", fl)
+    var r = client.call("CmfTrans.list", d.dump(kw))
+    for i in range(r.doc.len(r.result)):
+        var tr = r.doc.at(r.result, i)
+        var to_id = r.doc.text_at(tr, "status_to_id")
+        if to_id == status_id:
+            continue
+        # An empty status_from is a system transition (creation, reset); skip it.
+        var from_list = r.doc.get(tr, "status_from")
+        var allowed = False
+        for j in range(r.doc.len(from_list)):
+            if r.doc.text_at(r.doc.at(from_list, j), "id") == status_id:
+                allowed = True
+                break
+        if not allowed:
+            continue
+        out.trans_ids.append(r.doc.text_at(tr, "id"))
+        out.trans_names.append(r.doc.text_at(tr, "name"))
+        out.to_ids.append(to_id)
+        out.to_codes.append(r.doc.text_at(tr, "status_to.code"))
+        out.to_names.append(r.doc.text_at(tr, "status_to.name"))
+    return out^
+
+
+def move_task(
+    client: Client, code: String, target: String, comment: String, fields: String, ui: Out
+) raises:
+    var tr = transitions_for(client, code)
+    var want = target.lower()
+    var pick = -1
+    for i in range(len(tr.trans_ids)):
+        if tr.to_codes[i].lower() == want or tr.to_names[i].lower() == want:
+            pick = i
+            break
+    if pick < 0:
+        var options = List[String]()
+        for i in range(len(tr.to_codes)):
+            options.append(tr.to_codes[i] + " (" + tr.to_names[i] + ")")
+        raise Error(
+            code + " is in " + tr.current + " and cannot move to " + target
+            + "; it can move to: " + (", ".join(options) if len(options) > 0 else "nothing")
+        )
+    var d = JsonDoc()
+    var kw = d.object()
+    d.set_str(kw, "comment_append", text_to_html(comment) if comment != "" else "")
+    var changed = d.object()
+    if fields != "":
+        # Fields the transition requires, e.g. --set '{"cf_vid_uslugi": "razvitie"}'.
+        changed = d.parse(fields)
+        if d.kind(changed) != J_OBJ:
+            raise Error("--set expects a JSON object")
+    d.set_str(changed, "status", tr.to_ids[pick])
+    d.set(kw, "changed_fields", changed)
+    var args_json = "[" + quote_str(tr.task_id) + "," + quote_str(tr.trans_ids[pick]) + "]"
+    _ = client.call("CmfTask.task_transition_run", d.dump(kw), args_json)
+    print("moved " + ui.bold(code) + ": " + tr.current + " → " + ui.status(tr.to_names[pick]))
+
+
+def task_statuses(client: Client, args: Args, ui: Out) raises:
+    args.check_known(["verbose", "v"])
+    var code = args.need(2, "task code")
+    var tr = transitions_for(client, code)
+    print(ui.bold(code) + " is in " + ui.status(tr.current) + "; it can move to:")
+    for i in range(len(tr.to_codes)):
+        print("  " + ui.accent(pad(tr.to_codes[i], 26)) + " " + tr.to_names[i])
+    if len(tr.to_codes) == 0:
+        print(ui.dim("  nothing"))
 
 
 def quote_str(s: String) -> String:
@@ -370,10 +485,10 @@ def task_log(client: Client, args: Args, ui: Out) raises:
     var kw = d.object()
     var ts = d.number(minutes)
     d.set(kw, "time_spent", ts)
+    # The server requires remaining_estimate; null leaves the estimate alone.
     var rem = args.get("remaining")
-    if rem != "":
-        var rv = d.number(parse_minutes(rem))
-        d.set(kw, "remaining_estimate", rv)
+    var rv = d.number(parse_minutes(rem)) if rem != "" else d.null()
+    d.set(kw, "remaining_estimate", rv)
     var msg = args.get("message", "m")
     if msg != "":
         d.set_str(kw, "text", msg)
@@ -546,3 +661,10 @@ def raw_call(client: Client, args: Args, ui: Out) raises:
         _ = check.parse(flags)
     var r = client.call(method, kwargs, a, flags)
     print_json(r)
+
+
+def task_move(client: Client, args: Args, ui: Out) raises:
+    args.check_known(["comment", "m", "set", "verbose", "v"])
+    var code = args.need(2, "task code")
+    var target = args.need(3, "status code or name; see eva task statuses " + code)
+    move_task(client, code, target, args.get("comment", "m"), args.get("set"), ui)

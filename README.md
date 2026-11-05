@@ -70,7 +70,9 @@ printing the token.
 | `eva task get CODE [--fields a,b]` | one task: status, people, parent, description |
 | `eva task list [-p PROJ] [-a LOGIN] [-s STATUS] [-q TEXT]` | search; `-s` takes `open`, `closed`, `in_progress`, `in_review`, `all` or a status code |
 | `eva task create -p PROJ -t TITLE [-d TEXT] [-a LOGIN] [--sprint SPR-1]` | new task |
-| `eva task update CODE [-t] [-d] [-s] [-a] [--set JSON]` | change fields; `--set` passes any field through |
+| `eva task update CODE [-t] [-d] [-a] [--set JSON]` | change fields; `--set` passes any field through |
+| `eva task statuses CODE` | the statuses the task's workflow lets it move to from here |
+| `eva task move CODE STATUS [-m TEXT] [--set JSON]` | change status through a workflow transition; `--set` fills fields the transition requires |
 | `eva task comment CODE TEXT` / `eva task comments CODE` | write or read comments |
 | `eva task log CODE 1h30m [-m TEXT]` | log time spent |
 | `eva task links CODE` | incoming and outgoing links |
@@ -122,12 +124,18 @@ end-to-end script checks both what `eva` prints and what it sends.
 
 ## Status
 
-Checked by hand against a live EvaTeam instance: every read command (`task get`,
-`task list` with each filter, `comments`, `links`, `project`, `person`, `doc`,
-`call`), paging and counts. The write commands (`create`, `update`, `comment`,
-`log`) follow the request shapes in the
-[EvaTeam API docs](https://docs.evateam.ru/docs/docs/DOC-000199) and are tested
-against the mock only.
+Checked against a live EvaTeam instance, reads and writes: every command in the
+table above, paging and counts, and a test task taken from creation to Done.
+
+Two things the docs do not say, found that way:
+
+- Plain `CmfTask.update` with a new status is accepted and ignored. A status
+  change has to run a workflow transition (`CmfTask.task_transition_run`), which
+  is what `task move` does: it reads the task's workflow, finds the transition
+  from the current status and reports which targets exist when the one asked for
+  does not.
+- A refused call comes back as HTTP 200 with an `abort` message ("Необходимо
+  заполнить Вид услуги") and no `error`. `eva` treats it as an error.
 
 ## Licence
 
