@@ -210,7 +210,9 @@ jobs:
           pattern: dist-*
           path: dist
           merge-multiple: true
-      - name: Attach archives and wheels to the release
+      # Only the archives: a wheel matches the same os/arch words, and mise's
+      # github backend would pick it over the archive. Wheels live on PyPI.
+      - name: Attach archives to the release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.plan.outputs.tag }}
@@ -218,4 +220,4 @@ jobs:
           # release-please created the release; a hand-pushed tag has none yet.
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --generate-notes
-          gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" dist/*.tar.gz dist/*.sha256 --repo "$GITHUB_REPOSITORY" --clobber

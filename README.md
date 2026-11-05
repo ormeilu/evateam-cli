@@ -75,6 +75,10 @@ mise use -g github:ormeilu/evateam-cli
 mise use -g pypi:evateam-cli
 ```
 
+Recent mise versions hide releases younger than a day (`minimum_release_age`);
+name the version, e.g. `github:ormeilu/evateam-cli@0.2.0`, to install one
+sooner.
+
 `eva upgrade` updates eva the same way it was installed.
 
 The two routes differ in size. Both carry Mojo's runtime libraries as a
