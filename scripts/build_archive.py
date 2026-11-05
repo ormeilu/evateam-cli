@@ -9,6 +9,7 @@ libraries shipped. eva still needs a Python 3 on PATH for its HTTPS calls.
 """
 
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -34,17 +35,36 @@ def env_lib() -> Path:
 
 
 def modular_licenses() -> Path:
-    """info/licenses of the mojo-compiler package the env was built from."""
-    meta = next((ROOT / ".pixi/envs/default/conda-meta").glob("mojo-compiler-*.json"))
-    name = meta.stem
+    """info/licenses of the mojo-compiler package the env was built from.
+
+    It sits in rattler's package cache. An env restored from a CI cache never
+    went through it, so fetch that exact build with `pixi exec` if needed.
+    """
+    meta_file = next((ROOT / ".pixi/envs/default/conda-meta").glob("mojo-compiler-*.json"))
+    meta = json.loads(meta_file.read_text())
+    name = meta_file.stem
     cache = os.environ.get("RATTLER_CACHE_DIR")
     roots = [Path(cache)] if cache else []
     roots += [Path.home() / "Library/Caches/rattler/cache", Path.home() / ".cache/rattler/cache"]
-    for root in roots:
-        lic = root / "pkgs" / name / "info" / "licenses"
-        if (lic / "LICENSE").exists():
-            return lic
-    raise SystemExit(f"no info/licenses for {name} in the rattler cache; run `pixi install`")
+
+    def find() -> Path | None:
+        for root in roots:
+            lic = root / "pkgs" / name / "info" / "licenses"
+            if (lic / "LICENSE").exists():
+                return lic
+        return None
+
+    lic = find()
+    if lic is None:
+        spec = f"mojo-compiler=={meta['version']}={meta['build']}"
+        subprocess.run(
+            ["pixi", "exec", "-c", "https://conda.modular.com/max", "-c", "conda-forge", "-s", spec, "--", "true"],
+            check=True,
+        )
+        lic = find()
+    if lic is None:
+        raise SystemExit(f"no info/licenses for {name} in the rattler cache")
+    return lic
 
 
 def linked_env_libs(binary: Path) -> set[str]:
