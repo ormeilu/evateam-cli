@@ -128,7 +128,7 @@ def task_get(client: Client, args: Args, ui: Out) raises:
         for f in split_csv(args.get("fields")):
             print(f + ": " + d.text_at(t, f))
         return
-    print(ui.bold(d.text_at(t, "code")) + "  " + d.text_at(t, "name"))
+    print(ui.bold(d.text_at(t, "code")) + "  " + String(d.text_at(t, "name").strip()))
     var status = d.text_at(t, "status.name")
     if status == "":
         status = d.text_at(t, "cache_status_type")
@@ -658,7 +658,7 @@ def doc_get(client: Client, args: Args, ui: Out) raises:
     if want_json(args):
         print_json(r)
         return
-    print(ui.bold(r.doc.text_at(r.result, "code")) + "  " + r.doc.text_at(r.result, "name"))
+    print(ui.bold(r.doc.text_at(r.result, "code")) + "  " + String(r.doc.text_at(r.result, "name").strip()))
     print(ui.dim("owner: " + r.doc.text_at(r.result, "cmf_owner.login")))
     ui.untrusted(code + "/text", r.doc.text_at(r.result, "text"))
 
