@@ -40,7 +40,7 @@ eva is built for macOS on Apple silicon and Linux on x86_64 and arm64 (glibc
 2.34 or newer). Pick one way to install it.
 
 With the install script. It installs [pixi](https://pixi.sh) if it is missing,
-then eva from the conda channel `prefix.dev/ormeilu`. Run it again to update:
+then eva from the conda channel [`prefix.dev/ormeilu/ormeilu`](https://prefix.dev/channels/@ormeilu/ormeilu). Run it again to update:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ormeilu/evateam-cli/main/install.sh | sh
@@ -49,7 +49,7 @@ curl -fsSL https://raw.githubusercontent.com/ormeilu/evateam-cli/main/install.sh
 With pixi directly, which is what the script does:
 
 ```bash
-pixi global install -c https://prefix.dev/ormeilu -c https://conda.modular.com/max -c conda-forge evateam-cli
+pixi global install -c https://prefix.dev/ormeilu/ormeilu -c https://conda.modular.com/max -c conda-forge evateam-cli
 ```
 
 From PyPI, if you prefer uv or pipx:
