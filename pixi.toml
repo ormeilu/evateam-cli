@@ -1,0 +1,21 @@
+[workspace]
+name = "eva-cli"
+version = "0.1.0"
+description = "EvaTeam from the command line, written in Mojo"
+authors = ["Ilya Lubenets"]
+channels = ["https://conda.modular.com/max", "https://prefix.dev/modular-community", "conda-forge"]
+platforms = ["osx-arm64", "linux-64", "linux-aarch64"]
+license = "MIT"
+
+[dependencies]
+mojo = "==1.2.0"
+emberjson = ">=0.4.0,<0.5"
+mist = ">=26.3.0,<27"
+python = ">=3.12,<3.14"
+
+[tasks]
+build = { cmd = "mkdir -p build && mojo build -I src src/main.mojo -o build/eva", description = "Build the eva binary" }
+run = { cmd = "mojo run -I src src/main.mojo", description = "Run without building" }
+test = { cmd = "mojo run -I src tests/test_all.mojo", description = "Run unit tests" }
+e2e = { cmd = "bash tests/e2e.sh", depends-on = ["build"], description = "Run the binary against a mock server" }
+fmt = { cmd = "mojo format src tests", description = "Format sources" }
