@@ -24,7 +24,7 @@ from eva.commands import (
 from eva.render import Out
 from eva.upgrade import upgrade
 
-comptime VERSION = "0.1.0"  # x-release-please-version
+comptime VERSION = "0.2.0"  # x-release-please-version
 
 comptime USAGE = """eva — EvaTeam from the command line
 

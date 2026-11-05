@@ -1,24 +1,18 @@
-# conda package for eva, built with rattler-build:
-#   pixi run conda-package
-# Same layout as the recipes in prefix.dev/modular-community.
-
 context:
-  version: "0.1.0"
-  mojo_version: "=1.2.0"
-
+  version: 0.2.0
+  mojo_version: '=1.2.0'
 package:
   name: evateam-cli
   version: ${{ version }}
-
 source:
   path: ..
-
 build:
   number: 0
   script:
     - mkdir -p ${{ PREFIX }}/bin
-    - mojo build -I src -I ${{ PREFIX }}/lib/mojo src/main.mojo -o ${{ PREFIX }}/bin/eva
-
+    - >-
+      mojo build -I src -I ${{ PREFIX }}/lib/mojo src/main.mojo -o ${{ PREFIX
+      }}/bin/eva
 requirements:
   build:
     - mojo-compiler ${{ mojo_version }}
@@ -26,23 +20,18 @@ requirements:
     - mojo-compiler ${{ mojo_version }}
     - mist >=26.3.0,<27
   run:
-    # Runtime libraries (libKGENCompilerRTShared and friends) live in lib/.
     - mojo-compiler ${{ mojo_version }}
-    # eva makes its HTTPS calls through Python's urllib.
     - python >=3.10
-
 tests:
   - script:
       - eva --version
       - eva --help
-
 about:
   homepage: https://github.com/ormeilu/evateam-cli
   repository: https://github.com/ormeilu/evateam-cli
   license: MIT
   license_file: LICENSE
   summary: EvaTeam from the command line, written in Mojo
-
 extra:
   maintainers:
     - ormeilu
