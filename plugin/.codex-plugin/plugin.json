@@ -1,6 +1,6 @@
 {
   "name": "eva",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "EvaTeam from the command line, sized for agents: read, search and change tasks without spending a context window on it. Ships the skill; the eva binary is installed separately.",
   "author": {
     "name": "Ilya Lubenets",
@@ -9,6 +9,12 @@
   "homepage": "https://github.com/ormeilu/evateam-cli",
   "repository": "https://github.com/ormeilu/evateam-cli",
   "license": "MIT",
-  "keywords": ["evateam", "tracker", "tasks", "cli", "agent"],
+  "keywords": [
+    "evateam",
+    "tracker",
+    "tasks",
+    "cli",
+    "agent"
+  ],
   "skills": "./skills/"
 }
