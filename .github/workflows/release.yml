@@ -4,8 +4,8 @@ name: release
 # commits (feat:, fix:). Merging it tags vX.Y.Z and creates the GitHub release;
 # the jobs below then build wheels, conda packages and archives for three
 # platforms, test each one installed the way a user would, and publish them:
-# wheels to PyPI, conda packages to prefix.dev/ormeilu, archives and wheels to
-# the GitHub release.
+# wheels to PyPI, conda packages to prefix.dev/ormeilu/ormeilu, archives to the
+# GitHub release.
 #
 # Everything sits in this one workflow: a tag pushed with GITHUB_TOKEN does not
 # start other workflows, and the PyPI and prefix.dev trusted publishers name
@@ -196,7 +196,7 @@ jobs:
           merge-multiple: true
       # Trusted publishing: rattler-build trades the GitHub OIDC token for a
       # prefix.dev upload token, so no API key is stored in the repo.
-      - run: pixi exec rattler-build upload prefix --channel ormeilu output/*/*.conda
+      - run: pixi exec rattler-build upload prefix --channel ormeilu/ormeilu output/*/*.conda
 
   publish-github:
     needs: [plan, build, conda]

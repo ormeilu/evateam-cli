@@ -9,10 +9,10 @@
 #
 # Environment:
 #   EVA_VERSION   install this version instead of the latest (e.g. 0.2.0)
-#   EVA_CHANNEL   conda channel (default https://prefix.dev/ormeilu)
+#   EVA_CHANNEL   conda channel (default https://prefix.dev/ormeilu/ormeilu)
 set -eu
 
-CHANNEL=${EVA_CHANNEL:-https://prefix.dev/ormeilu}
+CHANNEL=${EVA_CHANNEL:-https://prefix.dev/ormeilu/ormeilu}
 PACKAGE=evateam-cli
 
 PIXI_BIN="${PIXI_HOME:-$HOME/.pixi}/bin"
