@@ -76,8 +76,6 @@ environments:
       - conda: https://conda.modular.com/max/linux-64/mojo-compiler-1.2.0-release.conda
       - conda: https://conda.modular.com/max/noarch/mblack-26.7.0-release.conda
       - conda: https://conda.modular.com/max/noarch/mojo-python-1.2.0-release.conda
-      - conda: https://prefix.dev/modular-community/linux-64/emberjson-0.4.0-hb0f4dca_0.conda
-      - conda: https://prefix.dev/modular-community/linux-64/emberserde-0.1.0-hb0f4dca_0.conda
       - conda: https://prefix.dev/modular-community/linux-64/mist-26.3.0-hb0f4dca_0.conda
       linux-aarch64:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/_openmp_mutex-4.5-20_gnu.conda
@@ -131,8 +129,6 @@ environments:
       - conda: https://conda.modular.com/max/linux-aarch64/mojo-compiler-1.2.0-release.conda
       - conda: https://conda.modular.com/max/noarch/mblack-26.7.0-release.conda
       - conda: https://conda.modular.com/max/noarch/mojo-python-1.2.0-release.conda
-      - conda: https://prefix.dev/modular-community/linux-aarch64/emberjson-0.4.0-he8cfe8b_0.conda
-      - conda: https://prefix.dev/modular-community/linux-aarch64/emberserde-0.1.0-he8cfe8b_0.conda
       - conda: https://prefix.dev/modular-community/linux-aarch64/mist-26.3.0-he8cfe8b_0.conda
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
@@ -178,8 +174,6 @@ environments:
       - conda: https://conda.modular.com/max/noarch/mojo-python-1.2.0-release.conda
       - conda: https://conda.modular.com/max/osx-arm64/mojo-1.2.0-release.conda
       - conda: https://conda.modular.com/max/osx-arm64/mojo-compiler-1.2.0-release.conda
-      - conda: https://prefix.dev/modular-community/osx-arm64/emberjson-0.4.0-h60d57d3_0.conda
-      - conda: https://prefix.dev/modular-community/osx-arm64/emberserde-0.1.0-h60d57d3_0.conda
       - conda: https://prefix.dev/modular-community/osx-arm64/mist-26.3.0-h60d57d3_0.conda
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -1530,25 +1524,6 @@ packages:
   run_exports: {}
   size: 63449264
   timestamp: 1792188854801
-- conda: https://prefix.dev/modular-community/linux-64/emberjson-0.4.0-hb0f4dca_0.conda
-  sha256: 01897af52a07e4a6a49fd5e6fe0f8b21243ad7350c9ef582e987132d26f2f2ab
-  md5: 644736a0938a84ec935697bffb0a4732
-  depends:
-  - mojo-compiler >=1.1.0,<2.0a0
-  - emberserde 0.1.0.*
-  license: Apache-2.0
-  run_exports: {}
-  size: 10499988
-  timestamp: 1790747106803
-- conda: https://prefix.dev/modular-community/linux-64/emberserde-0.1.0-hb0f4dca_0.conda
-  sha256: 61af6200cb5d0cc25aaef3a4dfcea60649be9ad37cf631ed8d311012b272c2ea
-  md5: c1a9055b43aadd779059596e285addd6
-  depends:
-  - mojo-compiler >=1.1.0,<2.0a0
-  license: Apache-2.0
-  run_exports: {}
-  size: 212015
-  timestamp: 1790735956980
 - conda: https://prefix.dev/modular-community/linux-64/mist-26.3.0-hb0f4dca_0.conda
   sha256: 373502f9519816c7138cf5f9788778b44b9e71a2685ef092f010f2f8af22f775
   md5: f489ebdec11e901fa1a904161f569c7e
@@ -1558,25 +1533,6 @@ packages:
   run_exports: {}
   size: 578244
   timestamp: 1793390815165
-- conda: https://prefix.dev/modular-community/linux-aarch64/emberjson-0.4.0-he8cfe8b_0.conda
-  sha256: d8341173a20dc0f0488c44400c0bd4302960fbea9e7e3dbb67f80700820c9a9b
-  md5: c5e01e0636349630635dabfcf850f407
-  depends:
-  - mojo-compiler >=1.1.0,<2.0a0
-  - emberserde 0.1.0.*
-  license: Apache-2.0
-  run_exports: {}
-  size: 10500257
-  timestamp: 1790747061510
-- conda: https://prefix.dev/modular-community/linux-aarch64/emberserde-0.1.0-he8cfe8b_0.conda
-  sha256: 694d6776b7c7095522ddcd59b3b5162e1e1a11eaa022c27749728ebeb6e6f61d
-  md5: 7046c8e09eb910aa35dcf7260f092844
-  depends:
-  - mojo-compiler >=1.1.0,<2.0a0
-  license: Apache-2.0
-  run_exports: {}
-  size: 212023
-  timestamp: 1790735150905
 - conda: https://prefix.dev/modular-community/linux-aarch64/mist-26.3.0-he8cfe8b_0.conda
   sha256: 92df445849e6f5c259c3cb67eadd65c4f68fa4263496ecd4446e030f9dd04d41
   md5: 225c2cf91721ad3d1da9596dce584e63
@@ -1586,25 +1542,6 @@ packages:
   run_exports: {}
   size: 578136
   timestamp: 1793389592354
-- conda: https://prefix.dev/modular-community/osx-arm64/emberjson-0.4.0-h60d57d3_0.conda
-  sha256: 4b11158926094dcd8613158b73638a769f4addd7a2ff6eba8bbef75b3a0dba8a
-  md5: 57c546af9c3eadf82b269a271e8674be
-  depends:
-  - mojo-compiler >=1.1.0,<2.0a0
-  - emberserde 0.1.0.*
-  license: Apache-2.0
-  run_exports: {}
-  size: 10499352
-  timestamp: 1790747469301
-- conda: https://prefix.dev/modular-community/osx-arm64/emberserde-0.1.0-h60d57d3_0.conda
-  sha256: e5d50a2d4427223b3711cf630675307b2356322858ea2436a6586bb8939ee68b
-  md5: ec4a46068c06d2773689b292997de5a0
-  depends:
-  - mojo-compiler >=1.1.0,<2.0a0
-  license: Apache-2.0
-  run_exports: {}
-  size: 211449
-  timestamp: 1790736079501
 - conda: https://prefix.dev/modular-community/osx-arm64/mist-26.3.0-h60d57d3_0.conda
   sha256: fbfded56f6feee1a53347bb324bc4b17a983c8cc087c2edb3a484ac56aca27fa
   md5: 06a0bb5be47712d75e38950dd971b223

@@ -121,6 +121,26 @@ jobs:
             EVA_ARCHIVE="$(ls dist/eva-*.tar.gz)" sh install.sh
           env -i HOME=/tmp/eva-home PATH=/tmp/eva-venv/bin:/usr/bin:/bin \
             EVA_BIN=/tmp/eva-home/.local/bin/eva bash tests/e2e.sh
+      - name: Run the archive on the oldest distros it claims
+        if: runner.os == 'Linux'
+        run: |
+          # A real HTTPS round trip: the bundled libstdc++ and OpenSSL must load
+          # and the distro's CA bundle must be found. example.com answers the
+          # JSON-RPC POST with something that is not JSON, which is the point.
+          for img in rockylinux:9 ubuntu:22.04 debian:12; do
+            echo "== $img"
+            docker run --rm -v "$PWD/dist:/dist:ro" "$img" sh -ec '
+              if command -v apt-get >/dev/null; then
+                apt-get -qq update >/dev/null && apt-get -qq install -y ca-certificates >/dev/null
+              fi
+              mkdir /t && tar xzf /dist/eva-*.tar.gz -C /t
+              eva=$(ls -d /t/eva-*/bin/eva)
+              "$eva" --version
+              out=$(EVA_URL=https://example.com EVA_API_KEY=x "$eva" call Ping.ping 2>&1 || true)
+              echo "$out"
+              case "$out" in *"cannot reach"*|*"could not find libssl"*) exit 1 ;; esac
+            '
+          done
       - uses: actions/upload-artifact@v7
         with:
           name: dist-${{ matrix.target }}

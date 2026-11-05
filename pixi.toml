@@ -9,21 +9,36 @@ license = "MIT"
 
 [dependencies]
 mojo = "==1.2.0"
-emberjson = ">=0.4.0,<0.5"
 mist = ">=26.3.0,<27"
 openssl = ">=3,<4"
+# Only for the packaging scripts and the e2e mock server; eva itself uses no Python.
 python = ">=3.12,<3.14"
 
+# Modular's runtime needs GLIBCXX_3.4.30 (GCC 12+); releases ship these next to
+# eva, since RHEL 9 and its clones have an older libstdc++.
 [target.linux-64.dependencies]
 patchelf = "*"
+libstdcxx = ">=12"
+libgcc = ">=12"
 
 [target.linux-aarch64.dependencies]
 patchelf = "*"
+libstdcxx = ">=12"
+libgcc = ">=12"
 
-# Without both the triple and the deployment target, mojo stamps the binary with
-# the build machine's macOS as its minimum, and it will not start on older ones.
+# mojo build targets the build machine's CPU and OS by default. Releases pin
+# both to Modular's own floor, so a binary built on a new runner still runs on
+# the oldest machine Mojo supports: Apple M1 and macOS 13, x86-64-v3, Neoverse N1.
+# On macOS the triple and MACOSX_DEPLOYMENT_TARGET are both needed for the
+# minimum OS to stick.
 [target.osx-arm64.tasks]
-build = { cmd = "mkdir -p build && mojo build --target-triple arm64-apple-macosx13.0 -I src src/main.mojo -o build/eva", env = { MACOSX_DEPLOYMENT_TARGET = "13.0" }, description = "Build the eva binary (macOS 13+)" }
+build = { cmd = "mkdir -p build && mojo build --target-triple arm64-apple-macosx13.0 --target-cpu apple-m1 -I src src/main.mojo -o build/eva", env = { MACOSX_DEPLOYMENT_TARGET = "13.0" }, description = "Build the eva binary (macOS 13+, Apple M1+)" }
+
+[target.linux-64.tasks]
+build = { cmd = "mkdir -p build && mojo build --target-cpu x86-64-v3 -I src src/main.mojo -o build/eva", description = "Build the eva binary (x86-64-v3)" }
+
+[target.linux-aarch64.tasks]
+build = { cmd = "mkdir -p build && mojo build --target-cpu neoverse-n1 -I src src/main.mojo -o build/eva", description = "Build the eva binary (Neoverse N1+)" }
 
 [tasks]
 build = { cmd = "mkdir -p build && mojo build -I src src/main.mojo -o build/eva", description = "Build the eva binary" }

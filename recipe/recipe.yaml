@@ -10,9 +10,16 @@ build:
   number: 0
   script:
     - mkdir -p ${{ PREFIX }}/bin
-    # conda-build sets MACOSX_DEPLOYMENT_TARGET; the triple makes mojo honour it.
-    - if [ "$(uname)" = Darwin ]; then TRIPLE="--target-triple arm64-apple-macosx${MACOSX_DEPLOYMENT_TARGET:-11.0}"; else TRIPLE=""; fi
-    - mojo build $TRIPLE -I src -I ${{ PREFIX }}/lib/mojo src/main.mojo -o ${{ PREFIX }}/bin/eva
+    # Pin the CPU and, on macOS, the minimum OS to Modular's own floor instead of
+    # the build machine's; conda-build sets MACOSX_DEPLOYMENT_TARGET, and the
+    # triple makes mojo honour it.
+    - |
+      case "$(uname -s)-$(uname -m)" in
+        Darwin-*) TARGET="--target-triple arm64-apple-macosx${MACOSX_DEPLOYMENT_TARGET:-11.0} --target-cpu apple-m1" ;;
+        Linux-x86_64) TARGET="--target-cpu x86-64-v3" ;;
+        *) TARGET="--target-cpu neoverse-n1" ;;
+      esac
+      mojo build $TARGET -I src -I ${{ PREFIX }}/lib/mojo src/main.mojo -o ${{ PREFIX }}/bin/eva
 requirements:
   build:
     - mojo-compiler ${{ mojo_version }}
@@ -25,6 +32,9 @@ requirements:
     - mojo-compiler ${{ mojo_version }}
     # eva's TLS layer dlopens libssl from lib/ (rpath ../lib).
     - openssl >=3,<4
+    # Modular's runtime needs GLIBCXX_3.4.30.
+    - if: linux
+      then: libstdcxx >=12
 tests:
   - script:
       - eva --version

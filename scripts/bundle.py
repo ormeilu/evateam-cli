@@ -24,8 +24,9 @@ LIBS = (
     ["libKGENCompilerRTShared.dylib", "libAsyncRTRuntimeGlobals.dylib", "libMSupportGlobals.dylib",
      "libssl.3.dylib", "libcrypto.3.dylib"]
     if DARWIN
+    # Modular's runtime needs GLIBCXX_3.4.30 (GCC 12+), newer than RHEL 9 has.
     else ["libKGENCompilerRTShared.so", "libAsyncRTRuntimeGlobals.so", "libMSupportGlobals.so",
-          "libssl.so.3", "libcrypto.so.3"]
+          "libssl.so.3", "libcrypto.so.3", "libstdc++.so.6", "libgcc_s.so.1"]
 )
 
 # Shipped licence file name -> (conda package, file in its info/licenses).
@@ -33,6 +34,11 @@ LICENSES = {
     "LICENSE-MODULAR": ("mojo-compiler", "LICENSE"),
     "THIRD-PARTY-NOTICES-MODULAR": ("mojo-compiler", "Third-Party-Notices"),
     "LICENSE-OPENSSL": ("openssl", "LICENSE.txt"),
+}
+# Shipped licence file name -> file installed in the env.
+ENV_LICENSES = {} if DARWIN else {
+    # libstdc++ and libgcc_s: GPL-3.0 with the GCC Runtime Library Exception.
+    "LICENSE-GCC-RUNTIME": "share/licenses/libstdc++/RUNTIME.LIBRARY.EXCEPTION",
 }
 
 CHANNELS = {"mojo-compiler": "https://conda.modular.com/max", "openssl": "conda-forge"}
@@ -93,4 +99,8 @@ def licenses() -> dict[str, Path]:
         path = _package_licenses(package) / name
         if path.exists():
             out[shipped] = path
+    for shipped, rel in ENV_LICENSES.items():
+        if not (ENV / rel).exists():
+            raise SystemExit(f"missing in the pixi env: {rel}")
+        out[shipped] = ENV / rel
     return out
