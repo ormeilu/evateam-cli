@@ -81,9 +81,12 @@ mise use -g github:ormeilu/evateam-cli
 mise use -g pypi:evateam-cli
 ```
 
-Свежие версии mise прячут релизы моложе суток (`minimum_release_age`). Чтобы
-поставить такой релиз раньше, укажите версию явно, например
-`github:ormeilu/evateam-cli@0.3.0`.
+Свежие версии mise прячут релизы моложе суток (`minimum_release_age`). Для
+`github:` хватит указать версию явно, например
+`github:ormeilu/evateam-cli@0.3.0`. Для `pypi:` mise передаёт тот же срок в uv,
+так что новую версию оттуда получится поставить только через сутки. Бэкенд
+`conda:` не подойдёт: он берёт пакет и все зависимости из одного канала, а
+`mojo-compiler` лежит в канале Modular.
 
 `eva upgrade` обновляет `eva` тем же способом, каким её поставили.
 

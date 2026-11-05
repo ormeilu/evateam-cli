@@ -80,9 +80,12 @@ mise use -g github:ormeilu/evateam-cli
 mise use -g pypi:evateam-cli
 ```
 
-Recent mise versions hide releases younger than a day (`minimum_release_age`);
-name the version, e.g. `github:ormeilu/evateam-cli@0.3.0`, to install one
-sooner.
+Recent mise versions hide releases younger than a day (`minimum_release_age`).
+For `github:`, naming the version (`github:ormeilu/evateam-cli@0.3.0`) installs
+one sooner. For `pypi:`, mise hands the same cut-off to uv, so a new version
+installs from there only after a day. The `conda:` backend does not work: it
+solves the package and every dependency from one channel, and `mojo-compiler`
+lives in Modular's.
 
 `eva upgrade` updates eva the same way it was installed.
 
