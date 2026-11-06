@@ -11,6 +11,7 @@ from std.memory.alloc import unsafe_alloc
 from std.sys import CompilationTarget
 
 from requests._dns import _cstr
+from eva.term import stdin_is_tty
 
 comptime SERVICE = "eva-cli"
 
@@ -44,11 +45,19 @@ def _c_string_at(addr: Int, length: Int = -1) -> String:
 # ---- macOS ----
 
 
+def _cannot_ask(what: String) -> Error:
+    return Error(
+        what + ": macOS wants to ask first (once after each install or upgrade of eva, or when"
+        " the keychain is locked), and cannot ask outside a terminal. Run `eva auth status` in"
+        " a terminal on this Mac and choose Always Allow"
+    )
+
+
 def _osstatus(code: Int32, what: String) -> Error:
     if code == ERR_SEC_AUTH_FAILED or code == ERR_SEC_USER_CANCELED:
         return Error(what + ": the keychain was not unlocked or access was denied")
     if code == ERR_SEC_INTERACTION_NOT_ALLOWED:
-        return Error(what + ": the keychain is locked and cannot ask here (SSH session?)")
+        return _cannot_ask(what)
     return Error(what + ": keychain error " + String(code))
 
 
@@ -62,6 +71,12 @@ def _mac_find(sec: OwnedDLHandle, profile: String, mut item: Int) raises -> Opti
     len_out[unsafe_offset=0] = 0
     data_out[unsafe_offset=0] = 0
     item_out[unsafe_offset=0] = 0
+    # A new build of eva is a new program to the keychain, so macOS shows a
+    # dialog before the first read. Without a terminal (an agent, a script)
+    # nobody may see it and eva would wait forever; fail with a hint instead.
+    var interactive = stdin_is_tty()
+    if not interactive:
+        _ = sec.call["SecKeychainSetUserInteractionAllowed", Int32](UInt8(0))
     var status = sec.call["SecKeychainFindGenericPassword", Int32](
         Int(0),
         UInt32(SERVICE.byte_length()),
@@ -83,6 +98,8 @@ def _mac_find(sec: OwnedDLHandle, profile: String, mut item: Int) raises -> Opti
     item_out.unsafe_free()
     if status == ERR_SEC_ITEM_NOT_FOUND:
         return None
+    if not interactive and (status == ERR_SEC_AUTH_FAILED or status == ERR_SEC_INTERACTION_NOT_ALLOWED):
+        raise _cannot_ask("reading the keychain")
     if status != 0:
         raise _osstatus(status, "reading the keychain")
     if data != 0:

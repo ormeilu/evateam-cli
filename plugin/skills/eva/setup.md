@@ -40,6 +40,12 @@ eva --profile sandbox task get X     # one command against another profile
 eva auth logout --profile sandbox    # remove it from the keychain
 ```
 
+On a Mac, macOS asks once whether a newly installed or upgraded eva may read
+its keychain item: each build is a new program to the keychain. In a terminal
+that is a dialog to answer with Always Allow. Run through an agent, eva cannot
+show it and stops with "macOS wants to ask first"; ask the user to run
+`eva auth status` in their own terminal and choose Always Allow, then retry.
+
 A Linux machine without a Secret Service (a server, a container) has no
 keychain. There `auth login` says so, and the user sets `EVA_URL` and
 `EVA_API_KEY` in the environment, or in `~/.config/eva-cli/env` with
