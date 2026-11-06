@@ -121,9 +121,15 @@ ATTACHMENTS = [
      "url": "https://evil.example/files/x.png", "text": ""},
 ]
 
-# The task `task create` makes. Like EvaTeam, setting an epic moves the parent
-# task to the epic.
+# An epic, found by code only: task list and count do not see it.
+EPIC = {"id": "CmfTask:100", "code": "DEV-100", "name": "Storage rework",
+        "logic_type": {"code": "task.epic:default", "name": "Epic"}}
+
+# The task `task create` makes. Like EvaTeam, a create refuses the *_id form of
+# a reference field, and an epic makes itself the parent task over the
+# parent_task sent with it.
 CREATED = {"code": "DEV-3", "parent_task_id": None}
+REF_FIELDS = ("parent_task", "epic", "logic_type")
 
 
 def matches(obj, flt):
@@ -199,6 +205,8 @@ class Handler(BaseHTTPRequestHandler):
             if flt[0] == "id":
                 known = [t for t in TASKS if t["id"] == flt[2]]
                 return self.reply(200, {"jsonrpc": "2.2", "result": known[0] if known else CREATED})
+            if matches(EPIC, flt):
+                found = [EPIC]
             res = found[0] if found else None
             return self.reply(200, {"jsonrpc": "2.2", "result": res})
         if method in ("CmfProject.get", "CmfPerson.get"):
@@ -239,7 +247,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, {"jsonrpc": "2.2", "error": {"code": 500, "message": "Необходимо указать id в args[0]"}})
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method == "CmfTask.create":
-            CREATED["parent_task_id"] = kw.get("epic_id") or kw.get("parent_task_id")
+            for name in REF_FIELDS:
+                if name + "_id" in kw:
+                    return self.reply(200, {"jsonrpc": "2.2",
+                                            "abort": "Это служебное поле, для присвоения ид используйте " + name})
+            CREATED["parent_task_id"] = kw.get("epic") or kw.get("parent_task")
             return self.reply(200, {"jsonrpc": "2.2", "result": "CmfTask:3"})
         if method == "CmfLogicType.list":
             return self.reply(200, {"jsonrpc": "2.2", "result": [
@@ -248,12 +260,14 @@ class Handler(BaseHTTPRequestHandler):
                 {"id": "CmfLogicType:doc", "code": "document.base:default", "name": "Документ"},
             ]})
         if method == "CmfTask.update" and req["args"] == ["CmfTask:3"]:
-            CREATED["parent_task_id"] = kw.get("parent_task_id", CREATED["parent_task_id"])
+            # DEV-2 as a parent is dropped without an error, so the note shows.
+            if kw.get("parent_task") != "CmfTask:2":
+                CREATED["parent_task_id"] = kw.get("parent_task", CREATED["parent_task_id"])
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
-        if method == "CmfTask.update" and "epic_id" in kw:
+        if method == "CmfTask.update" and "epic" in kw:
             TASKS[1]["parent_task"] = {"code": "DEV-0", "name": "Epic"}
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
-        if method == "CmfTask.update" and "parent_task_id" in kw:
+        if method == "CmfTask.update" and "parent_task" in kw:
             TASKS[1]["parent_task"] = {"code": "DEV-100", "name": "Storage rework"}
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method in ("CmfTask.update", "CmfComment.create", "CmfTask.timetracker_change_time"):
