@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.0](https://github.com/ormeilu/evateam-cli/compare/v0.4.0...v0.5.0) (2026-11-06)
+
+
+### Features
+
+* --md and --html formatting for comments and descriptions ([b20b7d5](https://github.com/ormeilu/evateam-cli/commit/b20b7d5f46c96472fed6597fd33e4593bb986777))
+* attachments, and walking a workflow path with task move --path ([fb00c9b](https://github.com/ormeilu/evateam-cli/commit/fb00c9b283f0e555530cb35873344e02373a27d6))
+* comment and description text from a file or stdin with -F ([b20b7d5](https://github.com/ormeilu/evateam-cli/commit/b20b7d5f46c96472fed6597fd33e4593bb986777))
+* comments from a file or stdin, Markdown, --human and comment-delete ([b20b7d5](https://github.com/ormeilu/evateam-cli/commit/b20b7d5f46c96472fed6597fd33e4593bb986777))
+* resolution on task move and update, and resolution list ([f1b89bc](https://github.com/ormeilu/evateam-cli/commit/f1b89bc856b014428284b1226ddaa922f23fabed)), closes [#10](https://github.com/ormeilu/evateam-cli/issues/10)
+* task attachments, attachment get and attachment download ([fb00c9b](https://github.com/ormeilu/evateam-cli/commit/fb00c9b283f0e555530cb35873344e02373a27d6))
+* task comment-delete, and comment ids with task comments --ids ([b20b7d5](https://github.com/ormeilu/evateam-cli/commit/b20b7d5f46c96472fed6597fd33e4593bb986777))
+* task comments --human hides workflow and system entries ([b20b7d5](https://github.com/ormeilu/evateam-cli/commit/b20b7d5f46c96472fed6597fd33e4593bb986777))
+* task path and task move --path walk a multi-step workflow ([fb00c9b](https://github.com/ormeilu/evateam-cli/commit/fb00c9b283f0e555530cb35873344e02373a27d6))
+
+
+### Bug Fixes
+
+* task comments misses comments posted from the web UI ([b20b7d5](https://github.com/ormeilu/evateam-cli/commit/b20b7d5f46c96472fed6597fd33e4593bb986777))
+
 ## [0.4.0](https://github.com/ormeilu/evateam-cli/compare/v0.3.0...v0.4.0) (2026-11-05)
 
 
