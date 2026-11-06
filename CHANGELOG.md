@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/ormeilu/evateam-cli/compare/v0.7.0...v0.8.0) (2026-11-06)
+
+
+### Features
+
+* task attach uploads files to a task ([b691e68](https://github.com/ormeilu/evateam-cli/commit/b691e686b60d3815fe339607d3c2ac2b5bbad1b3)), closes [#31](https://github.com/ormeilu/evateam-cli/issues/31)
+
 ## [0.7.0](https://github.com/ormeilu/evateam-cli/compare/v0.6.1...v0.7.0) (2026-11-06)
 
 
