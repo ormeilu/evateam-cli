@@ -61,6 +61,14 @@ check "multi-select asked by name" '"cf_dir.name","cf_unused.name"' -- sh -c "ta
 check "meta fetched once"      "1"                             -- sh -c "grep -c CmfTask.get_meta '$log'"
 check "multi-select --fields"  "cf_dir: iOS, BE"               -- $eva task get DEV-1 --fields cf_dir
 check "multi-select json objects" '"class_name": "CmfTaskCfDirCh"' -- $eva task get DEV-1 --fields cf_dir --json
+check "field list"             "cf_dir                   multi-select  Направление" -- $eva field list
+check "field list query"       "1 custom fields"               -- $eva field list -q вид
+check "field get multi"        "BE                             CmfTaskCfDirCh:2" -- $eva field get Направление
+check "field get choice"       "dev                            Развитие" -- $eva field get cf_kind
+check "field unknown"          "no custom field nope"          -- $eva field get nope
+check "set by value name"      "updated DEV-1: cf_dir"         -- $eva task update DEV-1 --set '{"cf_dir":["ios","CmfTaskCfDirCh:2"]}'
+recent "names became ids"      '"cf_dir":["CmfTaskCfDirCh:1","CmfTaskCfDirCh:2"]'
+check "set unknown value"      "no value Web in cf_dir; values: iOS, BE" -- $eva task update DEV-1 --set '{"cf_dir":["Web"]}'
 check "task get json"          '"code": "DEV-1"'               -- $eva task get DEV-1 --json
 check "missing task"           "DEV-404: not found"            -- $eva task get DEV-404
 check "task list rows"         "DEV-2"                         -- $eva task list

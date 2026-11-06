@@ -262,12 +262,16 @@ class Handler(BaseHTTPRequestHandler):
             if not req.get("args"):
                 return self.reply(200, {"jsonrpc": "2.2", "error": {"code": 500, "message": "Необходимо указать id в args[0]"}})
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
+        if method == "CmfTaskCfDirCh.list":
+            return self.reply(200, {"jsonrpc": "2.2", "result": [
+                {"id": "CmfTaskCfDirCh:1", "name": "iOS"}, {"id": "CmfTaskCfDirCh:2", "name": "BE"}]})
         if method == "CmfTask.get_meta":
             return self.reply(200, {"jsonrpc": "2.2", "result": {"fields": {
                 "name": {"widget": "CmfStr", "caption": "Название"},
                 "cf_dir": {"widget": "CmfM2M", "custom": True, "caption": "Направление", "model": "CmfTaskCfDirCh"},
                 "cf_unused": {"widget": "CmfM2M", "custom": True, "caption": "Пустое поле", "model": "CmfTaskCfUnusedCh"},
-                "cf_kind": {"widget": "CmfChoice", "custom": True, "caption": "Вид услуги"},
+                "cf_kind": {"widget": "CmfChoice", "custom": True, "caption": "Вид услуги",
+                            "choices": {"dev": "Развитие", "ops": "Сопровождение"}},
                 "cf_evil": {"widget": "CmfM2M", "custom": True, "caption": "Evil\tcap\ntion\u001b[2J", "model": "X"},
             }}})
         if method == "CmfPerson.get_current_user":

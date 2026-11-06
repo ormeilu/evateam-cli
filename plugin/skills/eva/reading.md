@@ -64,6 +64,18 @@ eva task path BOT-7035 closed  # the shortest way there, without moving
 eva task attachments BOT-7035  # attached files: ATT code, size, date, name
 ```
 
+## Custom fields
+
+```bash
+eva field list -q направ            # cf_ names, type, caption
+eva field get cf_napravleniedev     # the values a multi-select or choice takes
+eva task get BOT-5994 --fields cf_napravleniedev
+```
+
+`task get` prints filled multi-select fields by caption (`Направление: iOS`).
+EvaTeam returns those fields only when asked for by name, so `--fields "**"`
+in `eva call` misses them; `field list` names them.
+
 ## Work log
 
 ```bash

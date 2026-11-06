@@ -26,6 +26,7 @@ from eva.commands import (
 )
 from eva.render import Out
 from eva.upgrade import upgrade
+from eva.fields import field_get, field_list
 from eva.timelog import task_log, time_delete, time_list
 from eva.attachments import attachment_download, attachment_get, task_attachments
 from eva.auth import auth_login, auth_logout, auth_status, auth_use
@@ -78,6 +79,9 @@ attachments
 other
   project list [-q TEXT]                projects
   resolution list                       resolution codes for --resolution
+  field list [-q TEXT]                  task custom fields: name, type, caption
+  field get NAME                        the values a choice or multi-select takes;
+                                        --set takes multi-select values by name
   person list [-q TEXT]                 people (login, name, email)
   doc list [-q TEXT] | doc get CODE     wiki documents
   call METHOD [--kwargs JSON] [--args JSON] [--flags JSON]
@@ -184,6 +188,11 @@ def run(var raw: List[String]) raises:
             task_attachments(client, args, ui)
         else:
             raise Error("unknown task command '" + sub + "', see eva --help")
+    elif group == "field" or group == "fields":
+        if sub == "get" or sub == "show":
+            field_get(client, args, ui)
+        else:
+            field_list(client, args, ui)
     elif group == "time" or group == "worklog":
         if sub == "list" or sub == "ls" or sub == "":
             time_list(client, args, ui)

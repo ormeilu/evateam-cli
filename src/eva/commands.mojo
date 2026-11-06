@@ -8,7 +8,7 @@ from eva.args import Args
 from eva.client import Client, Reply, load_config
 from eva.json import JsonDoc, NO_NODE, J_ARR, J_OBJ
 from eva.render import Out, pad, clip, text_to_html, markdown_to_html
-from eva.fields import MultiSelect, multiselect_fields, value_names
+from eva.fields import MultiSelect, multiselect_fields, resolve_set, value_names
 from eva.term import prompt_line, stdin_is_tty
 from eva.term import read_all
 
@@ -456,6 +456,7 @@ def task_create(client: Client, args: Args, ui: Out) raises:
         var extra = d.parse(raw)
         if d.kind(extra) != J_OBJ:
             raise Error("--set expects a JSON object")
+        resolve_set(client, d, extra)
         for i in range(d.len(extra)):
             d.set(kw, d.key_at(extra, i), d.at(extra, i))
     var r = client.call("CmfTask.create", d.dump(kw))
@@ -544,6 +545,7 @@ def task_update(client: Client, args: Args, ui: Out) raises:
         var extra = d.parse(raw)
         if d.kind(extra) != J_OBJ:
             raise Error("--set expects a JSON object")
+        resolve_set(client, d, extra)
         for i in range(d.len(extra)):
             d.set(kw, d.key_at(extra, i), d.at(extra, i))
             changed.append(d.key_at(extra, i))
