@@ -13,9 +13,11 @@ from eva.commands import (
     parse_minutes,
     person,
     quote_str,
+    shell_word,
     split_csv,
     status_condition,
     text_from,
+    Transitions,
     want_json,
 )
 from eva.json import JsonDoc
@@ -146,6 +148,66 @@ def test_comments_kwargs() raises:
     assert_true(people.find('["log_level","==",0]') >= 0, people)
     # The count call sends the filter alone.
     assert_equal(comments_kwargs("CmfTask:1", False, List[String]()), '{"filter":[["parent_id","==","CmfTask:1"]]}')
+
+
+def add(mut tr: Transitions, to: String, froms: String, limit: String = ""):
+    tr.trans_ids.append("T" + to)
+    tr.trans_names.append(to)
+    tr.to_ids.append(to)
+    tr.to_codes.append(to.lower())
+    tr.to_names.append(to)
+    tr.froms.append(froms)
+    tr.limits.append(limit)
+
+
+def workflow() -> Transitions:
+    """A -> B -> C -> D forward, Hold reachable from all and leading to D."""
+    var tr = Transitions()
+    tr.current_id = "A"
+    tr.current = "A"
+    add(tr, "B", "A,Hold")
+    add(tr, "C", "B,Hold")
+    add(tr, "D", "C")
+    add(tr, "Hold", "A,B,C")
+    add(tr, "D", "Hold")
+    add(tr, "X", "A", "automatic")
+    return tr^
+
+
+def names(tr: Transitions, steps: List[Int]) -> String:
+    var out = List[String]()
+    for i in steps:
+        out.append(tr.to_names[i])
+    return ",".join(out)
+
+
+def test_path_goes_forward_not_through_hold() raises:
+    var tr = workflow()
+    assert_true(tr.is_hub("Hold"))
+    assert_true(not tr.is_hub("C"))
+    assert_equal(names(tr, tr.path_to("d")), "B,C,D")
+    assert_equal(names(tr, tr.path_to("Hold")), "Hold")
+
+
+def test_path_uses_hub_when_nothing_else_works() raises:
+    var tr = workflow()
+    tr.limits[2] = "automatic"  # C -> D only automatic now
+    assert_equal(names(tr, tr.path_to("D")), "Hold,D")
+
+
+def test_path_skips_automatic_and_unknown() raises:
+    var tr = workflow()
+    assert_equal(len(tr.path_to("X")), 0)
+    assert_equal(len(tr.path_to("nowhere")), 0)
+    assert_equal(len(tr.path_to("A")), 0)
+    var here = tr.from_here()
+    assert_equal(len(here), 2)  # B and Hold, not the automatic X
+
+
+def test_shell_word() raises:
+    assert_equal(shell_word("closed"), "closed")
+    assert_equal(shell_word("In Review"), "'In Review'")
+    assert_equal(shell_word("it's"), "'it'\\''s'")
 
 
 def main() raises:

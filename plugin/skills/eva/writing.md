@@ -41,6 +41,22 @@ has no transition there from the current status, eva lists the ones it has; a
 task may need an intermediate status first. `-m` adds a comment with the
 transition.
 
+A workflow often allows one step at a time. `--path` walks the shortest
+route, stopping at the first step EvaTeam refuses and naming it:
+
+```bash
+eva task path BOT-7044 closed          # see the route first
+eva task move BOT-7044 closed --path -m "Released" --resolution done
+```
+
+The route avoids side statuses such as On Hold. `--set` goes with every step,
+and `-m` and `--resolution` go with the last one. A transition the workflow
+attaches a condition to is marked "conditional" in `statuses`. Such a
+condition is often a role, so EvaTeam may refuse it for this user even though
+it is listed. eva cannot see role rules in advance: when a walk stops on such a
+refusal, tell the user who usually makes that move (`eva call
+CmfStatusHistory.list` shows past moves) rather than looking for a way around it.
+
 A transition can require fields. EvaTeam refuses it and names the field:
 
 ```

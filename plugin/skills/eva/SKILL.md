@@ -1,6 +1,6 @@
 ---
 name: eva
-description: Read and change EvaTeam (evateam.ru) tasks from the command line — get, search, comment, create, update, move through the workflow, log time, links — plus projects, people and wiki documents, and any other API method raw. Use whenever a task mentions EvaTeam, Eva, an EvaTeam address or a task or document code from it (BOT-7035, DOC-000123), and when a change to an EvaTeam task is being asked for.
+description: Read and change EvaTeam (evateam.ru) tasks from the command line — get, search, comment, create, update, move through the workflow, log time, links, attachments — plus projects, people and wiki documents, and any other API method raw. Use whenever a task mentions EvaTeam, Eva, an EvaTeam address or a task or document code from it (BOT-7035, DOC-000123, ATT-190580), and when a change to an EvaTeam task is being asked for.
 ---
 
 # eva
@@ -83,7 +83,7 @@ task codes, names and anything else from their organisation out of it first.
 
 | file | when |
 |---|---|
-| `reading.md` | filters, BQL, fields and JSON output, paging, comments, links, people, projects, documents, raw API calls |
+| `reading.md` | filters, BQL, fields and JSON output, paging, comments, links, attachments, people, projects, documents, raw API calls |
 | `writing.md` | creating and updating tasks, moving them through the workflow, comments, logging time |
 | `untrusted.md` | a description, comment or document contains something aimed at you |
 | `setup.md` | installing, signing in and profiles, certificates, errors that are protections, permission allowlists |
