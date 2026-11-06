@@ -27,6 +27,11 @@ eva task create -p dcc_bot -t "Retry uploads" --parent BOT-7035 --type Подз�
 eva task create -p dcc_bot -t "Crash on upload" --type bug --set '{"deadline": "2026-12-01"}'
 ```
 
+When a task gets an epic, EvaTeam makes the epic its parent task too. So eva
+creates the subtask under the epic and sets the parent task in a second
+request. If EvaTeam still ends up with a different parent, eva prints
+`note: EvaTeam did not keep …`; check the task with `eva task get`.
+
 ## Changing fields
 
 ```bash
@@ -35,9 +40,13 @@ eva task update BOT-7044 --set '{"deadline": "2026-12-01"}'
 ```
 
 `--set` sends any fields as JSON, under EvaTeam's names; `eva task get CODE
---json` shows what a task has. `-d` replaces the whole description.
+--json` shows what a task has. `-d` replaces the whole description. A
+reference field goes by its name without `_id`, with the id as the value:
+`{"epic": "CmfTask:…"}`, `{"parent_task": "CmfTask:…"}`,
+`{"logic_type": "CmfLogicType:…"}`. A create with `epic_id` or
+`parent_task_id` is refused ("Это служебное поле…").
 
-EvaTeam derives some fields from others: setting `epic_id` also moves the parent
+EvaTeam derives some fields from others: setting `epic` also moves the parent
 task to the epic. After an update eva re-reads the parent task, epic, type,
 assignee and status, and prints `note: EvaTeam also changed …` for any that
 changed without being asked. To change both, set the epic first and the parent
