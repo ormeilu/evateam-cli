@@ -67,6 +67,7 @@ TASKS = [
         "status": {"name": "Открыто", "code": "STC-1"},
         "responsible": None,
         "project": {"code": "OPS"},
+        "resolution": {"code": "wont_do", "name": "Не будет выполняться"},
         "cmf_author": {"name": "Reporter", "login": "rep@example.ru"},
         "text": "",
     },
@@ -161,6 +162,11 @@ class Handler(BaseHTTPRequestHandler):
             if kw.get("changed_fields", {}).get("cf_kind") != "dev":
                 return self.reply(200, {"jsonrpc": "2.2", "abort": "Необходимо заполнить Вид услуги"})
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
+        if method == "CmfResolution.list":
+            return self.reply(200, {"jsonrpc": "2.2", "result": [
+                {"id": "CmfResolution:done", "code": "done", "name": "Готово"},
+                {"id": "CmfResolution:wd", "code": "wont_do", "name": "Не будет выполняться"},
+            ]})
         if method in ("CmfComment.list", "CmfComment.count"):
             rows = [c for c in COMMENTS if matches(c, flt)]
             if method == "CmfComment.count":

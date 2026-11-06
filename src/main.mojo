@@ -21,6 +21,7 @@ from eva.commands import (
     doc_get,
     doc_list,
     raw_call,
+    resolution_list,
 )
 from eva.render import Out
 from eva.upgrade import upgrade
@@ -37,9 +38,11 @@ tasks
   task list [-p PROJ] [-a LOGIN] [-s open|closed|in_progress|in_review|all|STATUS]
             [-q TEXT] [--filter BQL] [--order -field] [-n 25] [--page 1]
   task create -p PROJ -t TITLE [-d TEXT | -F FILE] [-a LOGIN] [--sprint SPR-1]
-  task update CODE [-t TITLE] [-d TEXT | -F FILE] [-s STATUS] [-a LOGIN] [--set JSON]
-  task move CODE STATUS [-m COMMENT] [--set JSON]
-                                        change status through the workflow
+  task update CODE [-t TITLE] [-d TEXT | -F FILE] [-s STATUS] [-a LOGIN]
+            [--resolution CODE] [--set JSON]
+  task move CODE STATUS [-m COMMENT] [--resolution CODE] [--set JSON]
+                                        change status through the workflow;
+                                        --resolution wont_do, dublicate, ...
   task statuses CODE                    where the task can move from here
   task comment CODE TEXT | -F FILE      add a comment; -F - reads stdin
   task comments CODE [--human] [--ids]  read the comments, oldest first; --human
@@ -50,6 +53,7 @@ tasks
 
 other
   project list [-q TEXT]                projects
+  resolution list                       resolution codes for --resolution
   person list [-q TEXT]                 people (login, name, email)
   doc list [-q TEXT] | doc get CODE     wiki documents
   call METHOD [--kwargs JSON] [--args JSON] [--flags JSON]
@@ -150,6 +154,8 @@ def run(var raw: List[String]) raises:
             task_statuses(client, args, ui)
         else:
             raise Error("unknown task command '" + sub + "', see eva --help")
+    elif group == "resolution" or group == "resolutions":
+        resolution_list(client, args, ui)
     elif group == "project" or group == "projects":
         project_list(client, args, ui)
     elif group == "person" or group == "people" or group == "user":

@@ -33,6 +33,11 @@ no() { # no NAME FORBIDDEN_SUBSTRING -- command...: the output must not contain 
     echo "FAIL $name: output contains a forbidden string:"; echo "$got" | sed 's/^/     /'; fail=1; fi
 }
 
+recent() { # recent NAME EXPECTED_SUBSTRING: one of the last six requests has it
+  if tail -n 6 "$log" | grep -F -- "$2" >/dev/null; then echo "ok   $1"; else
+    echo "FAIL $1: recent requests lack '$2':"; tail -n 6 "$log" | sed 's/^/     /'; fail=1; fi
+}
+
 eva=${EVA_BIN:-$PWD/build/eva}
 check "task get header"        "DEV-1  Вложения теряются"     -- $eva task get DEV-1
 check "task get people"        "assignee: ilya@example.ru"     -- $eva task get DEV-1
@@ -69,6 +74,14 @@ check "move refused"           "refused: Необходимо заполнить
 check "move"                   "moved DEV-1: В работе → Done"  -- $eva task move DEV-1 Done --set '{"cf_kind":"dev"}' -m ok
 sent  "move args"              '"args":["CmfTask:1","CmfTrans:done"]'
 sent  "move fields"            '"changed_fields":{"cf_kind":"dev","status":"CmfStatus:3"}'
+check "resolution list"        "wont_do            Не будет выполняться" -- $eva resolution list
+check "resolution shown"       "resolution: wont_do (Не будет выполняться)" -- $eva task get DEV-2
+check "move with resolution"   "Done, resolution wont_do"      -- $eva task move DEV-1 Done --set '{"cf_kind":"dev"}' --resolution "Не будет выполняться"
+recent "resolution in move"    '"changed_fields":{"cf_kind":"dev","status":"CmfStatus:3","resolution":"CmfResolution:wd"}'
+sent  "resolution set again"   '"kwargs":{"resolution":"CmfResolution:wd"},"args":["CmfTask:1"]'
+check "unknown resolution"     "no resolution nope; eva resolution list shows them: done, wont_do" -- $eva task move DEV-1 Done --set '{"cf_kind":"dev"}' --resolution nope
+check "update resolution"      "updated DEV-1: resolution"     -- $eva task update DEV-1 -r WONT_DO
+sent  "update sends resolution" '"resolution":"CmfResolution:wd"'
 check "move impossible"        "cannot move to backlog; it can move to: closed (Done)" -- $eva task move DEV-1 backlog
 check "comment"                "commented on DEV-1"            -- $eva task comment DEV-1 "<b>hi</b>"
 sent  "comment escaped"        '"text":"<p>&lt;b&gt;hi&lt;/b&gt;</p>"'

@@ -190,6 +190,7 @@ verification off.
 | `eva task move CODE STATUS [-m TEXT] [--set JSON]` | change status through a workflow transition; `--set` fills fields the transition requires |
 | `eva task comment CODE TEXT` / `eva task comments CODE` | write or read comments; `-F FILE` (or `-` for stdin), `--md`, `--human`, `--ids` |
 | `eva task comment-delete ID` | delete a comment |
+| `eva resolution list` | resolution codes for `task move`/`update --resolution` |
 | `eva task log CODE 1h30m [-m TEXT]` | log time spent |
 | `eva task links CODE` | incoming and outgoing links |
 | `eva project list`, `eva person list`, `eva doc list` | lists, with `-q` to search by name |

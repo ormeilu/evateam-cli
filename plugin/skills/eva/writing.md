@@ -58,6 +58,18 @@ eva task move BOT-7044 Done --set '{"cf_vid_uslugi": "razvitie"}'
 Ask the user which value applies when more than one fits; the value means
 something to their team's reporting.
 
+A closed task also has a resolution, and a closing transition sets the
+default one (`done`) unless told otherwise:
+
+```bash
+eva resolution list                                   # codes and names
+eva task move BOT-7044 Done --resolution wont_do -m "Not needed after the redesign"
+eva task update BOT-7044 --resolution dublicate       # on a task already closed
+```
+
+`--resolution` takes a code or a name, any case (EvaTeam spells the duplicate
+code `dublicate`). `task get` shows the resolution next to the status.
+
 `task update -s STATUS` does the same move after its other changes. A plain
 `eva call CmfTask.update` with a new status is accepted by EvaTeam and silently
 ignored: always change status through `move`.
