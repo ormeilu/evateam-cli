@@ -10,13 +10,14 @@ argument, since arguments show in `ps` and in shell history.
 """
 
 from std.os import getenv
+from std.sys import stderr
 
 from eva.args import Args
 from eva.client import Client, Config, load_config, normalize_url, secret_json
 from eva.keyring import keyring_delete, keyring_name, keyring_set
 from eva.profiles import check_profile_name, load_profiles, save_profiles
 from eva.render import Out
-from eva.term import prompt_line, prompt_secret
+from eva.term import prompt_line, prompt_secret, stdin_is_tty
 
 
 def whoami(cfg: Config) raises -> String:
@@ -30,6 +31,18 @@ def whoami(cfg: Config) raises -> String:
     return login + (" (" + name + ")" if name != "" else "")
 
 
+comptime TOKEN_DOCS = "https://docs.evateam.ru/docs/DOC-000200"
+
+comptime TOKEN_GUIDE = (
+    "eva signs in with your EvaTeam address and an API token. To create the token:\n"
+    "  1. In EvaTeam, open «Моя страница» and the «Безопасность» tab.\n"
+    "  2. Click «Сгенерировать API токен», then «Создать токен API».\n"
+    "  3. Give it a name and an expiry date, and create it.\n"
+    "  4. Copy the token now: EvaTeam shows it once and keeps only its hash.\n"
+    "Step by step, with screenshots: " + TOKEN_DOCS + "\n"
+)
+
+
 def auth_login(args: Args, ui: Out) raises:
     args.check_known(["profile", "url", "insecure", "verbose", "v"])
     var profiles = load_profiles()
@@ -39,17 +52,19 @@ def auth_login(args: Args, ui: Out) raises:
     check_profile_name(profile)
     var insecure = args.has("insecure")
 
+    # In a terminal, the whole procedure first, before anyone goes looking
+    # for a token halfway through the questions.
+    if stdin_is_tty():
+        print(TOKEN_GUIDE, file=stderr)
     var url = args.get("url")
     if url == "":
         url = prompt_line("EvaTeam address, e.g. https://eva.company.ru: ")
     url = normalize_url(url, insecure)
     if url == "":
         raise Error("no address given")
-    var token = prompt_secret(
-        "API token (Моя страница → Безопасность → Сгенерировать API токен): "
-    )
+    var token = prompt_secret("API token (typed hidden): ")
     if token == "":
-        raise Error("no token given")
+        raise Error("no token given; how to create one: " + TOKEN_DOCS)
 
     var cfg = Config()
     cfg.url = url
