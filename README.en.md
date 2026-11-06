@@ -213,11 +213,13 @@ verification off.
 | `eva task move CODE STATUS [-m TEXT] [--set JSON]` | change status through a workflow transition; `--set` fills fields the transition requires |
 | `eva task comment CODE TEXT` / `eva task comments CODE` | write or read comments; `-F FILE` (or `-` for stdin), `--md`, `--human`, `--ids` |
 | `eva task comment-delete ID` | delete a comment |
+| `eva task log CODE 1h30m [--date D] [--at HH:MM]` | log time: ending now, or on a given day and time |
+| `eva time list [--from D] [--to D]` | the work log day by day against the working calendar: logged, norm, left |
+| `eva time delete TTH-1` | delete a work log entry |
 | `eva resolution list` | resolution codes for `task move`/`update --resolution` |
 | `eva task path CODE STATUS` / `eva task move CODE STATUS --path` | the shortest route through the workflow, shown or walked |
 | `eva task attachments CODE` | files attached to a task |
 | `eva attachment get ATT-1` / `eva attachment download ATT-1 [-o PATH]` | a file's extracted text, or the file itself |
-| `eva task log CODE 1h30m [-m TEXT]` | log time spent |
 | `eva task links CODE` | incoming and outgoing links |
 | `eva project list`, `eva person list`, `eva doc list` | lists, with `-q` to search by name |
 | `eva doc get CODE` | a wiki document as text |

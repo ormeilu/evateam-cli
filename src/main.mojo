@@ -12,7 +12,6 @@ from eva.commands import (
     task_comment,
     task_comments,
     task_comment_delete,
-    task_log,
     task_links,
     task_move,
     task_statuses,
@@ -26,6 +25,7 @@ from eva.commands import (
 )
 from eva.render import Out
 from eva.upgrade import upgrade
+from eva.timelog import task_log, time_delete, time_list
 from eva.attachments import attachment_download, attachment_get, task_attachments
 from eva.auth import auth_login, auth_logout, auth_status, auth_use
 
@@ -53,7 +53,16 @@ tasks
   task comments CODE [--human] [--ids]  read the comments, oldest first; --human
                                         hides status changes and system entries
   task comment-delete ID                delete a comment (ids: comments --ids)
-  task log CODE 1h30m [-m TEXT]         log time spent
+  task log CODE 1h30m [-m TEXT] [--date today|yesterday|YYYY-MM-DD] [--at HH:MM]
+                                        log time spent; it ends now, or with --date
+                                        follows that day's last entry (09:00 first)
+
+work log
+  time list [--from D] [--to D] [-a LOGIN]
+                                        entries day by day against the working
+                                        calendar: logged, norm, left; this week
+                                        by default
+  time delete TTH-1                     delete a work log entry
   task links CODE                       incoming and outgoing links
   task attachments CODE                 files attached to the task
 
@@ -170,6 +179,16 @@ def run(var raw: List[String]) raises:
             task_attachments(client, args, ui)
         else:
             raise Error("unknown task command '" + sub + "', see eva --help")
+    elif group == "time" or group == "worklog":
+        if sub == "list" or sub == "ls" or sub == "":
+            time_list(client, args, ui)
+        elif sub == "delete" or sub == "rm":
+            time_delete(client, args, ui)
+        elif sub == "log":
+            # eva time log CODE 1h30m: the same as eva task log.
+            task_log(client, args, ui)
+        else:
+            raise Error("unknown time command '" + sub + "': list, log or delete")
     elif group == "attachment" or group == "attachments" or group == "file":
         if sub == "get" or sub == "show":
             attachment_get(client, args, ui)
