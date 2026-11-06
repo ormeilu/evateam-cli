@@ -11,6 +11,7 @@ from eva.commands import (
     task_update,
     task_comment,
     task_comments,
+    task_comment_delete,
     task_log,
     task_links,
     task_move,
@@ -35,13 +36,15 @@ tasks
   task get CODE [--fields a,b]          one task: status, people, description
   task list [-p PROJ] [-a LOGIN] [-s open|closed|in_progress|in_review|all|STATUS]
             [-q TEXT] [--filter BQL] [--order -field] [-n 25] [--page 1]
-  task create -p PROJ -t TITLE [-d TEXT] [-a LOGIN] [--sprint SPR-1]
-  task update CODE [-t TITLE] [-d TEXT] [-s STATUS] [-a LOGIN] [--set JSON]
+  task create -p PROJ -t TITLE [-d TEXT | -F FILE] [-a LOGIN] [--sprint SPR-1]
+  task update CODE [-t TITLE] [-d TEXT | -F FILE] [-s STATUS] [-a LOGIN] [--set JSON]
   task move CODE STATUS [-m COMMENT] [--set JSON]
                                         change status through the workflow
   task statuses CODE                    where the task can move from here
-  task comment CODE TEXT                add a comment
-  task comments CODE                    read the comments
+  task comment CODE TEXT | -F FILE      add a comment; -F - reads stdin
+  task comments CODE [--human] [--ids]  read the comments, oldest first; --human
+                                        hides status changes and system entries
+  task comment-delete ID                delete a comment (ids: comments --ids)
   task log CODE 1h30m [-m TEXT]         log time spent
   task links CODE                       incoming and outgoing links
 
@@ -58,6 +61,10 @@ other
   auth status | auth use NAME | auth logout [--profile NAME]
   config                                where the URL and token come from
   upgrade                               update eva the way it was installed
+
+text of comments and descriptions is plain by default; --md converts
+Markdown (headings, **bold**, *italic*, `code`, lists, code blocks, links),
+--html sends it as is
 
 options everywhere
   --profile NAME    use that saved profile (or EVA_PROFILE)
@@ -131,6 +138,8 @@ def run(var raw: List[String]) raises:
             task_comment(client, args, ui)
         elif sub == "comments":
             task_comments(client, args, ui)
+        elif sub == "comment-delete" or sub == "uncomment":
+            task_comment_delete(client, args, ui)
         elif sub == "log":
             task_log(client, args, ui)
         elif sub == "links":
