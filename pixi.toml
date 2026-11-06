@@ -1,6 +1,6 @@
 [workspace]
 name = "eva-cli"
-version = "0.6.1"
+version = "0.7.0"
 description = "EvaTeam from the command line, written in Mojo"
 authors = ["Ilya Lubenets"]
 channels = ["https://conda.modular.com/max", "https://prefix.dev/modular-community", "conda-forge"]
