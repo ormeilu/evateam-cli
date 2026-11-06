@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/ormeilu/evateam-cli/compare/v0.6.1...v0.7.0) (2026-11-06)
+
+
+### Features
+
+* field list and field get, and multi-select values by name in --set ([8be0037](https://github.com/ormeilu/evateam-cli/commit/8be003750bcb1fd5441ccbaa0e1075c59e87cd9e)), closes [#27](https://github.com/ormeilu/evateam-cli/issues/27)
+* task delete, with a confirmation ([547403e](https://github.com/ormeilu/evateam-cli/commit/547403e4ee788aa708ec81b56fda74d89bb2625b))
+* work log with time list, task log --date/--at and time delete ([26be39d](https://github.com/ormeilu/evateam-cli/commit/26be39dc0a68660bfe5f4107179ea2e9867537d8))
+
+
+### Bug Fixes
+
+* task get shows filled multi-select custom fields ([8520397](https://github.com/ormeilu/evateam-cli/commit/8520397db1eb8cda42f8034548021c4eac2cf5aa)), closes [#28](https://github.com/ormeilu/evateam-cli/issues/28)
+
 ## [0.6.1](https://github.com/ormeilu/evateam-cli/compare/v0.6.0...v0.6.1) (2026-11-06)
 
 
