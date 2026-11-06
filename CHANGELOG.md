@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/ormeilu/evateam-cli/compare/v0.8.0...v0.8.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* task attach works against the real server and cannot clobber a file ([f4954db](https://github.com/ormeilu/evateam-cli/commit/f4954db01b223380492314a7256e1e5a5dac274b))
+
 ## [0.8.0](https://github.com/ormeilu/evateam-cli/compare/v0.7.0...v0.8.0) (2026-11-06)
 
 
