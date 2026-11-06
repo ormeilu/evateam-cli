@@ -137,12 +137,15 @@ def attachment_download(client: Client, args: Args, ui: Out) raises:
     if out != "-" and exists(out) and not args.has("force"):
         raise Error(out + " already exists; pass --force to overwrite it, or -o another path")
     var data = client.download(d.text_at(a, "url"))
-    if expected >= 0 and len(data) != expected:
-        # A refusal comes back as a short JSON reply with HTTP 200.
-        var head = String(from_utf8_lossy=Span(data)[0 : min(len(data), 200)])
+    # A refusal comes back as a short JSON reply with HTTP 200. Files uploaded
+    # through the API keep st_size 0, so a size of 0 says nothing.
+    var head = String(from_utf8_lossy=Span(data)[0 : min(len(data), 200)])
+    if expected > 0 and len(data) != expected:
         raise Error(
             "got " + String(len(data)) + " bytes instead of " + String(expected) + "; the server said: " + clean(head)
         )
+    if expected <= 0 and head.startswith('{"error"') and not d.text_at(a, "file_type").lower().endswith("json"):
+        raise Error("the server refused the download: " + clean(head))
     if out == "-":
         _write_stdout(data)
         return
@@ -157,7 +160,7 @@ def _base_name(path: String) -> String:
 
 
 def task_attach(client: Client, args: Args, ui: Out) raises:
-    args.check_known(["verbose", "v"])
+    args.check_known(["force", "verbose", "v"])
     var code = args.need(2, "task code")
     var paths = List[String]()
     for i in range(3, len(args.positionals)):
@@ -172,29 +175,52 @@ def task_attach(client: Client, args: Args, ui: Out) raises:
                 contents.append(f.read_bytes())
         except e:
             raise Error("cannot read " + p + ": " + String(e))
-    _ = id_of(client, "CmfTask", "code", code)
+    var task_id = id_of(client, "CmfTask", "code", code)
+    # EvaTeam keeps a task's files by name: a second file with the same name
+    # replaces the first one's bytes, and deleting either removes both.
+    var existing = client.call(
+        "CmfAttachment.list",
+        '{"filter":[["parent_id","==",' + quote_str(task_id) + ']],"fields":["code","file_name","name"],"slice":[0,2000]}',
+    )
+    var force = args.has("force")
+    for p in paths:
+        var name = _base_name(p)
+        for j in range(existing.doc.len(existing.result)):
+            var x = existing.doc.at(existing.result, j)
+            if existing.doc.text_at(x, "file_name") == name or existing.doc.text_at(x, "name") == name:
+                if not force:
+                    raise Error(
+                        code + " already has " + name + " (" + existing.doc.text_at(x, "code")
+                        + "); a file of the same name would replace it. Rename the file, or pass --force"
+                        " to replace it"
+                    )
     for i in range(len(paths)):
         var name = _base_name(paths[i])
         var d = JsonDoc()
         var kw = d.object()
         d.set_str(kw, "name", name)
         d.set_str(kw, "parent", code)
+        # The server checks the size against its limit before the upload.
+        var size_node = d.number(len(contents[i]))
+        d.set(kw, "size", size_node)
         var created = client.call("CmfAttachment.create", d.dump(kw))
         var id = created.doc.text(created.result)
         try:
             var a = get_attachment(client, id, "url")
             client.upload(a.doc.text_at(a.result, "url"), name, contents[i])
         except e:
-            # Leave no empty attachment behind.
-            try:
-                _ = client.call("CmfAttachment.delete", "", "[" + quote_str(id) + "]")
-            except:
-                pass
+            # Leave no empty attachment behind, unless it shares its file with
+            # one that was there before (--force): deleting it would delete that.
+            if not force:
+                try:
+                    _ = client.call("CmfAttachment.delete", "", "[" + quote_str(id) + "]")
+                except:
+                    pass
             raise Error(paths[i] + " was not attached: " + String(e))
         var got = get_attachment(client, id, "code,st_size")
         var size_text = got.doc.text_at(got.result, "st_size")
         var size = Int(size_text) if size_text != "" else -1
         var line = "attached " + ui.bold(got.doc.text_at(got.result, "code")) + "  " + name + "  " + human_size(len(contents[i]))
-        if size >= 0 and size != len(contents[i]):
+        if size > 0 and size != len(contents[i]):
             line += ui.dim("  (the server reports " + String(size) + " bytes)")
         print(line)

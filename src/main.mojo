@@ -60,6 +60,11 @@ tasks
   task log CODE 1h30m [-m TEXT] [--date today|yesterday|YYYY-MM-DD] [--at HH:MM]
                                         log time spent; it ends now, or with --date
                                         follows that day's last entry (09:00 first)
+  task links CODE                       incoming and outgoing links
+  task attachments CODE                 files attached to the task
+  task attach CODE FILE [FILE...] [--force]
+                                        upload files to the task; a name the task
+                                        already has needs --force (it replaces it)
 
 work log
   time list [--from D] [--to D] [-a LOGIN]
@@ -67,9 +72,6 @@ work log
                                         calendar: logged, norm, left; this week
                                         by default
   time delete TTH-1                     delete a work log entry
-  task links CODE                       incoming and outgoing links
-  task attachments CODE                 files attached to the task
-  task attach CODE FILE [FILE...]       upload files to the task
 
 attachments
   attachment get ATT-1                  name, size and the text EvaTeam

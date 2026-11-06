@@ -144,10 +144,15 @@ up=$(mktemp -d)
 printf 'head\000\377\r\n--x--\r\ntail' >"$up/report \"q\".html"
 printf 'x' >"$up/big.bin"
 check "attach"                 "attached ATT-4  report \"q\".html  19 B" -- $eva task attach DEV-1 "$up/report \"q\".html"
+recent "create sends size"     '"name":"report \"q\".html","parent":"DEV-1","size":19'
 check "upload bytes intact"    "same"                          -- sh -c "cmp '$up/report \"q\".html' '$log.upload' && echo same"
 check "attached file readable" "ATT-4  report"                 -- $eva attachment get ATT-4
+check "same name refused"      "DEV-1 already has report \"q\".html (ATT-4); a file of the same name would replace it" -- $eva task attach DEV-1 "$up/report \"q\".html"
+no    "no size warning at 0"   "server reports"                -- $eva task attach DEV-1 "$up/report \"q\".html" --force
+check "download size 0 ok"     "fake"                          -- sh -c "$eva attachment download ATT-4 -o - | head -c 4 | tr -d '\\000'; echo fake"
+check "refusal with size 0"    "the server refused the download" -- $eva attachment download ATT-9X -o -
 check "attach refused cleans up" "was not attached: HTTP 413 for the upload" -- $eva task attach DEV-1 "$up/big.bin"
-sent  "empty attachment deleted" '"method":"CmfAttachment.delete","args":["CmfAttachment:5"]'
+sent  "empty attachment deleted" '"method":"CmfAttachment.delete","args":["CmfAttachment:6"]'
 check "attach missing file"    "cannot read"                   -- $eva task attach DEV-1 "$up/nope.txt"
 no    "missing file creates nothing" "CmfAttachment.create"    -- sh -c "tail -n 1 '$log'"
 check "attach needs a file"    "usage: eva task attach CODE FILE" -- $eva task attach DEV-1

@@ -119,6 +119,10 @@ ATTACHMENTS = [
      "st_size": 5000, "embedded": False, "parent_id": "CmfTask:1",
      "cmf_created_at": "2026-11-02T11:00:00+03:00", "cmf_author": {"name": "QA"},
      "url": "/files/denied/gone.pdf", "text": ""},
+    {"id": "CmfAttachment:denied", "code": "ATT-9X", "file_name": "denied.bin", "file_type": ".bin",
+     "st_size": 0, "embedded": False, "parent_id": "CmfTask:1",
+     "cmf_created_at": "2026-11-02T11:30:00+03:00", "cmf_author": {"name": "QA"},
+     "url": "/files/denied/denied.bin", "text": ""},
     {"id": "CmfAttachment:3", "code": "ATT-3", "file_name": "x.png", "file_type": ".png",
      "st_size": 10, "embedded": True, "parent_id": "CmfTask:1",
      "cmf_created_at": "2026-11-02T12:00:00+03:00", "cmf_author": {"name": "QA"},
@@ -155,6 +159,8 @@ CALENDAR_DAYS = [
     {"date": "2026-11-04", "day_type": "vacation", "interval_total_minutes": 0, "parent_id": "CmfCalendar:me"},
     {"date": "2026-11-07", "day_type": "weekend", "interval_total_minutes": None, "parent_id": "CmfCalendar:base"},
 ]
+
+CREATED_ATTACHMENTS = []
 
 
 def matches(obj, flt):
@@ -217,7 +223,7 @@ class Handler(BaseHTTPRequestHandler):
         att = next(a for a in ATTACHMENTS if a["url"] == self.path)
         if name == "big.bin":
             return self.reply(413, {"error": {"message": "Файл слишком большой"}})
-        att["st_size"] = len(data)
+        # Like EvaTeam, an upload through the API leaves st_size at 0.
         att["file_name"] = name
         with open(os.environ["MOCK_LOG"] + ".upload", "wb") as f:
             f.write(data)
@@ -275,8 +281,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, {"jsonrpc": "2.2", "abort": "Недостаточно прав для перехода"})
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method == "CmfAttachment.create":
-            n = len(ATTACHMENTS) + 1
-            ATTACHMENTS.append({"id": f"CmfAttachment:{n}", "code": f"ATT-{n}", "file_name": kw["name"],
+            CREATED_ATTACHMENTS.append(kw["name"])
+            if "size" not in kw:
+                return self.reply(200, {"jsonrpc": "2.2", "abort": "Не удалось проверить допустимый размер файла, так как соответствующий параметр не был передан"})
+            n = 3 + len(CREATED_ATTACHMENTS)
+            ATTACHMENTS.append({"id": f"CmfAttachment:{n}", "code": f"ATT-{n}", "name": kw["name"], "file_name": kw["name"],
                                 "file_type": "", "st_size": 0, "embedded": False, "parent_id": "CmfTask:1",
                                 "cmf_created_at": "2026-11-06T12:00:00+03:00", "cmf_author": {"name": "Me"},
                                 "url": f"/files/obj/CmfTask/1/upload-{n}", "text": ""})
