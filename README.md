@@ -220,6 +220,7 @@ eva auth logout --profile sandbox
 | `eva resolution list` | коды резолюций для `task move`/`update --resolution` |
 | `eva task path CODE STATUS` / `eva task move CODE STATUS --path` | кратчайший путь по workflow: показать или пройти |
 | `eva task attachments CODE` | файлы, приложенные к задаче |
+| `eva task attach CODE FILE...` | приложить файлы к задаче |
 | `eva attachment get ATT-1` / `eva attachment download ATT-1 [-o PATH]` | текст, извлечённый из файла, или сам файл |
 | `eva task links CODE` | входящие и исходящие связи |
 | `eva project list`, `eva person list`, `eva doc list` | списки, `-q` ищет по названию |

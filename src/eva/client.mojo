@@ -299,6 +299,12 @@ struct Reply(Movable):
         self.result = result
 
 
+def check_files_path(path: String, what: String) raises:
+    """Only a server-relative /files/ address, so the token stays on this server."""
+    if not path.startswith("/files/") or path.find("..") >= 0 or path.find("//") >= 0:
+        raise Error("refusing to " + what + " " + clean(path) + ": not a /files/ address on this server")
+
+
 struct Client(Movable):
     var cfg: Config
     var verbose: Bool
@@ -318,8 +324,7 @@ struct Client(Movable):
         """The bytes at `path`, a server-relative /files/... address from an
         attachment. Only such paths are fetched, so the token goes to this
         EvaTeam and nowhere else."""
-        if not path.startswith("/files/") or path.find("..") >= 0 or path.find("//") >= 0:
-            raise Error("refusing to download " + clean(path) + ": not a /files/ address on this server")
+        check_files_path(path, "download")
         if self.verbose:
             print("→ GET", self.cfg.url + path, file=stderr)
         var headers = Dict[String, String]()
@@ -356,6 +361,64 @@ struct Client(Movable):
         if status != 200:
             raise Error("HTTP " + String(status) + " for " + clean(path))
         return body^
+
+    def upload(self, path: String, file_name: String, content: List[UInt8]) raises:
+        """POST `content` as multipart form field "file" to `path`, the /files/
+        address of an attachment created for it."""
+        check_files_path(path, "upload")
+        var boundary = "eva-" + String(random_ui64(0, 0xFFFFFFFFFFFF)) + String(random_ui64(0, 0xFFFFFFFFFFFF))
+        # A file name cannot end the header line or its quoted value early.
+        var name = String(clean(file_name).replace('"', "'").replace("\n", " ").replace("\r", " "))
+        var head = (
+            "--" + boundary + "\r\n"
+            + 'Content-Disposition: form-data; name="file"; filename="' + name + '"\r\n'
+            + "Content-Type: application/octet-stream\r\n\r\n"
+        )
+        var bytes = List[UInt8]()
+        for b in head.as_bytes():
+            bytes.append(b)
+        for b in content:
+            bytes.append(b)
+        for b in String("\r\n--" + boundary + "--\r\n").as_bytes():
+            bytes.append(b)
+        # The request body is a String; the file's bytes go through it as they are.
+        var body = String(unsafe_from_utf8=Span(bytes))
+        if self.verbose:
+            print("→ POST", self.cfg.url + path, len(content), "bytes as", name, file=stderr)
+        var headers = Dict[String, String]()
+        headers["Authorization"] = "Bearer " + self.cfg.token
+        headers["User-Agent"] = "eva-cli"
+        headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
+        var ca: Optional[String] = None
+        if self.ca != "":
+            ca = self.ca
+        var status: Int
+        var text: String
+        try:
+            var session = requests.Session()
+            var resp = session.post(
+                self.cfg.url + path,
+                data=body,
+                headers=headers^,
+                timeout=300.0,
+                verify=not self.cfg.insecure,
+                ca_bundle=ca,
+                allow_redirects=False,
+            )
+            status = resp.status_code
+            text = resp.text()
+        except e:
+            raise Error("cannot reach " + self.cfg.url + ": " + String(e))
+        if self.verbose:
+            print("← HTTP", status, clean(String(text[byte = 0 : min(text.byte_length(), 300)])), file=stderr)
+        if status >= 300 and status < 400:
+            raise Error("the upload address redirects (HTTP " + String(status) + "); eva does not follow it with your token")
+        if status == 401 or status == 403:
+            raise Error("HTTP " + String(status) + ": the server refused the upload: " + clean(String(text[byte = 0 : min(text.byte_length(), 200)])))
+        if status != 200:
+            raise Error(
+                "HTTP " + String(status) + " for the upload: " + clean(String(String(text[byte = 0 : min(text.byte_length(), 200)]).strip()))
+            )
 
     def call(
         self,

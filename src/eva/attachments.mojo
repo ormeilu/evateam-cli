@@ -6,7 +6,7 @@ from std.os.path import exists
 
 from eva.args import Args
 from eva.client import Client, Reply
-from eva.commands import id_of, print_json, split_csv, want_json
+from eva.commands import id_of, print_json, quote_str, split_csv, want_json
 from eva.json import JsonDoc, J_OBJ, clean
 from eva.render import Out, pad
 
@@ -149,3 +149,52 @@ def attachment_download(client: Client, args: Args, ui: Out) raises:
     with open(out, "w") as f:
         f.write_bytes(Span(data))
     print("saved " + ui.bold(out) + " (" + human_size(len(data)) + ")")
+
+
+def _base_name(path: String) -> String:
+    var i = path.rfind("/")
+    return String(path[byte = i + 1 :]) if i >= 0 else path
+
+
+def task_attach(client: Client, args: Args, ui: Out) raises:
+    args.check_known(["verbose", "v"])
+    var code = args.need(2, "task code")
+    var paths = List[String]()
+    for i in range(3, len(args.positionals)):
+        paths.append(args.positionals[i])
+    if len(paths) == 0:
+        raise Error("usage: eva task attach CODE FILE [FILE...]")
+    # Read everything first: a missing file stops before anything is created.
+    var contents = List[List[UInt8]]()
+    for p in paths:
+        try:
+            with open(p, "r") as f:
+                contents.append(f.read_bytes())
+        except e:
+            raise Error("cannot read " + p + ": " + String(e))
+    _ = id_of(client, "CmfTask", "code", code)
+    for i in range(len(paths)):
+        var name = _base_name(paths[i])
+        var d = JsonDoc()
+        var kw = d.object()
+        d.set_str(kw, "name", name)
+        d.set_str(kw, "parent", code)
+        var created = client.call("CmfAttachment.create", d.dump(kw))
+        var id = created.doc.text(created.result)
+        try:
+            var a = get_attachment(client, id, "url")
+            client.upload(a.doc.text_at(a.result, "url"), name, contents[i])
+        except e:
+            # Leave no empty attachment behind.
+            try:
+                _ = client.call("CmfAttachment.delete", "", "[" + quote_str(id) + "]")
+            except:
+                pass
+            raise Error(paths[i] + " was not attached: " + String(e))
+        var got = get_attachment(client, id, "code,st_size")
+        var size_text = got.doc.text_at(got.result, "st_size")
+        var size = Int(size_text) if size_text != "" else -1
+        var line = "attached " + ui.bold(got.doc.text_at(got.result, "code")) + "  " + name + "  " + human_size(len(contents[i]))
+        if size >= 0 and size != len(contents[i]):
+            line += ui.dim("  (the server reports " + String(size) + " bytes)")
+        print(line)

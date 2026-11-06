@@ -7,7 +7,7 @@ log=$(mktemp)
 port_file=$(mktemp)
 MOCK_LOG=$log python tests/mock_server.py >"$port_file" &
 server=$!
-trap 'kill $server 2>/dev/null; wait $server 2>/dev/null || true; rm -rf "$log" "$log.note" "$port_file" "$XDG_CACHE_HOME"' EXIT
+trap 'kill $server 2>/dev/null; wait $server 2>/dev/null || true; rm -rf "$log" "$log.note" "$log.upload" "$port_file" "$XDG_CACHE_HOME"' EXIT
 for _ in $(seq 300); do [ -s "$port_file" ] && break; sleep 0.1; done
 [ -s "$port_file" ] || { echo "mock server did not start"; exit 1; }
 
@@ -140,6 +140,18 @@ check "download force"         "saved report.xlsx"             -- sh -c "cd '$dl
 check "download to stdout"     "fake xlsx"                     -- sh -c "$eva attachment download ATT-1 -o - | tr -d '\\000'"
 check "download refused"       "got 26 bytes instead of 5000; the server said: {\"error\": \"access denied\"}" -- sh -c "cd '$dl' && $eva attachment download ATT-2"
 check "download other host"    "not a /files/ address on this server" -- sh -c "cd '$dl' && $eva attachment download ATT-3"
+up=$(mktemp -d)
+printf 'head\000\377\r\n--x--\r\ntail' >"$up/report \"q\".html"
+printf 'x' >"$up/big.bin"
+check "attach"                 "attached ATT-4  report \"q\".html  19 B" -- $eva task attach DEV-1 "$up/report \"q\".html"
+check "upload bytes intact"    "same"                          -- sh -c "cmp '$up/report \"q\".html' '$log.upload' && echo same"
+check "attached file readable" "ATT-4  report"                 -- $eva attachment get ATT-4
+check "attach refused cleans up" "was not attached: HTTP 413 for the upload" -- $eva task attach DEV-1 "$up/big.bin"
+sent  "empty attachment deleted" '"method":"CmfAttachment.delete","args":["CmfAttachment:5"]'
+check "attach missing file"    "cannot read"                   -- $eva task attach DEV-1 "$up/nope.txt"
+no    "missing file creates nothing" "CmfAttachment.create"    -- sh -c "tail -n 1 '$log'"
+check "attach needs a file"    "usage: eva task attach CODE FILE" -- $eva task attach DEV-1
+rm -rf "$up"
 check "attachment missing"     "ATT-9: no such attachment"     -- $eva attachment get ATT-9
 rm -rf "$dl"
 check "comment"                "commented on DEV-1"            -- $eva task comment DEV-1 "<b>hi</b>"

@@ -32,6 +32,18 @@ creates the subtask under the epic and sets the parent task in a second
 request. If EvaTeam still ends up with a different parent, eva prints
 `note: EvaTeam did not keep …`; check the task with `eva task get`.
 
+## Attaching files
+
+```bash
+eva task attach BOT-7044 report.html screenshot.png   # prints the new ATT codes
+```
+
+eva creates the attachment, uploads the file to EvaTeam's own /files/ address
+(the token goes nowhere else) and checks the size the server stored. If the
+server refuses a file (size, type), the error says why and no empty attachment
+is left. Every file is read before anything is created, so a missing path
+changes nothing.
+
 ## Deleting a task
 
 ```bash

@@ -204,7 +204,28 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(FILE_BYTES)
 
+    def upload(self):
+        """A multipart POST to an attachment's /files/ address."""
+        if self.headers.get("Authorization") != "Bearer " + TOKEN:
+            return self.reply(401, {"error": "unauthorized"})
+        raw = self.rfile.read(int(self.headers["Content-Length"]))
+        boundary = self.headers["Content-Type"].split("boundary=")[1].encode()
+        part = raw.split(b"--" + boundary)[1]
+        head, _, data = part.partition(b"\r\n\r\n")
+        data = data[: -len(b"\r\n")]
+        name = head.split(b'filename="')[1].split(b'"')[0].decode()
+        att = next(a for a in ATTACHMENTS if a["url"] == self.path)
+        if name == "big.bin":
+            return self.reply(413, {"error": {"message": "Файл слишком большой"}})
+        att["st_size"] = len(data)
+        att["file_name"] = name
+        with open(os.environ["MOCK_LOG"] + ".upload", "wb") as f:
+            f.write(data)
+        return self.reply(200, {"result": "ok"})
+
     def do_POST(self):
+        if self.path.startswith("/files/"):
+            return self.upload()
         body = self.rfile.read(int(self.headers["Content-Length"])).decode()
         with open(os.environ["MOCK_LOG"], "a") as f:
             f.write(body + "\n")
@@ -252,6 +273,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, {"jsonrpc": "2.2", "abort": "Необходимо заполнить Вид услуги"})
             if req["args"][1] == "CmfTrans:archive" and kw["changed_fields"].get("cf_reason") is None:
                 return self.reply(200, {"jsonrpc": "2.2", "abort": "Недостаточно прав для перехода"})
+            return self.reply(200, {"jsonrpc": "2.2", "result": True})
+        if method == "CmfAttachment.create":
+            n = len(ATTACHMENTS) + 1
+            ATTACHMENTS.append({"id": f"CmfAttachment:{n}", "code": f"ATT-{n}", "file_name": kw["name"],
+                                "file_type": "", "st_size": 0, "embedded": False, "parent_id": "CmfTask:1",
+                                "cmf_created_at": "2026-11-06T12:00:00+03:00", "cmf_author": {"name": "Me"},
+                                "url": f"/files/obj/CmfTask/1/upload-{n}", "text": ""})
+            return self.reply(200, {"jsonrpc": "2.2", "result": f"CmfAttachment:{n}"})
+        if method == "CmfAttachment.delete":
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method in ("CmfAttachment.list", "CmfAttachment.get"):
             rows = [a for a in ATTACHMENTS if matches(a, flt)]
