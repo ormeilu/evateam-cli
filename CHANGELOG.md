@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/ormeilu/evateam-cli/compare/v0.5.0...v0.5.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* eva hangs on a hidden keychain dialog after an upgrade on macOS ([6c205d0](https://github.com/ormeilu/evateam-cli/commit/6c205d087fe1209207ee5c2b857d3e6635796708))
+
 ## [0.5.0](https://github.com/ormeilu/evateam-cli/compare/v0.4.0...v0.5.0) (2026-11-06)
 
 
