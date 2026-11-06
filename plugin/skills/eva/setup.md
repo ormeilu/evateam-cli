@@ -21,7 +21,8 @@ was installed, and `eva --version` says what is there.
 ## Signing in
 
 The user creates a token in EvaTeam («Моя страница» → «Безопасность» →
-«Сгенерировать API токен») and runs, in their own terminal:
+«Сгенерировать API токен» → «Создать токен API»; EvaTeam's guide with
+screenshots: https://docs.evateam.ru/docs/DOC-000200) and runs, in their own terminal:
 
 ```bash
 eva auth login                       # asks for the address and, without echo, the token

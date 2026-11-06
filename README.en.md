@@ -128,8 +128,31 @@ allowlist for Claude Code: reading commands allowed, writing ones asked about.
 
 ## Configure
 
-Create a token in EvaTeam: «Моя страница» → «Безопасность» → «Сгенерировать
-API токен». Then sign in:
+First create an API token in EvaTeam ([EvaTeam's guide, in Russian](https://docs.evateam.ru/docs/DOC-000200)):
+
+1. Open «Моя страница» (My page) and its «Безопасность» (Security) tab.
+2. Click «Сгенерировать API токен», then «Создать токен API».
+3. Give it a name and an expiry date, and create it.
+4. Copy the token at once: EvaTeam shows it a single time and keeps only its hash.
+
+<details>
+<summary>Screenshots from EvaTeam's documentation</summary>
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%3A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-20230807-161836.png?version=1" alt="«Моя страница»" width="300">
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%3A8de/CmfDocument%3A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-mce-20260527-115633583.png?version=1" alt="the «Безопасность» tab" width="700">
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%3A8de/CmfDocument%3A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-mce-20260527-115842904.png?version=1" alt="«Сгенерировать API токен»" width="700">
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%3A8de/CmfDocument%3A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-mce-20260527-120135821.png?version=1" alt="«Создать токен API»" width="600">
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%253A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-20230317-122341.png" alt="the new token" width="600">
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%3A8de/CmfDocument%3A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-mce-20260527-120731383.png?version=1" alt="the token panel" width="700">
+
+</details>
+
+Then sign in (in a terminal, `eva auth login` repeats these steps first):
 
 ```bash
 eva auth login
