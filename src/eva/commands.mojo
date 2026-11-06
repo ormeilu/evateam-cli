@@ -420,21 +420,24 @@ def task_create(client: Client, args: Args, ui: Out) raises:
     if sprint != "":
         var lists = d.str_array([sprint])
         d.set(kw, "lists", lists)
+    # Reference fields go by their own names with an id as the value: EvaTeam
+    # refuses the *_id forms in a create.
     var parent = args.get("parent")
     var parent_id = String()
     if parent != "":
         var p = get_by_code(client, "CmfTask", parent, split_csv("id,epic_id,logic_type.code"))
         parent_id = p.doc.text_at(p.result, "id")
-        d.set_str(kw, "parent_task_id", parent_id)
         # A subtask belongs to its parent's epic, or to the parent if that is the epic.
         var epic = parent_id if p.doc.text_at(p.result, "logic_type.code").startswith("task.epic") else p.doc.text_at(
             p.result, "epic_id"
         )
+        # The epic becomes the parent task even when a parent_task is sent
+        # with it, so the parent task is set by an update after the create.
         if epic != "":
-            d.set_str(kw, "epic_id", epic)
+            d.set_str(kw, "epic", epic)
     var kind = args.get("type")
     if kind != "":
-        d.set_str(kw, "logic_type_id", find_logic_type(client, kind))
+        d.set_str(kw, "logic_type", find_logic_type(client, kind))
     var raw = args.get("set")
     if raw != "":
         var extra = d.parse(raw)
@@ -456,11 +459,13 @@ def task_create(client: Client, args: Args, ui: Out) raises:
         pass
     print("created " + ui.bold(code) + "  " + name)
     if parent_id != "" and got_parent != parent_id:
-        # Setting the epic can move the parent to it; put the parent back, last.
         var u = JsonDoc()
         var uk = u.object()
-        u.set_str(uk, "parent_task_id", parent_id)
-        _ = client.call("CmfTask.update", u.dump(uk), "[" + quote_str(id) + "]")
+        u.set_str(uk, "parent_task", parent_id)
+        try:
+            _ = client.call("CmfTask.update", u.dump(uk), "[" + quote_str(id) + "]")
+        except e:
+            raise Error(code + " is created, but setting " + parent + " as its parent task failed: " + String(e))
         var t = task_by_id(client, id, "parent_task_id")
         if t.doc.text_at(t.result, "parent_task_id") != parent_id:
             print("note: EvaTeam did not keep " + parent + " as the parent task; check eva task get " + code)

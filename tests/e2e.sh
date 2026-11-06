@@ -69,14 +69,17 @@ line2" -a ilya@example.ru
 check "update"                 "updated DEV-1: name"           -- $eva task update DEV-1 -t Renamed
 recent "update args"           '"args":["CmfTask:1"]'
 no    "update no false note"   "note:"                         -- $eva task update DEV-1 -t Renamed
-check "update notes side change" "note: EvaTeam also changed parent task: DEV-100 → DEV-0" -- $eva task update DEV-1 --set '{"epic_id":"CmfTask:0"}'
-check "update parent back"     "updated DEV-1: parent_task_id" -- $eva task update DEV-1 --set '{"parent_task_id":"CmfTask:100"}'
+check "update notes side change" "note: EvaTeam also changed parent task: DEV-100 → DEV-0" -- $eva task update DEV-1 --set '{"epic":"CmfTask:0"}'
+check "update parent back"     "updated DEV-1: parent_task"    -- $eva task update DEV-1 --set '{"parent_task":"CmfTask:100"}'
 check "create subtask"         "created DEV-3"                 -- $eva task create -p DEV -t Sub --parent DEV-1 --type подзадача --set '{"deadline":"2026-12-01"}'
-recent "create sends parent"   '"parent_task_id":"CmfTask:1","epic_id":"CmfTask:100","logic_type_id":"CmfLogicType:sub","deadline":"2026-12-01"'
-sent  "create restores parent" '"kwargs":{"parent_task_id":"CmfTask:1"},"args":["CmfTask:3"]'
-no    "create kept parent"     "did not keep"                  -- $eva task create -p DEV -t Sub --parent DEV-1
+recent "create sends epic"     '"epic":"CmfTask:100","logic_type":"CmfLogicType:sub","deadline":"2026-12-01"'
+sent  "create sets parent after" '"kwargs":{"parent_task":"CmfTask:1"},"args":["CmfTask:3"]'
+no    "create kept parent"     "note:"                         -- $eva task create -p DEV -t Sub --parent DEV-1
+check "create under epic"      "created DEV-3"                 -- $eva task create -p DEV -t Sub --parent DEV-100
+recent "epic is the parent"    '"epic":"CmfTask:100"'
+check "create parent dropped"  "note: EvaTeam did not keep DEV-2 as the parent task" -- $eva task create -p DEV -t Sub --parent DEV-2
 check "create type by code"    "created DEV-3"                 -- $eva task create -p DEV -t B --type bug
-recent "type resolved"         '"logic_type_id":"CmfLogicType:bug"'
+recent "type resolved"         '"logic_type":"CmfLogicType:bug"'
 check "create unknown type"    "no task type Документ; types: Bug, Подзадача" -- $eva task create -p DEV -t B --type Документ
 check "list hides no access"   "1 of them hidden: no access to their projects" -- $eva task list -q GHOST
 no    "list no empty row"      "OPEN              -"           -- $eva task list -q GHOST
