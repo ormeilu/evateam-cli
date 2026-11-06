@@ -18,6 +18,8 @@ def is_bool_flag(name: String) -> Bool:
         or name == "ids"
         or name == "path"
         or name == "force"
+        or name == "yes"
+        or name == "y"
     )
 
 

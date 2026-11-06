@@ -9,6 +9,7 @@ from eva.commands import (
     task_list,
     task_create,
     task_update,
+    task_delete,
     task_comment,
     task_comments,
     task_comment_delete,
@@ -43,6 +44,8 @@ tasks
             [--parent CODE] [--type Bug|Подзадача|...] [--set JSON]
   task update CODE [-t TITLE] [-d TEXT | -F FILE] [-s STATUS] [-a LOGIN]
             [--resolution CODE] [--set JSON]
+  task delete CODE [--yes]              delete a task; asks first, --yes skips
+                                        the question (required without a terminal)
   task move CODE STATUS [-m COMMENT] [--resolution CODE] [--set JSON] [--path]
                                         change status through the workflow;
                                         --path walks several steps to get there;
@@ -159,6 +162,8 @@ def run(var raw: List[String]) raises:
             task_create(client, args, ui)
         elif sub == "update" or sub == "edit":
             task_update(client, args, ui)
+        elif sub == "delete" or sub == "rm":
+            task_delete(client, args, ui)
         elif sub == "comment":
             task_comment(client, args, ui)
         elif sub == "comments":

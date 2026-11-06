@@ -32,6 +32,16 @@ creates the subtask under the epic and sets the parent task in a second
 request. If EvaTeam still ends up with a different parent, eva prints
 `note: EvaTeam did not keep …`; check the task with `eva task get`.
 
+## Deleting a task
+
+```bash
+eva task delete BOT-7044 --yes
+```
+
+In a terminal eva asks first and names the task and how many subtasks it has;
+without a terminal it deletes only with `--yes`. Delete a task only when the
+user asked for that task by code, and name it in the confirmation you ask for.
+
 ## Changing fields
 
 ```bash

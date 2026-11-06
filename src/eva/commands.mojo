@@ -9,6 +9,7 @@ from eva.client import Client, Reply, load_config
 from eva.json import JsonDoc, NO_NODE, J_ARR, J_OBJ
 from eva.render import Out, pad, clip, text_to_html, markdown_to_html
 from eva.fields import MultiSelect, multiselect_fields, value_names
+from eva.term import prompt_line, stdin_is_tty
 from eva.term import read_all
 
 comptime TASK_FIELDS = (
@@ -481,6 +482,27 @@ def task_create(client: Client, args: Args, ui: Out) raises:
         var t = task_by_id(client, id, "parent_task_id")
         if t.doc.text_at(t.result, "parent_task_id") != parent_id:
             print("note: EvaTeam did not keep " + parent + " as the parent task; check eva task get " + code)
+
+
+def task_delete(client: Client, args: Args, ui: Out) raises:
+    args.check_known(["yes", "y", "verbose", "v"])
+    var code = args.need(2, "task code")
+    var t = get_by_code(client, "CmfTask", code, split_csv("id,code,name,cache_child_tasks_count"))
+    var id = t.doc.text_at(t.result, "id")
+    var name = String(t.doc.text_at(t.result, "name").strip())
+    var children = t.doc.text_at(t.result, "cache_child_tasks_count")
+    var what = code + "  " + name
+    if children != "" and children != "0":
+        what += " (it has " + children + " subtasks)"
+    if not args.has("yes", "y"):
+        if not stdin_is_tty():
+            raise Error("deleting " + what + " needs confirmation: run it in a terminal, or pass --yes")
+        var answer = prompt_line("delete " + what + "? [y/N] ").lower()
+        if answer != "y" and answer != "yes" and answer != "д" and answer != "да":
+            print("not deleted")
+            return
+    _ = client.call("CmfTask.delete", "", "[" + quote_str(id) + "]")
+    print("deleted " + ui.bold(code) + "  " + name)
 
 
 def task_update(client: Client, args: Args, ui: Out) raises:

@@ -214,6 +214,7 @@ eva auth logout --profile sandbox
 | `eva task comment-delete ID` | удалить комментарий |
 | `eva task log CODE 1h30m [--date D] [--at HH:MM]` | списать время: до текущего момента или на нужный день и час |
 | `eva time list [--from D] [--to D]` | журнал работ по дням против рабочего календаря: списано, норма, осталось |
+| `eva task delete CODE [--yes]` | удалить задачу; в терминале сначала спрашивает |
 | `eva time delete TTH-1` | удалить запись журнала работ |
 | `eva resolution list` | коды резолюций для `task move`/`update --resolution` |
 | `eva task path CODE STATUS` / `eva task move CODE STATUS --path` | кратчайший путь по workflow: показать или пройти |

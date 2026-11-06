@@ -93,6 +93,11 @@ check "create unknown type"    "no task type Документ; types: Bug, По�
 check "list hides no access"   "1 of them hidden: no access to their projects" -- $eva task list -q GHOST
 no    "list no empty row"      "OPEN              -"           -- $eva task list -q GHOST
 check "update set"             "deadline"                      -- $eva task update DEV-1 --set '{"deadline":"2026-12-01"}'
+check "delete needs yes"       "deleting DEV-2  Retry uploads on 5xx needs confirmation" -- sh -c "$eva task delete DEV-2 </dev/null"
+no    "delete refused sends nothing" "CmfTask.delete"           -- sh -c "tail -n 1 '$log'"
+check "delete with yes"        "deleted DEV-2  Retry uploads on 5xx" -- $eva task delete DEV-2 --yes
+sent  "delete id in args"      '"method":"CmfTask.delete","args":["CmfTask:2"]'
+check "delete missing"         "DEV-404: not found"            -- $eva task delete DEV-404 -y
 check "statuses"               "closed                     Done" -- $eva task statuses DEV-1
 check "move refused"           "refused: Необходимо заполнить Вид услуги" -- $eva task move DEV-1 closed
 check "move"                   "moved DEV-1: В работе → Done"  -- $eva task move DEV-1 Done --set '{"cf_kind":"dev"}' -m ok
