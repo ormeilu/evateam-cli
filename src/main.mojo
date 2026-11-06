@@ -16,6 +16,7 @@ from eva.commands import (
     task_links,
     task_move,
     task_statuses,
+    task_path,
     project_list,
     person_list,
     doc_get,
@@ -25,6 +26,7 @@ from eva.commands import (
 )
 from eva.render import Out
 from eva.upgrade import upgrade
+from eva.attachments import attachment_download, attachment_get, task_attachments
 from eva.auth import auth_login, auth_logout, auth_status, auth_use
 
 comptime VERSION = "0.4.0"  # x-release-please-version
@@ -40,16 +42,25 @@ tasks
   task create -p PROJ -t TITLE [-d TEXT | -F FILE] [-a LOGIN] [--sprint SPR-1]
   task update CODE [-t TITLE] [-d TEXT | -F FILE] [-s STATUS] [-a LOGIN]
             [--resolution CODE] [--set JSON]
-  task move CODE STATUS [-m COMMENT] [--resolution CODE] [--set JSON]
+  task move CODE STATUS [-m COMMENT] [--resolution CODE] [--set JSON] [--path]
                                         change status through the workflow;
+                                        --path walks several steps to get there;
                                         --resolution wont_do, dublicate, ...
   task statuses CODE                    where the task can move from here
+  task path CODE STATUS                 the shortest way there, without moving
   task comment CODE TEXT | -F FILE      add a comment; -F - reads stdin
   task comments CODE [--human] [--ids]  read the comments, oldest first; --human
                                         hides status changes and system entries
   task comment-delete ID                delete a comment (ids: comments --ids)
   task log CODE 1h30m [-m TEXT]         log time spent
   task links CODE                       incoming and outgoing links
+  task attachments CODE                 files attached to the task
+
+attachments
+  attachment get ATT-1                  name, size and the text EvaTeam
+                                        extracted from the file
+  attachment download ATT-1 [-o PATH|-] [--force]
+                                        the original file (- for stdout)
 
 other
   project list [-q TEXT]                projects
@@ -152,8 +163,19 @@ def run(var raw: List[String]) raises:
             task_move(client, args, ui)
         elif sub == "statuses":
             task_statuses(client, args, ui)
+        elif sub == "path":
+            task_path(client, args, ui)
+        elif sub == "attachments" or sub == "files":
+            task_attachments(client, args, ui)
         else:
             raise Error("unknown task command '" + sub + "', see eva --help")
+    elif group == "attachment" or group == "attachments" or group == "file":
+        if sub == "get" or sub == "show":
+            attachment_get(client, args, ui)
+        elif sub == "download" or sub == "dl":
+            attachment_download(client, args, ui)
+        else:
+            raise Error("unknown attachment command '" + sub + "': get or download")
     elif group == "resolution" or group == "resolutions":
         resolution_list(client, args, ui)
     elif group == "project" or group == "projects":

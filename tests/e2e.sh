@@ -82,7 +82,29 @@ sent  "resolution set again"   '"kwargs":{"resolution":"CmfResolution:wd"},"args
 check "unknown resolution"     "no resolution nope; eva resolution list shows them: done, wont_do" -- $eva task move DEV-1 Done --set '{"cf_kind":"dev"}' --resolution nope
 check "update resolution"      "updated DEV-1: resolution"     -- $eva task update DEV-1 -r WONT_DO
 sent  "update sends resolution" '"resolution":"CmfResolution:wd"'
-check "move impossible"        "cannot move to backlog; it can move to: closed (Done)" -- $eva task move DEV-1 backlog
+check "move impossible"        "cannot move to backlog; it can move to: closed (Done), review (Review), pause (On Hold)" -- $eva task move DEV-1 backlog
+check "statuses automatic"     "+1 automatic, not run by hand" -- $eva task statuses DEV-1
+check "path avoids hold"       "В работе → Review → Archived  (2 steps)" -- $eva task path DEV-1 archived
+check "move suggests path"     "it can get there in steps: eva task move DEV-1 Archived --path" -- $eva task move DEV-1 Archived
+check "no path"                "has no path to nowhere"        -- $eva task path DEV-1 nowhere
+check "walk stops on refusal"  "stopped in Review after 1 of 2 steps, moving to Archived: CmfTask.task_transition_run refused: Недостаточно прав" -- $eva task move DEV-1 archived --path --set '{"cf_kind":"dev"}'
+check "walk all steps"         "moved DEV-1: Review → Archived" -- $eva task move DEV-1 archived --path --set '{"cf_kind":"dev","cf_reason":"x"}'
+sent  "walk sends --set each step" '"cf_reason":"x"'
+check "attachments line"       "attachments: 1 (report.xlsx): eva task attachments DEV-1" -- $eva task get DEV-1
+check "attachments list"       "ATT-1        17 B     2026-11-02  ../../report.xlsx" -- $eva task attachments DEV-1
+check "attachments embedded"   "x.png  (image in the text)"    -- $eva task attachments DEV-1
+check "attachment text fenced" '<untrusted src="ATT-1/text">' -- $eva attachment get ATT-1
+check "attachment text defused" "&lt;untrusted>"              -- $eva attachment get ATT-1
+dl=$(mktemp -d)
+check "download"               "saved report.xlsx (17 B)"      -- sh -c "cd '$dl' && $eva attachment download ATT-1"
+check "download bytes"         "17"                            -- sh -c "wc -c < '$dl/report.xlsx'"
+check "download no overwrite"  "already exists; pass --force"  -- sh -c "cd '$dl' && $eva attachment download ATT-1"
+check "download force"         "saved report.xlsx"             -- sh -c "cd '$dl' && $eva attachment download ATT-1 --force"
+check "download to stdout"     "fake xlsx"                     -- sh -c "$eva attachment download ATT-1 -o - | tr -d '\\000'"
+check "download refused"       "got 26 bytes instead of 5000; the server said: {\"error\": \"access denied\"}" -- sh -c "cd '$dl' && $eva attachment download ATT-2"
+check "download other host"    "not a /files/ address on this server" -- sh -c "cd '$dl' && $eva attachment download ATT-3"
+check "attachment missing"     "ATT-9: no such attachment"     -- $eva attachment get ATT-9
+rm -rf "$dl"
 check "comment"                "commented on DEV-1"            -- $eva task comment DEV-1 "<b>hi</b>"
 sent  "comment escaped"        '"text":"<p>&lt;b&gt;hi&lt;/b&gt;</p>"'
 check "comments"               "Воспроизвёл"                   -- $eva task comments DEV-1

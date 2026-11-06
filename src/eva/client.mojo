@@ -314,6 +314,49 @@ struct Client(Movable):
         self.verbose = verbose
         self.ca = ca_bundle()
 
+    def download(self, path: String) raises -> List[UInt8]:
+        """The bytes at `path`, a server-relative /files/... address from an
+        attachment. Only such paths are fetched, so the token goes to this
+        EvaTeam and nowhere else."""
+        if not path.startswith("/files/") or path.find("..") >= 0 or path.find("//") >= 0:
+            raise Error("refusing to download " + clean(path) + ": not a /files/ address on this server")
+        if self.verbose:
+            print("→ GET", self.cfg.url + path, file=stderr)
+        var headers = Dict[String, String]()
+        headers["Authorization"] = "Bearer " + self.cfg.token
+        headers["User-Agent"] = "eva-cli"
+        var ca: Optional[String] = None
+        if self.ca != "":
+            ca = self.ca
+        var status: Int
+        var kind = String()
+        var body: List[UInt8]
+        try:
+            var session = requests.Session()
+            var resp = session.get(
+                self.cfg.url + path,
+                headers=headers^,
+                timeout=300.0,
+                verify=not self.cfg.insecure,
+                ca_bundle=ca,
+                allow_redirects=False,
+            )
+            status = resp.status_code
+            if resp.headers.contains("content-type"):
+                kind = resp.headers["content-type"]
+            body = resp.content.copy()
+        except e:
+            raise Error("cannot reach " + self.cfg.url + ": " + String(e))
+        if self.verbose:
+            print("← HTTP", status, kind, len(body), "bytes", file=stderr)
+        if status >= 300 and status < 400:
+            raise Error("the file address redirects (HTTP " + String(status) + "); eva does not follow it with your token")
+        if status == 401 or status == 403:
+            raise Error("HTTP " + String(status) + ": the token was rejected; sign in again with `eva auth login`")
+        if status != 200:
+            raise Error("HTTP " + String(status) + " for " + clean(path))
+        return body^
+
     def call(
         self,
         method: String,

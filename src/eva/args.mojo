@@ -16,6 +16,8 @@ def is_bool_flag(name: String) -> Bool:
         or name == "html"
         or name == "human"
         or name == "ids"
+        or name == "path"
+        or name == "force"
     )
 
 
