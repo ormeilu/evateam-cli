@@ -13,16 +13,16 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: prefix-dev/setup-pixi@v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: v0.84.1
           cache: true
       - run: pixi run test
       - run: pixi run e2e
       - name: Unit and e2e tests under AddressSanitizer
         run: pixi run asan
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: eva-${{ runner.os }}-${{ runner.arch }}
           path: build/eva
@@ -30,10 +30,10 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: prefix-dev/setup-pixi@v0.11.3
         with:
-          pixi-version: v0.83.0
+          pixi-version: v0.84.1
           cache: true
       - run: pixi run build
       - run: pixi run coverage
@@ -45,7 +45,7 @@ jobs:
             cat coverage/summary.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: coverage
           path: |
