@@ -44,6 +44,10 @@ server refuses a file (size, type), the error says why and no empty attachment
 is left. Every file is read before anything is created, so a missing path
 changes nothing.
 
+EvaTeam stores a task's files by name. A file with a name the task already has
+would replace the existing file's content, so eva refuses it unless `--force`
+is given. Rename the file instead unless the user wants it replaced.
+
 ## Deleting a task
 
 ```bash
