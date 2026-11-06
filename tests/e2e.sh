@@ -67,7 +67,19 @@ sent  "project filter"         '["project.code","==","DEV"]'
 check "create"                 "created DEV-3"                 -- $eva task create -p DEV -t "New one" -d "line1
 line2" -a ilya@example.ru
 check "update"                 "updated DEV-1: name"           -- $eva task update DEV-1 -t Renamed
-sent  "update args"            '"args":["CmfTask:1"]'
+recent "update args"           '"args":["CmfTask:1"]'
+no    "update no false note"   "note:"                         -- $eva task update DEV-1 -t Renamed
+check "update notes side change" "note: EvaTeam also changed parent task: DEV-100 → DEV-0" -- $eva task update DEV-1 --set '{"epic_id":"CmfTask:0"}'
+check "update parent back"     "updated DEV-1: parent_task_id" -- $eva task update DEV-1 --set '{"parent_task_id":"CmfTask:100"}'
+check "create subtask"         "created DEV-3"                 -- $eva task create -p DEV -t Sub --parent DEV-1 --type подзадача --set '{"deadline":"2026-12-01"}'
+recent "create sends parent"   '"parent_task_id":"CmfTask:1","epic_id":"CmfTask:100","logic_type_id":"CmfLogicType:sub","deadline":"2026-12-01"'
+sent  "create restores parent" '"kwargs":{"parent_task_id":"CmfTask:1"},"args":["CmfTask:3"]'
+no    "create kept parent"     "did not keep"                  -- $eva task create -p DEV -t Sub --parent DEV-1
+check "create type by code"    "created DEV-3"                 -- $eva task create -p DEV -t B --type bug
+recent "type resolved"         '"logic_type_id":"CmfLogicType:bug"'
+check "create unknown type"    "no task type Документ; types: Bug, Подзадача" -- $eva task create -p DEV -t B --type Документ
+check "list hides no access"   "1 of them hidden: no access to their projects" -- $eva task list -q GHOST
+no    "list no empty row"      "OPEN              -"           -- $eva task list -q GHOST
 check "update set"             "deadline"                      -- $eva task update DEV-1 --set '{"deadline":"2026-12-01"}'
 check "statuses"               "closed                     Done" -- $eva task statuses DEV-1
 check "move refused"           "refused: Необходимо заполнить Вид услуги" -- $eva task move DEV-1 closed
@@ -169,6 +181,8 @@ check "half .env refused"      "sets EVA_URL but not EVA_API_KEY" -- env -u EVA_
 check "login checks the token" "not saved"                     -- sh -c "printf 'wrong\n' | env -u EVA_URL -u EVA_API_KEY HOME='$sandbox' $eva auth login --profile e2e --url http://127.0.0.1:$port"
 if [ -e "$sandbox/.config/eva-cli/profiles" ]; then echo "FAIL rejected login left a profile"; fail=1; else echo "ok   rejected login saved nothing"; fi
 check "login needs https"      "plain http"                    -- sh -c "printf 'x\n' | env -u EVA_URL -u EVA_API_KEY HOME='$sandbox' $eva auth login --profile e2e --url http://example.com"
+check "empty token points to docs" "no token given; how to create one: https://docs.evateam.ru/docs/DOC-000200" -- sh -c "printf '\\n' | env -u EVA_URL -u EVA_API_KEY HOME='$sandbox' $eva auth login --profile e2e --url https://e"
+no    "no guide through a pipe" "Моя страница"                 -- sh -c "printf '\\n' | env -u EVA_URL -u EVA_API_KEY HOME='$sandbox' $eva auth login --profile e2e --url https://e"
 check "no token argument"      "unknown option --token"        -- env HOME="$sandbox" $eva auth login --token x --url https://e
 rm -rf "$sandbox"
 
