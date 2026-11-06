@@ -37,6 +37,24 @@ def read_line() raises -> String:
     return String(from_utf8_lossy=Span(bytes))
 
 
+def read_all() raises -> String:
+    """Everything left on stdin, for text piped into a command."""
+    var size = 65536
+    var buf = unsafe_alloc[UInt8](size)
+    var bytes = List[UInt8]()
+    while True:
+        var n = external_call["read", Int](c_int(0), buf, size)
+        if n < 0:
+            buf.unsafe_free()
+            raise Error("cannot read stdin")
+        if n == 0:
+            break
+        for i in range(n):
+            bytes.append(buf[unsafe_offset=i])
+    buf.unsafe_free()
+    return String(from_utf8_lossy=Span(bytes))
+
+
 def _shell(cmd: String):
     var c = _cstr(cmd)
     _ = external_call["system", c_int](c)

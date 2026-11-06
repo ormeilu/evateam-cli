@@ -54,7 +54,10 @@ eva task list -p dcc_bot --filter '["responsible.login", "IN", ["a@x.ru", "b@x.r
 ## Around a task
 
 ```bash
-eva task comments BOT-7035     # newest first, each fenced as untrusted
+eva task comments BOT-7035          # oldest first, each fenced as untrusted
+eva task comments BOT-7035 --human  # only what people wrote: no status
+                                    # changes, field diffs or system entries
+eva task comments BOT-7035 --ids    # with ids, for comment-delete
 eva task links BOT-7035        # → outgoing, ← incoming, with names
 eva task statuses BOT-7035     # current status and where it can move
 ```
@@ -79,6 +82,8 @@ eva call CmfStatusHistory.list --kwargs '{"filter": ["obj_code", "==", "BOT-7035
 ```
 
 `fields` takes dotted paths, `"*"` for plain fields, `"**"` to add relations.
-`<Class>.list` takes a `slice: [start, end]` for paging. Methods that change data
+`<Class>.list` takes a `slice: [start, end]` for paging and `order_by: ["-field"]`.
+Methods that act on one object by id (`.get`, `.delete` and the like) take the
+id positionally: `--args '["CmfComment:…"]'`, not in `--kwargs`. Methods that change data
 (`.create`, `.update`, `.delete` and others) work through `call` too, so treat a
 `call` you have not checked as a write. `-v` shows the request and the reply.

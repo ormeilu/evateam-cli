@@ -15,7 +15,8 @@ eva task create -p dcc_bot -t "Retry uploads on 5xx" -d "Steps:
 ```
 
 `-p` is the project code, `-t` the title. `-d` is plain text: blank lines become
-paragraphs, HTML in it is escaped, not rendered. `-a` takes a login. eva prints
+paragraphs, HTML in it is escaped, not rendered. See "Formatting and long text"
+below for Markdown and for text from a file. `-a` takes a login. eva prints
 the new code (`created BOT-7044 …`); use that code from then on.
 
 ## Changing fields
@@ -69,5 +70,30 @@ eva task log BOT-7044 1h30m -m "Investigation"     # 90, 90m, 2h, 1h30m
 eva task log BOT-7044 30m --remaining 2h           # also reset the estimate
 ```
 
-A comment, like a description, is plain text. Time is logged for now, in the
-user's name; without `--remaining` the remaining estimate is left as it was.
+A comment, like a description, is plain text unless `--md` or `--html` says
+otherwise. Time is logged for now, in the user's name; without `--remaining`
+the remaining estimate is left as it was.
+
+```bash
+eva task comments BOT-7044 --ids                 # find the comment's id
+eva task comment-delete CmfComment:5c91…         # the bare uuid works too
+```
+
+EvaTeam keeps a "comment deleted" entry with the old text, so deleting hides a
+comment rather than erasing it.
+
+## Formatting and long text
+
+```bash
+eva task comment BOT-7044 --md "## Done
+- **fixed** in \`upload.py\`, see [PR](https://git.example/pr/1)"
+eva task comment BOT-7044 -F note.md --md        # text from a file
+some-command | eva task comment BOT-7044 -F -    # or from stdin
+eva task update BOT-7044 -F spec.md --md         # same for descriptions
+```
+
+EvaTeam renders HTML, not Markdown. `--md` converts headings, bold, italic,
+inline code, code blocks, lists, quotes, rules and http(s)/mailto links, and
+escapes any HTML in the source. `--html` sends the text untouched. For anything
+longer than a line, write it to a file and pass `-F`: no shell quoting, and
+the same command works in fish, bash and zsh.
