@@ -7,7 +7,7 @@ log=$(mktemp)
 port_file=$(mktemp)
 MOCK_LOG=$log python tests/mock_server.py >"$port_file" &
 server=$!
-trap 'kill $server 2>/dev/null; wait $server 2>/dev/null || true; rm -f "$log" "$port_file"' EXIT
+trap 'kill $server 2>/dev/null; wait $server 2>/dev/null || true; rm -f "$log" "$log.note" "$port_file"' EXIT
 for _ in $(seq 300); do [ -s "$port_file" ] && break; sleep 0.1; done
 [ -s "$port_file" ] || { echo "mock server did not start"; exit 1; }
 
@@ -23,6 +23,14 @@ check() { # check NAME EXPECTED_SUBSTRING -- command...
 sent() { # sent NAME EXPECTED_SUBSTRING: one of the last two requests has it
   if tail -n 2 "$log" | grep -F -- "$2" >/dev/null; then echo "ok   $1"; else
     echo "FAIL $1: request lacks '$2':"; tail -n 2 "$log" | sed 's/^/     /'; fail=1; fi
+}
+
+no() { # no NAME FORBIDDEN_SUBSTRING -- command...: the output must not contain it
+  local name=$1 bad=$2; shift 3
+  local got
+  got=$("$@" 2>&1) || true
+  if [[ $got != *"$bad"* ]]; then echo "ok   $name"; else
+    echo "FAIL $name: output contains a forbidden string:"; echo "$got" | sed 's/^/     /'; fail=1; fi
 }
 
 eva=${EVA_BIN:-$PWD/build/eva}
@@ -65,6 +73,32 @@ check "move impossible"        "cannot move to backlog; it can move to: closed (
 check "comment"                "commented on DEV-1"            -- $eva task comment DEV-1 "<b>hi</b>"
 sent  "comment escaped"        '"text":"<p>&lt;b&gt;hi&lt;/b&gt;</p>"'
 check "comments"               "Воспроизвёл"                   -- $eva task comments DEV-1
+check "web UI comment shown"   "Из веб-интерфейса"             -- $eva task comments DEV-1
+check "comments tally"         "4 comments"                    -- $eva task comments DEV-1
+sent  "comments by task"       '"filter":[["parent_id","==","CmfTask:1"]]'
+check "comments oldest first"  "Статус изменен на Done
+</untrusted>
+2026-11-02T13:00:00+03:00"                                      -- $eva task comments DEV-1
+check "comments human"         "2 comments by people, 2 workflow and system entries hidden" -- $eva task comments DEV-1 --human
+no    "human hides workflow"   "Статус изменен"                -- $eva task comments DEV-1 --human
+check "comments ids"           "QA  CmfComment:c1"             -- $eva task comments DEV-1 --ids
+check "comment needs text"     "missing comment text"          -- $eva task comment DEV-1
+printf 'from "file"\n\nsecond <para>\n' >"$log.note"
+check "comment from file"      "commented on DEV-1"            -- $eva task comment DEV-1 -F "$log.note"
+sent  "file text sent"         '"text":"<p>from \"file\"</p><p>second &lt;para&gt;</p>"'
+check "comment from stdin"     "commented on DEV-1"            -- sh -c "printf 'piped' | $eva task comment DEV-1 -F -"
+sent  "stdin text sent"        '"text":"<p>piped</p>"'
+check "comment text and file"  "not both"                      -- $eva task comment DEV-1 hi -F "$log.note"
+check "comment markdown"       "commented on DEV-1"            -- $eva task comment DEV-1 --md "## Done
+- **fixed** in \`x\`"
+sent  "markdown sent"          '"text":"<h2>Done</h2><ul><li><strong>fixed</strong> in <code>x</code></li></ul>"'
+check "comment html"           "commented on DEV-1"            -- $eva task comment DEV-1 --html "<p><b>raw</b></p>"
+sent  "html as is"             '"text":"<p><b>raw</b></p>"'
+check "md and html clash"      "exclude each other"            -- $eva task comment DEV-1 --md --html x
+check "create from file md"    "created DEV-3"                 -- $eva task create -p DEV -t T -F "$log.note" --md
+check "comment delete"         "deleted CmfComment:c9"         -- $eva task comment-delete c9
+sent  "delete id in args"      '"args":["CmfComment:c9"]'
+check "delete wrong class"     "is not a comment id"           -- $eva task comment-delete CmfTask:1
 check "log"                    "logged 90 min on DEV-1"        -- $eva task log DEV-1 1h30m -m done
 sent  "log minutes"            '"time_spent":90'
 sent  "log keeps estimate"     '"remaining_estimate":null'
@@ -81,13 +115,6 @@ check "unreachable"            "cannot reach"                  -- env EVA_URL=ht
 
 # ---- security ----
 port=$(cat "$port_file")
-no() { # no NAME FORBIDDEN_SUBSTRING -- command...: the output must not contain it
-  local name=$1 bad=$2; shift 3
-  local got
-  got=$("$@" 2>&1) || true
-  if [[ $got != *"$bad"* ]]; then echo "ok   $name"; else
-    echo "FAIL $name: output contains a forbidden string:"; echo "$got" | sed 's/^/     /'; fail=1; fi
-}
 no    "no terminal escapes"    $'\e'                          -- $eva task get DEV-6
 no    "no bell or OSC"         $'\a'                          -- $eva task get DEV-6
 check "escapes stripped"       "DEV-6  Evil [2J]0;pwnedname"   -- $eva task get DEV-6
