@@ -215,6 +215,7 @@ verification off.
 | `eva task comment-delete ID` | delete a comment |
 | `eva task log CODE 1h30m [--date D] [--at HH:MM]` | log time: ending now, or on a given day and time |
 | `eva time list [--from D] [--to D]` | the work log day by day against the working calendar: logged, norm, left |
+| `eva task delete CODE [--yes]` | delete a task; asks first in a terminal |
 | `eva time delete TTH-1` | delete a work log entry |
 | `eva resolution list` | resolution codes for `task move`/`update --resolution` |
 | `eva task path CODE STATUS` / `eva task move CODE STATUS --path` | the shortest route through the workflow, shown or walked |

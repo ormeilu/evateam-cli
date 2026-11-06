@@ -106,6 +106,7 @@ static allowlist is safe. For Claude Code, in `.claude/settings.json`:
     "ask": [
       "Bash(eva task create:*)",
       "Bash(eva task update:*)",
+      "Bash(eva task delete:*)",
       "Bash(eva task move:*)",
       "Bash(eva task comment:*)",
       "Bash(eva task comment-delete:*)",

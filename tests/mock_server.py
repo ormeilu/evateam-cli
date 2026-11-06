@@ -258,6 +258,10 @@ class Handler(BaseHTTPRequestHandler):
             if method == "CmfAttachment.get":
                 return self.reply(200, {"jsonrpc": "2.2", "result": rows[0] if rows else None})
             return self.reply(200, {"jsonrpc": "2.2", "result": rows})
+        if method == "CmfTask.delete":
+            if not req.get("args"):
+                return self.reply(200, {"jsonrpc": "2.2", "error": {"code": 500, "message": "Необходимо указать id в args[0]"}})
+            return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method == "CmfTask.get_meta":
             return self.reply(200, {"jsonrpc": "2.2", "result": {"fields": {
                 "name": {"widget": "CmfStr", "caption": "Название"},
