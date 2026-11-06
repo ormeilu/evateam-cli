@@ -28,7 +28,7 @@ from eva.render import Out
 from eva.upgrade import upgrade
 from eva.fields import field_get, field_list
 from eva.timelog import task_log, time_delete, time_list
-from eva.attachments import attachment_download, attachment_get, task_attachments
+from eva.attachments import attachment_download, attachment_get, task_attach, task_attachments
 from eva.auth import auth_login, auth_logout, auth_status, auth_use
 
 comptime VERSION = "0.7.0"  # x-release-please-version
@@ -69,6 +69,7 @@ work log
   time delete TTH-1                     delete a work log entry
   task links CODE                       incoming and outgoing links
   task attachments CODE                 files attached to the task
+  task attach CODE FILE [FILE...]       upload files to the task
 
 attachments
   attachment get ATT-1                  name, size and the text EvaTeam
@@ -186,6 +187,8 @@ def run(var raw: List[String]) raises:
             task_path(client, args, ui)
         elif sub == "attachments" or sub == "files":
             task_attachments(client, args, ui)
+        elif sub == "attach":
+            task_attach(client, args, ui)
         else:
             raise Error("unknown task command '" + sub + "', see eva --help")
     elif group == "field" or group == "fields":

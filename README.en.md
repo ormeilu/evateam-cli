@@ -221,6 +221,7 @@ verification off.
 | `eva resolution list` | resolution codes for `task move`/`update --resolution` |
 | `eva task path CODE STATUS` / `eva task move CODE STATUS --path` | the shortest route through the workflow, shown or walked |
 | `eva task attachments CODE` | files attached to a task |
+| `eva task attach CODE FILE...` | upload files to a task |
 | `eva attachment get ATT-1` / `eva attachment download ATT-1 [-o PATH]` | a file's extracted text, or the file itself |
 | `eva task links CODE` | incoming and outgoing links |
 | `eva project list`, `eva person list`, `eva doc list` | lists, with `-q` to search by name |
