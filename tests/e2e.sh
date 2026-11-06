@@ -149,9 +149,26 @@ check "create from file md"    "created DEV-3"                 -- $eva task crea
 check "comment delete"         "deleted CmfComment:c9"         -- $eva task comment-delete c9
 sent  "delete id in args"      '"args":["CmfComment:c9"]'
 check "delete wrong class"     "is not a comment id"           -- $eva task comment-delete CmfTask:1
-check "log"                    "logged 90 min on DEV-1"        -- $eva task log DEV-1 1h30m -m done
+check "log"                    "logged 1h30 on DEV-1 from"     -- $eva task log DEV-1 1h30m -m done
 sent  "log minutes"            '"time_spent":90'
 sent  "log keeps estimate"     '"remaining_estimate":null'
+check "log at"                 "logged 45m on DEV-1 from 2026-11-03 14:15" -- $eva task log DEV-1 45m --date 2026-11-03 --at 14:15
+sent  "log at sends start"     '"date":"2026-11-03 14:15:00"'
+check "log after last entry"   "from 2026-11-02 16:00"         -- $eva task log DEV-1 1h --date 2026-11-02
+check "log empty day 09:00"    "from 2026-11-05 09:00"         -- $eva task log DEV-1 1h --date 2026-11-05
+check "log bad date"           "no such date: 2026-02-30"      -- $eva task log DEV-1 1h --date 2026-02-30
+check "log bad time"           "no such time: 25:00"           -- $eva task log DEV-1 1h --date 2026-11-05 --at 25:00
+check "time log alias"         "logged 30m on DEV-2"           -- $eva time log DEV-2 30
+check "time list day"          "Mon 2026-11-02  7h00 of 8h00  1h00 left" -- $eva time list --from 2026-11-02 --to 2026-11-07
+check "time list entry"        "  09:00–10:30  1h30   DEV-1       Разбор [2J логов  TTH-1" -- $eva time list --from 2026-11-02 --to 2026-11-07
+check "time list over"         "Tue 2026-11-03  9h00 of 8h00  1h00 over" -- $eva time list --from 2026-11-02 --to 2026-11-07
+check "own calendar wins"      "Wed 2026-11-04  vacation"      -- $eva time list --from 2026-11-02 --to 2026-11-07
+check "weekend"                "Sat 2026-11-07  weekend"       -- $eva time list --from 2026-11-02 --to 2026-11-07
+check "time list total"        "total 16h00 of 16h00"          -- $eva time list --from 2026-11-02 --to 2026-11-07
+check "time list range"        "is after --to"                 -- $eva time list --from 2026-11-07 --to 2026-11-02
+check "time delete"            "deleted TTH-1"                 -- $eva time delete tth-1
+sent  "time delete args"       '"args":["CmfTimeTrackerHistory:1"]'
+check "time delete wrong"      "is not a work log entry"       -- $eva time delete DEV-1
 check "links"                  "→ DEV-2  Retry uploads"        -- $eva task links DEV-1
 check "projects"               "DEV"                           -- $eva project list
 check "raw call error"         "Method not found: Nope.x"      -- $eva call Nope.x --kwargs '{}'

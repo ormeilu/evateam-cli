@@ -64,6 +64,17 @@ eva task path BOT-7035 closed  # the shortest way there, without moving
 eva task attachments BOT-7035  # attached files: ATT code, size, date, name
 ```
 
+## Work log
+
+```bash
+eva time list                       # this week, day by day against the calendar
+eva time list -a login@company.ru --from 2026-11-01 --to 2026-11-07
+```
+
+Each day shows the time logged, the norm from the working calendar and what is
+left, then the entries (time, task, text, TTH code). Weekends, holidays and days
+off are marked.
+
 ## Attachments
 
 ```bash

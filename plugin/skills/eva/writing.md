@@ -117,13 +117,31 @@ ignored: always change status through `move`.
 
 ```bash
 eva task comment BOT-7044 "Reproduced on staging"
-eva task log BOT-7044 1h30m -m "Investigation"     # 90, 90m, 2h, 1h30m
+eva task log BOT-7044 1h30m -m "Investigation"     # 90, 90m, 2h, 1h30m; ends now
+eva task log BOT-7044 2h --date yesterday          # after yesterday's last entry
+eva task log BOT-7044 45m --date 2026-11-05 --at 14:15
 eva task log BOT-7044 30m --remaining 2h           # also reset the estimate
 ```
 
 A comment, like a description, is plain text unless `--md` or `--html` says
-otherwise. Time is logged for now, in the user's name; without `--remaining`
-the remaining estimate is left as it was.
+otherwise. Time is logged in the user's name. Without `--date` or `--at` the
+entry ends now. With `--date` alone it starts where that day's last entry ends,
+or at 09:00 on an empty day, so a day can be filled entry by entry. Without
+`--remaining` the remaining estimate is left as it was.
+
+## Filling the work log
+
+```bash
+eva time list                              # this week: per day logged, norm, left
+eva time list --from 2026-11-01 --to 2026-11-30
+eva time delete TTH-1205075                # an entry logged by mistake
+```
+
+The norm for each day comes from the user's working calendar: their own days
+first, then the production calendar, so holidays and days off show as such.
+To fill a week, read `time list`, ask the user what they worked on each day
+that still has time left, confirm the plan, then log it with `--date`. Write
+nothing for a day the user did not describe.
 
 ```bash
 eva task comments BOT-7044 --ids                 # find the comment's id

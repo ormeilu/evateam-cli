@@ -212,11 +212,13 @@ eva auth logout --profile sandbox
 | `eva task move CODE STATUS [-m TEXT] [--set JSON]` | сменить статус через переход воркфлоу; `--set` заполняет поля, которых требует переход |
 | `eva task comment CODE TEXT` / `eva task comments CODE` | написать или прочитать комментарии; `-F FILE` (или `-` для stdin), `--md`, `--human`, `--ids` |
 | `eva task comment-delete ID` | удалить комментарий |
+| `eva task log CODE 1h30m [--date D] [--at HH:MM]` | списать время: до текущего момента или на нужный день и час |
+| `eva time list [--from D] [--to D]` | журнал работ по дням против рабочего календаря: списано, норма, осталось |
+| `eva time delete TTH-1` | удалить запись журнала работ |
 | `eva resolution list` | коды резолюций для `task move`/`update --resolution` |
 | `eva task path CODE STATUS` / `eva task move CODE STATUS --path` | кратчайший путь по workflow: показать или пройти |
 | `eva task attachments CODE` | файлы, приложенные к задаче |
 | `eva attachment get ATT-1` / `eva attachment download ATT-1 [-o PATH]` | текст, извлечённый из файла, или сам файл |
-| `eva task log CODE 1h30m [-m TEXT]` | списать время |
 | `eva task links CODE` | входящие и исходящие связи |
 | `eva project list`, `eva person list`, `eva doc list` | списки, `-q` ищет по названию |
 | `eva doc get CODE` | документ вики текстом |

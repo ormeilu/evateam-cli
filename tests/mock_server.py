@@ -131,6 +131,27 @@ EPIC = {"id": "CmfTask:100", "code": "DEV-100", "name": "Storage rework",
 CREATED = {"code": "DEV-3", "parent_task_id": None}
 REF_FIELDS = ("parent_task", "epic", "logic_type")
 
+# A work log and a calendar for the signed-in person, CmfPerson:me.
+WORKLOG = [
+    {"id": "CmfTimeTrackerHistory:1", "code": "TTH-1", "cmf_author_id": "CmfPerson:me",
+     "start_date": "2026-11-02T09:00:00+03:00", "end_date": "2026-11-02T10:30:00+03:00",
+     "time_spent": 90, "text": "Разбор \u001b[2J логов", "parent": {"code": "DEV-1"}},
+    {"id": "CmfTimeTrackerHistory:2", "code": "TTH-2", "cmf_author_id": "CmfPerson:me",
+     "start_date": "2026-11-02T10:30:00+03:00", "end_date": "2026-11-02T16:00:00+03:00",
+     "time_spent": 330, "text": "", "parent": {"code": "DEV-2"}},
+    {"id": "CmfTimeTrackerHistory:3", "code": "TTH-3", "cmf_author_id": "CmfPerson:me",
+     "start_date": "2026-11-03T09:00:00+03:00", "end_date": "2026-11-03T18:00:00+03:00",
+     "time_spent": 540, "text": "релиз", "parent": {"code": "DEV-1"}},
+]
+CALENDAR_DAYS = [
+    {"date": "2026-11-02", "day_type": "work", "interval_total_minutes": 480, "parent_id": "CmfCalendar:base"},
+    {"date": "2026-11-03", "day_type": "work", "interval_total_minutes": 480, "parent_id": "CmfCalendar:base"},
+    {"date": "2026-11-04", "day_type": "work", "interval_total_minutes": 480, "parent_id": "CmfCalendar:base"},
+    # The person's own calendar makes the 4th a day off.
+    {"date": "2026-11-04", "day_type": "vacation", "interval_total_minutes": 0, "parent_id": "CmfCalendar:me"},
+    {"date": "2026-11-07", "day_type": "weekend", "interval_total_minutes": None, "parent_id": "CmfCalendar:base"},
+]
+
 
 def matches(obj, flt):
     if not flt:
@@ -145,6 +166,11 @@ def matches(obj, flt):
         return cur == value
     if op == "!=":
         return cur != value
+    if op == "IN":
+        return cur in value
+    if op in (">=", "<="):
+        a, b = str(cur or "").replace("T", " "), str(value).replace("T", " ")
+        return a >= b if op == ">=" else a <= b
     if op in ("LIKE", "ILIKE"):
         return value.strip("%").lower() in (cur or "").lower()
     return True
@@ -228,6 +254,22 @@ class Handler(BaseHTTPRequestHandler):
             if method == "CmfAttachment.get":
                 return self.reply(200, {"jsonrpc": "2.2", "result": rows[0] if rows else None})
             return self.reply(200, {"jsonrpc": "2.2", "result": rows})
+        if method == "CmfPerson.get_current_user":
+            return self.reply(200, {"jsonrpc": "2.2", "result": {"id": "CmfPerson:me", "login": "me@example.ru", "name": "Me"}})
+        if method == "CmfTimeTrackerHistory.list":
+            rows = [w for w in WORKLOG if matches(w, flt)]
+            return self.reply(200, {"jsonrpc": "2.2", "result": sorted(rows, key=lambda w: w["start_date"])})
+        if method == "CmfTimeTrackerHistory.get":
+            rows = [w for w in WORKLOG if matches(w, flt)]
+            return self.reply(200, {"jsonrpc": "2.2", "result": rows[0] if rows else None})
+        if method == "CmfTimeTrackerHistory.delete":
+            if not req.get("args"):
+                return self.reply(200, {"jsonrpc": "2.2", "error": {"code": 500, "message": "Необходимо указать id в args[0]"}})
+            return self.reply(200, {"jsonrpc": "2.2", "result": True})
+        if method == "CmfCalendar.get":
+            return self.reply(200, {"jsonrpc": "2.2", "result": {"id": "CmfCalendar:me", "parent_calendar_id": "CmfCalendar:base"}})
+        if method == "CmfCalendarDay.list":
+            return self.reply(200, {"jsonrpc": "2.2", "result": [d for d in CALENDAR_DAYS if matches(d, flt)]})
         if method == "CmfResolution.list":
             return self.reply(200, {"jsonrpc": "2.2", "result": [
                 {"id": "CmfResolution:done", "code": "done", "name": "Готово"},

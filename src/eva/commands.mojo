@@ -990,28 +990,6 @@ def task_comment_delete(client: Client, args: Args, ui: Out) raises:
     print("deleted " + ui.bold(id) + "; EvaTeam keeps a 'comment deleted' entry with its text")
 
 
-def task_log(client: Client, args: Args, ui: Out) raises:
-    args.check_known(["message", "m", "remaining", "verbose", "v", "json", "format"])
-    var code = args.need(2, "task code")
-    var minutes_raw = args.need(3, "minutes, e.g. 90 or 1h30m")
-    var minutes = parse_minutes(minutes_raw)
-    var id = id_of(client, "CmfTask", "code", code)
-    var d = JsonDoc()
-    var kw = d.object()
-    var ts = d.number(minutes)
-    d.set(kw, "time_spent", ts)
-    # The server requires remaining_estimate; null leaves the estimate alone.
-    var rem = args.get("remaining")
-    var rv = d.number(parse_minutes(rem)) if rem != "" else d.null()
-    d.set(kw, "remaining_estimate", rv)
-    var msg = args.get("message", "m")
-    if msg != "":
-        d.set_str(kw, "text", msg)
-    d.set_str(kw, "date", local_now())
-    _ = client.call("CmfTask.timetracker_change_time", d.dump(kw), "[" + quote_str(id) + "]")
-    print("logged " + String(minutes) + " min on " + ui.bold(code))
-
-
 def local_now() -> String:
     """Local time as YYYY-MM-DD HH:MM:SS, via libc."""
     var t = unsafe_alloc[Int](1)
