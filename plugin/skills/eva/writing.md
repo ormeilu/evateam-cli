@@ -19,6 +19,14 @@ paragraphs, HTML in it is escaped, not rendered. See "Formatting and long text"
 below for Markdown and for text from a file. `-a` takes a login. eva prints
 the new code (`created BOT-7044 …`); use that code from then on.
 
+A subtask names its parent task. eva takes the epic from the parent, sets the
+type by name or code, and `--set` adds any other fields:
+
+```bash
+eva task create -p dcc_bot -t "Retry uploads" --parent BOT-7035 --type Подзадача
+eva task create -p dcc_bot -t "Crash on upload" --type bug --set '{"deadline": "2026-12-01"}'
+```
+
 ## Changing fields
 
 ```bash
@@ -28,6 +36,12 @@ eva task update BOT-7044 --set '{"deadline": "2026-12-01"}'
 
 `--set` sends any fields as JSON, under EvaTeam's names; `eva task get CODE
 --json` shows what a task has. `-d` replaces the whole description.
+
+EvaTeam derives some fields from others: setting `epic_id` also moves the parent
+task to the epic. After an update eva re-reads the parent task, epic, type,
+assignee and status, and prints `note: EvaTeam also changed …` for any that
+changed without being asked. To change both, set the epic first and the parent
+last, in two updates.
 
 ## Moving through the workflow
 

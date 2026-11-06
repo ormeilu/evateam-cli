@@ -40,6 +40,7 @@ tasks
   task list [-p PROJ] [-a LOGIN] [-s open|closed|in_progress|in_review|all|STATUS]
             [-q TEXT] [--filter BQL] [--order -field] [-n 25] [--page 1]
   task create -p PROJ -t TITLE [-d TEXT | -F FILE] [-a LOGIN] [--sprint SPR-1]
+            [--parent CODE] [--type Bug|Подзадача|...] [--set JSON]
   task update CODE [-t TITLE] [-d TEXT | -F FILE] [-s STATUS] [-a LOGIN]
             [--resolution CODE] [--set JSON]
   task move CODE STATUS [-m COMMENT] [--resolution CODE] [--set JSON] [--path]

@@ -112,6 +112,44 @@ def body_html(args: Args, text: String) raises -> String:
     return text_to_html(text)
 
 
+def task_by_id(client: Client, id: String, fields: String) raises -> Reply:
+    var d = JsonDoc()
+    var kw = d.object()
+    var v = d.string(id)
+    var f = d.triple("id", "==", v)
+    d.set(kw, "filter", f)
+    var fl = d.str_array(split_csv(fields))
+    d.set(kw, "fields", fl)
+    return client.call("CmfTask.get", d.dump(kw))
+
+
+def find_logic_type(client: Client, want: String) raises -> String:
+    """A task type's id by name ("Подзадача", "Bug"), code ("task.sub:default")
+    or short code ("sub"), any case."""
+    var r = client.call("CmfLogicType.list", '{"fields":["id","code","name"],"slice":[0,5000]}')
+    var w = String(want.strip()).lower()
+    var names = List[String]()
+    for i in range(r.doc.len(r.result)):
+        var x = r.doc.at(r.result, i)
+        var code = r.doc.text_at(x, "code").lower()
+        if not code.startswith("task."):
+            continue
+        if code == w or r.doc.text_at(x, "name").lower() == w or code == "task." + w + ":default":
+            return r.doc.text_at(x, "id")
+        names.append(r.doc.text_at(x, "name"))
+    raise Error("no task type " + want + "; types: " + ", ".join(names))
+
+
+# What the server may change on its own when a task is updated, with the
+# fields that count as asking for it.
+comptime WATCHED = "parent_task.code,epic.code,logic_type.name,responsible.login,status.name"
+
+
+def watched_by(field: String) -> List[String]:
+    var base = String(field.split(".")[0])
+    return [base, base + "_id"]
+
+
 def print_json(r: Reply):
     print(r.doc.dump_pretty(r.result))
 
@@ -322,8 +360,13 @@ def task_list(client: Client, args: Args, ui: Out) raises:
         return
     ref rd = r.doc
     var n = rd.len(r.result)
+    var hidden = 0
     for i in range(n):
         var t = rd.at(r.result, i)
+        if rd.text_at(t, "code") == "":
+            # A task in a project this user cannot read: only its id and stage come back.
+            hidden += 1
+            continue
         var status = rd.text_at(t, "status.name")
         if status == "":
             status = rd.text_at(t, "cache_status_type")
@@ -343,12 +386,14 @@ def task_list(client: Client, args: Args, ui: Out) raises:
     except:
         pass
     footer(ui, n, total, args)
+    if hidden > 0:
+        print(ui.dim(String(hidden) + " of them hidden: no access to their projects"))
 
 
 def task_create(client: Client, args: Args, ui: Out) raises:
     args.check_known(
         ["project", "p", "name", "title", "t", "description", "d", "file", "F", "md", "html",
-         "assignee", "a", "sprint", "json", "format", "verbose", "v"]
+         "assignee", "a", "sprint", "parent", "type", "set", "json", "format", "verbose", "v"]
     )
     var project = args.get("project", "p")
     var name = args.get("title", "t")
@@ -357,7 +402,7 @@ def task_create(client: Client, args: Args, ui: Out) raises:
     if project == "" or name == "":
         raise Error(
             "usage: eva task create -p PROJECT -t TITLE [-d TEXT | -F FILE] [--md|--html] [-a LOGIN]"
-            " [--sprint SPR-1]"
+            " [--sprint SPR-1] [--parent CODE] [--type TYPE] [--set JSON]"
         )
     var d = JsonDoc()
     var kw = d.object()
@@ -375,24 +420,50 @@ def task_create(client: Client, args: Args, ui: Out) raises:
     if sprint != "":
         var lists = d.str_array([sprint])
         d.set(kw, "lists", lists)
+    var parent = args.get("parent")
+    var parent_id = String()
+    if parent != "":
+        var p = get_by_code(client, "CmfTask", parent, split_csv("id,epic_id,logic_type.code"))
+        parent_id = p.doc.text_at(p.result, "id")
+        d.set_str(kw, "parent_task_id", parent_id)
+        # A subtask belongs to its parent's epic, or to the parent if that is the epic.
+        var epic = parent_id if p.doc.text_at(p.result, "logic_type.code").startswith("task.epic") else p.doc.text_at(
+            p.result, "epic_id"
+        )
+        if epic != "":
+            d.set_str(kw, "epic_id", epic)
+    var kind = args.get("type")
+    if kind != "":
+        d.set_str(kw, "logic_type_id", find_logic_type(client, kind))
+    var raw = args.get("set")
+    if raw != "":
+        var extra = d.parse(raw)
+        if d.kind(extra) != J_OBJ:
+            raise Error("--set expects a JSON object")
+        for i in range(d.len(extra)):
+            d.set(kw, d.key_at(extra, i), d.at(extra, i))
     var r = client.call("CmfTask.create", d.dump(kw))
     var id = r.doc.text(r.result)
     var code = id
+    var got_parent = String()
     try:
-        var g = JsonDoc()
-        var gk = g.object()
-        var v = g.string(id)
-        var f = g.triple("id", "==", v)
-        g.set(gk, "filter", f)
-        var fl = g.str_array([String("code")])
-        g.set(gk, "fields", fl)
-        var t = client.call("CmfTask.get", g.dump(gk))
+        var t = task_by_id(client, id, "code,parent_task_id")
         var c = t.doc.text_at(t.result, "code")
         if c != "":
             code = c
+        got_parent = t.doc.text_at(t.result, "parent_task_id")
     except:
         pass
     print("created " + ui.bold(code) + "  " + name)
+    if parent_id != "" and got_parent != parent_id:
+        # Setting the epic can move the parent to it; put the parent back, last.
+        var u = JsonDoc()
+        var uk = u.object()
+        u.set_str(uk, "parent_task_id", parent_id)
+        _ = client.call("CmfTask.update", u.dump(uk), "[" + quote_str(id) + "]")
+        var t = task_by_id(client, id, "parent_task_id")
+        if t.doc.text_at(t.result, "parent_task_id") != parent_id:
+            print("note: EvaTeam did not keep " + parent + " as the parent task; check eva task get " + code)
 
 
 def task_update(client: Client, args: Args, ui: Out) raises:
@@ -440,10 +511,28 @@ def task_update(client: Client, args: Args, ui: Out) raises:
     if len(changed) == 0 and status == "":
         raise Error("nothing to change: pass -t, -d or -F, -s, -a, --resolution or --set")
     if len(changed) > 0:
-        var id = id_of(client, "CmfTask", "code", code)
+        var before = get_by_code(client, "CmfTask", code, split_csv("id," + WATCHED))
+        var id = before.doc.text_at(before.result, "id")
         var args_json = "[" + quote_str(id) + "]"
         _ = client.call("CmfTask.update", d.dump(kw), args_json)
         print("updated " + ui.bold(code) + ": " + ", ".join(changed))
+        # The server derives some fields from others (an epic moves the parent
+        # task to it); say so when one changed that was not asked for.
+        var after = task_by_id(client, id, WATCHED)
+        for w in split_csv(WATCHED):
+            var asked = False
+            for key in watched_by(w):
+                for c in changed:
+                    if c == key:
+                        asked = True
+            var was = before.doc.text_at(before.result, w)
+            var now = after.doc.text_at(after.result, w)
+            if not asked and was != now:
+                var label = String(w.split(".")[0]).replace("_", " ")
+                print(
+                    "note: EvaTeam also changed " + label + ": " + (was if was != "" else "-") + " → "
+                    + (now if now != "" else "-")
+                )
     if status != "":
         # --set already went into the update above.
         move_task(client, code, status, args.get("comment", "m"), "", resolution, ui)

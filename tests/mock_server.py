@@ -55,6 +55,8 @@ TASKS = [
         "cmf_author": {"name": "Reporter", "login": "rep@example.ru"},
         "parent": {"code": "DEV", "name": "Development"},
         "parent_task": {"code": "DEV-100", "name": "Storage rework"},
+        "epic_id": "CmfTask:100",
+        "logic_type": {"code": "task.userstory:default", "name": "UserStory"},
         "child_tasks": [
             {"code": "DEV-5", "name": "Closed child", "cache_status_type": "CLOSED",
              "status": {"name": "Done"}, "responsible": None},
@@ -119,6 +121,10 @@ ATTACHMENTS = [
      "url": "https://evil.example/files/x.png", "text": ""},
 ]
 
+# The task `task create` makes. Like EvaTeam, setting an epic moves the parent
+# task to the epic.
+CREATED = {"code": "DEV-3", "parent_task_id": None}
+
 
 def matches(obj, flt):
     if not flt:
@@ -181,6 +187,9 @@ class Handler(BaseHTTPRequestHandler):
         found = [t for t in TASKS if matches(t, flt)] if flt and flt[0] != "system" else TASKS
         if method == "CmfTask.list":
             found = [t for t in TASKS[1:] if matches(t, [f for f in flt if f[0] != "system"])]
+            if "GHOST" in json.dumps(flt):
+                # A task in a project the user cannot read comes back bare.
+                found = [TASKS[2], {"id": "CmfTask:9", "class_name": "CmfTask", "cache_status_type": "OPEN"}]
             lo, hi = kw.get("slice", [0, 100])
             return self.reply(200, {"jsonrpc": "2.2", "result": found[lo:hi]})
         if method == "CmfTask.count":
@@ -188,7 +197,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, {"jsonrpc": "2.2", "result": len(found)})
         if method == "CmfTask.get":
             if flt[0] == "id":
-                return self.reply(200, {"jsonrpc": "2.2", "result": {"code": "DEV-3"}})
+                known = [t for t in TASKS if t["id"] == flt[2]]
+                return self.reply(200, {"jsonrpc": "2.2", "result": known[0] if known else CREATED})
             res = found[0] if found else None
             return self.reply(200, {"jsonrpc": "2.2", "result": res})
         if method in ("CmfProject.get", "CmfPerson.get"):
@@ -229,7 +239,23 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, {"jsonrpc": "2.2", "error": {"code": 500, "message": "Необходимо указать id в args[0]"}})
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method == "CmfTask.create":
+            CREATED["parent_task_id"] = kw.get("epic_id") or kw.get("parent_task_id")
             return self.reply(200, {"jsonrpc": "2.2", "result": "CmfTask:3"})
+        if method == "CmfLogicType.list":
+            return self.reply(200, {"jsonrpc": "2.2", "result": [
+                {"id": "CmfLogicType:bug", "code": "task.bug:default", "name": "Bug"},
+                {"id": "CmfLogicType:sub", "code": "task.sub:default", "name": "Подзадача"},
+                {"id": "CmfLogicType:doc", "code": "document.base:default", "name": "Документ"},
+            ]})
+        if method == "CmfTask.update" and req["args"] == ["CmfTask:3"]:
+            CREATED["parent_task_id"] = kw.get("parent_task_id", CREATED["parent_task_id"])
+            return self.reply(200, {"jsonrpc": "2.2", "result": True})
+        if method == "CmfTask.update" and "epic_id" in kw:
+            TASKS[1]["parent_task"] = {"code": "DEV-0", "name": "Epic"}
+            return self.reply(200, {"jsonrpc": "2.2", "result": True})
+        if method == "CmfTask.update" and "parent_task_id" in kw:
+            TASKS[1]["parent_task"] = {"code": "DEV-100", "name": "Storage rework"}
+            return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method in ("CmfTask.update", "CmfComment.create", "CmfTask.timetracker_change_time"):
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         return self.reply(200, {"jsonrpc": "2.2", "error": {"code": -32601, "message": "Method not found: " + method}})
