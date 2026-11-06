@@ -128,8 +128,31 @@ npx skills add ormeilu/evateam-cli                 # для любого аге�
 
 ## Настройка
 
-Создайте токен в EvaTeam: «Моя страница» → «Безопасность» → «Сгенерировать
-API токен». Потом войдите:
+Сначала создайте API-токен в EvaTeam ([инструкция EvaTeam](https://docs.evateam.ru/docs/DOC-000200)):
+
+1. Откройте «Моя страница», вкладку «Безопасность».
+2. Нажмите «Сгенерировать API токен», потом «Создать токен API».
+3. Задайте имя и срок действия и создайте токен.
+4. Сразу скопируйте токен: EvaTeam показывает его один раз и хранит только хэш.
+
+<details>
+<summary>Скриншоты из документации EvaTeam</summary>
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%3A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-20230807-161836.png?version=1" alt="«Моя страница»" width="300">
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%3A8de/CmfDocument%3A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-mce-20260527-115633583.png?version=1" alt="вкладка «Безопасность»" width="700">
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%3A8de/CmfDocument%3A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-mce-20260527-115842904.png?version=1" alt="«Сгенерировать API токен»" width="700">
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%3A8de/CmfDocument%3A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-mce-20260527-120135821.png?version=1" alt="«Создать токен API»" width="600">
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%253A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-20230317-122341.png" alt="готовый токен" width="600">
+
+<img src="https://docs.evateam.ru/files/obj/CmfDocument/CmfDocument%3A8de/CmfDocument%3A8de0005e-5913-11ed-91cf-cf78a90a1ccb/image-mce-20260527-120731383.png?version=1" alt="панель токенов" width="700">
+
+</details>
+
+Потом войдите (`eva auth login` в терминале сам напомнит эти шаги):
 
 ```bash
 eva auth login
