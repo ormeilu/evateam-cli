@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/ormeilu/evateam-cli/compare/v0.6.0...v0.6.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* task create --parent and --type send the field names EvaTeam accepts ([db7c844](https://github.com/ormeilu/evateam-cli/commit/db7c844e8a041b3695bca8550c20e4a79e6ffa3e))
+
 ## [0.6.0](https://github.com/ormeilu/evateam-cli/compare/v0.5.1...v0.6.0) (2026-11-06)
 
 
