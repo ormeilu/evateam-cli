@@ -104,4 +104,4 @@ case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *) say "add $BIN_DIR to PATH" ;;
 esac
-say "next: put EVA_URL and EVA_API_KEY in ~/.config/eva-cli/env, then run: eva config"
+say "next: eva auth login (asks for your EvaTeam address and API token, keeps them in the OS keychain)"
