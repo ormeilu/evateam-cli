@@ -189,6 +189,7 @@ eva auth logout --profile sandbox
 | `eva task move CODE STATUS [-m TEXT] [--set JSON]` | сменить статус через переход воркфлоу; `--set` заполняет поля, которых требует переход |
 | `eva task comment CODE TEXT` / `eva task comments CODE` | написать или прочитать комментарии; `-F FILE` (или `-` для stdin), `--md`, `--human`, `--ids` |
 | `eva task comment-delete ID` | удалить комментарий |
+| `eva resolution list` | коды резолюций для `task move`/`update --resolution` |
 | `eva task log CODE 1h30m [-m TEXT]` | списать время |
 | `eva task links CODE` | входящие и исходящие связи |
 | `eva project list`, `eva person list`, `eva doc list` | списки, `-q` ищет по названию |

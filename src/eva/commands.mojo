@@ -11,7 +11,7 @@ from eva.render import Out, pad, clip, text_to_html, markdown_to_html
 from eva.term import read_all
 
 comptime TASK_FIELDS = (
-    "*,status.name,status.code,responsible.name,responsible.login,"
+    "*,status.name,status.code,resolution.code,resolution.name,responsible.name,responsible.login,"
     "cmf_author.name,cmf_author.login,parent.code,parent.name,"
     "parent_task.code,parent_task.name,child_tasks.code,child_tasks.name,"
     "child_tasks.status.name,child_tasks.cache_status_type,child_tasks.responsible.login"
@@ -172,7 +172,11 @@ def task_get(client: Client, args: Args, ui: Out) raises:
     var status = d.text_at(t, "status.name")
     if status == "":
         status = d.text_at(t, "cache_status_type")
-    print("status: " + ui.status(status) + "   stage: " + d.text_at(t, "cache_status_type"))
+    var status_line = "status: " + ui.status(status) + "   stage: " + d.text_at(t, "cache_status_type")
+    var resolution = d.text_at(t, "resolution.code")
+    if resolution != "":
+        status_line += "   resolution: " + resolution + " (" + d.text_at(t, "resolution.name") + ")"
+    print(status_line)
     print("assignee: " + person(d, t, "responsible") + "   author: " + person(d, t, "cmf_author"))
     var project = d.text_at(t, "parent.code")
     if project != "":
@@ -385,7 +389,7 @@ def task_create(client: Client, args: Args, ui: Out) raises:
 def task_update(client: Client, args: Args, ui: Out) raises:
     args.check_known(
         ["name", "title", "t", "description", "d", "file", "F", "md", "html", "assignee", "a",
-         "status", "s", "comment", "m", "set", "json", "format", "verbose", "v"]
+         "status", "s", "resolution", "r", "comment", "m", "set", "json", "format", "verbose", "v"]
     )
     var code = args.need(2, "task code")
     var d = JsonDoc()
@@ -409,6 +413,12 @@ def task_update(client: Client, args: Args, ui: Out) raises:
         d.set_str(ref_obj, "id", id_of(client, "CmfPerson", "login", assignee))
         d.set(kw, "responsible", ref_obj)
         changed.append("responsible")
+    # With -s the resolution goes with the move: a transition into a closed
+    # status would set its own default over one set here.
+    var resolution = args.get("resolution", "r")
+    if resolution != "" and status == "":
+        d.set_str(kw, "resolution", find_resolution(client, resolution).id)
+        changed.append("resolution")
     var raw = args.get("set")
     if raw != "":
         # --set '{"deadline": "2026-12-01"}' merges raw fields.
@@ -419,7 +429,7 @@ def task_update(client: Client, args: Args, ui: Out) raises:
             d.set(kw, d.key_at(extra, i), d.at(extra, i))
             changed.append(d.key_at(extra, i))
     if len(changed) == 0 and status == "":
-        raise Error("nothing to change: pass -t, -d or -F, -s, -a or --set")
+        raise Error("nothing to change: pass -t, -d or -F, -s, -a, --resolution or --set")
     if len(changed) > 0:
         var id = id_of(client, "CmfTask", "code", code)
         var args_json = "[" + quote_str(id) + "]"
@@ -427,7 +437,7 @@ def task_update(client: Client, args: Args, ui: Out) raises:
         print("updated " + ui.bold(code) + ": " + ", ".join(changed))
     if status != "":
         # --set already went into the update above.
-        move_task(client, code, status, args.get("comment", "m"), "", ui)
+        move_task(client, code, status, args.get("comment", "m"), "", resolution, ui)
 
 
 # ---- workflow transitions ----
@@ -498,8 +508,36 @@ def transitions_for(client: Client, code: String) raises -> Transitions:
     return out^
 
 
+@fieldwise_init
+struct Resolution(Copyable, Movable):
+    var id: String
+    var code: String
+    var name: String
+
+
+def find_resolution(client: Client, want: String) raises -> Resolution:
+    """A resolution by code or name, any case; the error lists the codes."""
+    var r = client.call("CmfResolution.list", '{"fields":["id","code","name"],"slice":[0,500]}')
+    var w = String(want.strip()).lower()
+    var codes = List[String]()
+    for i in range(r.doc.len(r.result)):
+        var x = r.doc.at(r.result, i)
+        var code = r.doc.text_at(x, "code")
+        var name = r.doc.text_at(x, "name")
+        if code.lower() == w or name.lower() == w:
+            return Resolution(r.doc.text_at(x, "id"), code, name)
+        codes.append(code)
+    raise Error("no resolution " + want + "; eva resolution list shows them: " + ", ".join(codes))
+
+
 def move_task(
-    client: Client, code: String, target: String, comment: String, fields: String, ui: Out
+    client: Client,
+    code: String,
+    target: String,
+    comment: String,
+    fields: String,
+    resolution: String,
+    ui: Out,
 ) raises:
     var tr = transitions_for(client, code)
     var want = target.lower()
@@ -526,10 +564,25 @@ def move_task(
         if d.kind(changed) != J_OBJ:
             raise Error("--set expects a JSON object")
     d.set_str(changed, "status", tr.to_ids[pick])
+    var res = Resolution("", "", "")
+    if resolution != "":
+        res = find_resolution(client, resolution)
+        d.set_str(changed, "resolution", res.id)
     d.set(kw, "changed_fields", changed)
     var args_json = "[" + quote_str(tr.task_id) + "," + quote_str(tr.trans_ids[pick]) + "]"
     _ = client.call("CmfTask.task_transition_run", d.dump(kw), args_json)
-    print("moved " + ui.bold(code) + ": " + tr.current + " → " + ui.status(tr.to_names[pick]))
+    var note = String()
+    if res.id != "":
+        # A closing transition may put its default resolution over the one
+        # sent with it; set it again after the move if so.
+        var after = get_by_code(client, "CmfTask", code, [String("resolution.code")])
+        if after.doc.text_at(after.result, "resolution.code") != res.code:
+            var u = JsonDoc()
+            var uk = u.object()
+            u.set_str(uk, "resolution", res.id)
+            _ = client.call("CmfTask.update", u.dump(uk), "[" + quote_str(tr.task_id) + "]")
+        note = ", resolution " + res.code + " (" + res.name + ")"
+    print("moved " + ui.bold(code) + ": " + tr.current + " → " + ui.status(tr.to_names[pick]) + note)
 
 
 def task_statuses(client: Client, args: Args, ui: Out) raises:
@@ -839,8 +892,21 @@ def raw_call(client: Client, args: Args, ui: Out) raises:
     print_json(r)
 
 
+def resolution_list(client: Client, args: Args, ui: Out) raises:
+    args.check_known(["json", "format", "verbose", "v"])
+    var r = client.call("CmfResolution.list", '{"fields":["code","name"],"slice":[0,500]}')
+    if want_json(args):
+        print_json(r)
+        return
+    for i in range(r.doc.len(r.result)):
+        var x = r.doc.at(r.result, i)
+        print(ui.accent(pad(r.doc.text_at(x, "code"), 18)) + " " + r.doc.text_at(x, "name"))
+
+
 def task_move(client: Client, args: Args, ui: Out) raises:
-    args.check_known(["comment", "m", "set", "verbose", "v"])
+    args.check_known(["comment", "m", "set", "resolution", "r", "verbose", "v"])
     var code = args.need(2, "task code")
     var target = args.need(3, "status code or name; see eva task statuses " + code)
-    move_task(client, code, target, args.get("comment", "m"), args.get("set"), ui)
+    move_task(
+        client, code, target, args.get("comment", "m"), args.get("set"), args.get("resolution", "r"), ui
+    )
