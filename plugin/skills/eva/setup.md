@@ -90,6 +90,8 @@ static allowlist is safe. For Claude Code, in `.claude/settings.json`:
       "Bash(eva task statuses:*)",
       "Bash(eva task path:*)",
       "Bash(eva time list:*)",
+      "Bash(eva field list:*)",
+      "Bash(eva field get:*)",
       "Bash(eva task attachments:*)",
       "Bash(eva attachment get:*)",
       "Bash(eva attachment download:*)",

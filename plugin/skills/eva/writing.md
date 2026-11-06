@@ -50,7 +50,16 @@ eva task update BOT-7044 --set '{"deadline": "2026-12-01"}'
 ```
 
 `--set` sends any fields as JSON, under EvaTeam's names; `eva task get CODE
---json` shows what a task has. `-d` replaces the whole description. A
+--json` shows what a task has, and `eva field list` the custom ones. A
+multi-select takes value names, which eva turns into ids, and a choice takes a
+key from `eva field get NAME`:
+
+```bash
+eva task update BOT-7044 --set '{"cf_napravleniedev": ["iOS", "BE"]}'
+eva task update BOT-7044 --set '{"cf_102_1ind": "k8s"}'
+```
+
+ `-d` replaces the whole description. A
 reference field goes by its name without `_id`, with the id as the value:
 `{"epic": "CmfTask:…"}`, `{"parent_task": "CmfTask:…"}`,
 `{"logic_type": "CmfLogicType:…"}`. A create with `epic_id` or
