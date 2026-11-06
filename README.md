@@ -187,7 +187,8 @@ eva auth logout --profile sandbox
 | `eva task update CODE [-t] [-d] [-a] [--set JSON]` | изменить поля; `--set` передаёт любое поле как есть |
 | `eva task statuses CODE` | в какие статусы воркфлоу пускает задачу из текущего |
 | `eva task move CODE STATUS [-m TEXT] [--set JSON]` | сменить статус через переход воркфлоу; `--set` заполняет поля, которых требует переход |
-| `eva task comment CODE TEXT` / `eva task comments CODE` | написать или прочитать комментарии |
+| `eva task comment CODE TEXT` / `eva task comments CODE` | написать или прочитать комментарии; `-F FILE` (или `-` для stdin), `--md`, `--human`, `--ids` |
+| `eva task comment-delete ID` | удалить комментарий |
 | `eva task log CODE 1h30m [-m TEXT]` | списать время |
 | `eva task links CODE` | входящие и исходящие связи |
 | `eva project list`, `eva person list`, `eva doc list` | списки, `-q` ищет по названию |

@@ -188,7 +188,8 @@ verification off.
 | `eva task update CODE [-t] [-d] [-a] [--set JSON]` | change fields; `--set` passes any field through |
 | `eva task statuses CODE` | the statuses the task's workflow lets it move to from here |
 | `eva task move CODE STATUS [-m TEXT] [--set JSON]` | change status through a workflow transition; `--set` fills fields the transition requires |
-| `eva task comment CODE TEXT` / `eva task comments CODE` | write or read comments |
+| `eva task comment CODE TEXT` / `eva task comments CODE` | write or read comments; `-F FILE` (or `-` for stdin), `--md`, `--human`, `--ids` |
+| `eva task comment-delete ID` | delete a comment |
 | `eva task log CODE 1h30m [-m TEXT]` | log time spent |
 | `eva task links CODE` | incoming and outgoing links |
 | `eva project list`, `eva person list`, `eva doc list` | lists, with `-q` to search by name |

@@ -1,8 +1,11 @@
 from std.testing import assert_equal, assert_true, assert_raises, TestSuite
+from std.os import getenv
 
 from eva.args import Args
 from eva.commands import (
+    body_html,
     code_kwargs,
+    comments_kwargs,
     fields_from,
     like_filter,
     local_now,
@@ -12,6 +15,7 @@ from eva.commands import (
     quote_str,
     split_csv,
     status_condition,
+    text_from,
     want_json,
 )
 from eva.json import JsonDoc
@@ -108,6 +112,40 @@ def test_shell_quote_and_dirname() raises:
     assert_equal(shell_quote("$(rm -rf ~)"), "'$(rm -rf ~)'")
     assert_equal(dirname("/a/b/c"), "/a/b")
     assert_equal(dirname("c"), "/")
+
+
+def test_body_html_modes() raises:
+    assert_equal(body_html(Args(["x"]), "<b>a</b>"), "<p>&lt;b&gt;a&lt;/b&gt;</p>")
+    assert_equal(body_html(Args(["--html"]), "<b>a</b>"), "<b>a</b>")
+    assert_equal(body_html(Args(["--md"]), "**a**"), "<p><strong>a</strong></p>")
+    with assert_raises(contains="exclude each other"):
+        _ = body_html(Args(["--md", "--html"]), "a")
+
+
+def test_text_from_file() raises:
+    var path = String(getenv("TMPDIR", "/tmp")) + "/eva-text-from-test.md"
+    with open(path, "w") as f:
+        f.write("line one\n\nline 'two' \"quoted\"\n\n")
+    assert_equal(text_from(Args(["-F", path]), "", "the comment"), "line one\n\nline 'two' \"quoted\"")
+    assert_equal(text_from(Args(["x"]), "inline", "the comment"), "inline")
+    with assert_raises(contains="not both"):
+        _ = text_from(Args(["-F", path]), "inline", "the comment")
+    with assert_raises(contains="cannot read"):
+        _ = text_from(Args(["-F", path + ".missing"]), "", "the comment")
+    with open(path, "w") as f:
+        f.write("  \n")
+    with assert_raises(contains="is empty"):
+        _ = text_from(Args(["--file", path]), "", "the comment")
+
+
+def test_comments_kwargs() raises:
+    var all = comments_kwargs("CmfTask:1", False, [String("id")])
+    assert_true(all.find('"filter":[["parent_id","==","CmfTask:1"]]') >= 0, all)
+    assert_true(all.find('"order_by":["cmf_created_at"]') >= 0, all)
+    var people = comments_kwargs("CmfTask:1", True, [String("id")])
+    assert_true(people.find('["log_level","==",0]') >= 0, people)
+    # The count call sends the filter alone.
+    assert_equal(comments_kwargs("CmfTask:1", False, List[String]()), '{"filter":[["parent_id","==","CmfTask:1"]]}')
 
 
 def main() raises:

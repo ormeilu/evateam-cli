@@ -72,6 +72,23 @@ TASKS = [
     },
 ]
 
+# CmfComment rows. DEV-1's `comments` relation above holds only the first: the
+# web UI one is missing from it, as on the real server.
+COMMENTS = [
+    {"id": "CmfComment:c1", "parent_id": "CmfTask:1", "log_level": 0,
+     "cmf_created_at": "2026-11-02T11:00:00+03:00", "text": "<p>Воспроизвёл</p>",
+     "cmf_author": {"name": "QA"}},
+    {"id": "CmfComment:c3", "parent_id": "CmfTask:1", "log_level": 2,
+     "cmf_created_at": "2026-11-02T13:00:00+03:00", "text": "Журнал работ удален",
+     "cmf_author": {"name": "Robot"}},
+    {"id": "CmfComment:c2", "parent_id": "CmfTask:1", "log_level": 1,
+     "cmf_created_at": "2026-11-02T12:00:00+03:00", "text": "Статус изменен на Done",
+     "cmf_author": {"name": "QA"}},
+    {"id": "CmfComment:c4", "parent_id": "CmfTask:1", "log_level": 0,
+     "cmf_created_at": "2026-11-03T09:00:00+03:00", "text": "<p>Из веб-интерфейса</p>",
+     "cmf_author": {"name": "Илья"}},
+]
+
 
 def matches(obj, flt):
     if not flt:
@@ -143,6 +160,19 @@ class Handler(BaseHTTPRequestHandler):
         if method == "CmfTask.task_transition_run":
             if kw.get("changed_fields", {}).get("cf_kind") != "dev":
                 return self.reply(200, {"jsonrpc": "2.2", "abort": "Необходимо заполнить Вид услуги"})
+            return self.reply(200, {"jsonrpc": "2.2", "result": True})
+        if method in ("CmfComment.list", "CmfComment.count"):
+            rows = [c for c in COMMENTS if matches(c, flt)]
+            if method == "CmfComment.count":
+                return self.reply(200, {"jsonrpc": "2.2", "result": len(rows)})
+            for key in reversed(kw.get("order_by", [])):
+                rows.sort(key=lambda c: c[key.lstrip("-")], reverse=key.startswith("-"))
+            lo, hi = kw.get("slice", [0, 100])
+            return self.reply(200, {"jsonrpc": "2.2", "result": rows[lo:hi]})
+        if method == "CmfComment.delete":
+            ids = req.get("args") or []
+            if not ids:
+                return self.reply(200, {"jsonrpc": "2.2", "error": {"code": 500, "message": "Необходимо указать id в args[0]"}})
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method == "CmfTask.create":
             return self.reply(200, {"jsonrpc": "2.2", "result": "CmfTask:3"})

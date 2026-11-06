@@ -7,7 +7,8 @@ from std.memory.alloc import unsafe_alloc
 from eva.args import Args
 from eva.client import Client, Reply, load_config
 from eva.json import JsonDoc, NO_NODE, J_ARR, J_OBJ
-from eva.render import Out, pad, clip, text_to_html
+from eva.render import Out, pad, clip, text_to_html, markdown_to_html
+from eva.term import read_all
 
 comptime TASK_FIELDS = (
     "*,status.name,status.code,responsible.name,responsible.login,"
@@ -74,6 +75,40 @@ def id_of(client: Client, cls: String, field: String, value: String) raises -> S
     if id == "":
         raise Error(cls + " with " + field + " " + value + ": not found")
     return id
+
+
+def text_from(args: Args, inline: String, what: String) raises -> String:
+    """`inline`, or the text of the file -F names (`-` reads stdin)."""
+    var path = args.get("file", "F")
+    if path == "":
+        return inline
+    if inline != "":
+        raise Error("give " + what + " as an argument or with -F, not both")
+    var text: String
+    if path == "-":
+        text = read_all()
+    else:
+        try:
+            with open(path, "r") as f:
+                text = f.read()
+        except e:
+            raise Error("cannot read " + path + ": " + String(e))
+    if text.strip() == "":
+        raise Error(what + " in " + ("stdin" if path == "-" else path) + " is empty")
+    return String(text.rstrip())
+
+
+def body_html(args: Args, text: String) raises -> String:
+    """Text as EvaTeam stores it: plain by default, --md converted, --html as is."""
+    var md = args.has("md")
+    var html = args.has("html")
+    if md and html:
+        raise Error("--md and --html exclude each other")
+    if html:
+        return text
+    if md:
+        return markdown_to_html(text)
+    return text_to_html(text)
 
 
 def print_json(r: Reply):
@@ -299,22 +334,25 @@ def task_list(client: Client, args: Args, ui: Out) raises:
 
 def task_create(client: Client, args: Args, ui: Out) raises:
     args.check_known(
-        ["project", "p", "name", "title", "t", "description", "d", "assignee", "a",
-         "sprint", "json", "format", "verbose", "v"]
+        ["project", "p", "name", "title", "t", "description", "d", "file", "F", "md", "html",
+         "assignee", "a", "sprint", "json", "format", "verbose", "v"]
     )
     var project = args.get("project", "p")
     var name = args.get("title", "t")
     if name == "":
         name = args.get("name")
     if project == "" or name == "":
-        raise Error("usage: eva task create -p PROJECT -t TITLE [-d TEXT] [-a LOGIN] [--sprint SPR-1]")
+        raise Error(
+            "usage: eva task create -p PROJECT -t TITLE [-d TEXT | -F FILE] [--md|--html] [-a LOGIN]"
+            " [--sprint SPR-1]"
+        )
     var d = JsonDoc()
     var kw = d.object()
     d.set_str(kw, "parent", project)
     d.set_str(kw, "name", name)
-    var desc = args.get("description", "d")
+    var desc = text_from(args, args.get("description", "d"), "the description")
     if desc != "":
-        d.set_str(kw, "text", text_to_html(desc))
+        d.set_str(kw, "text", body_html(args, desc))
     var assignee = args.get("assignee", "a")
     if assignee != "":
         var ref_obj = d.object()
@@ -346,8 +384,8 @@ def task_create(client: Client, args: Args, ui: Out) raises:
 
 def task_update(client: Client, args: Args, ui: Out) raises:
     args.check_known(
-        ["name", "title", "t", "description", "d", "assignee", "a", "status", "s",
-         "comment", "m", "set", "json", "format", "verbose", "v"]
+        ["name", "title", "t", "description", "d", "file", "F", "md", "html", "assignee", "a",
+         "status", "s", "comment", "m", "set", "json", "format", "verbose", "v"]
     )
     var code = args.need(2, "task code")
     var d = JsonDoc()
@@ -359,9 +397,9 @@ def task_update(client: Client, args: Args, ui: Out) raises:
     if name != "":
         d.set_str(kw, "name", name)
         changed.append("name")
-    var desc = args.get("description", "d")
+    var desc = text_from(args, args.get("description", "d"), "the description")
     if desc != "":
-        d.set_str(kw, "text", text_to_html(desc))
+        d.set_str(kw, "text", body_html(args, desc))
         changed.append("text")
     # Status changes go through a workflow transition, after the other fields.
     var status = args.get("status", "s")
@@ -381,7 +419,7 @@ def task_update(client: Client, args: Args, ui: Out) raises:
             d.set(kw, d.key_at(extra, i), d.at(extra, i))
             changed.append(d.key_at(extra, i))
     if len(changed) == 0 and status == "":
-        raise Error("nothing to change: pass -t, -d, -s, -a or --set")
+        raise Error("nothing to change: pass -t, -d or -F, -s, -a or --set")
     if len(changed) > 0:
         var id = id_of(client, "CmfTask", "code", code)
         var args_json = "[" + quote_str(id) + "]"
@@ -511,32 +549,88 @@ def quote_str(s: String) -> String:
 
 
 def task_comment(client: Client, args: Args, ui: Out) raises:
-    args.check_known(["verbose", "v", "json", "format"])
+    args.check_known(["file", "F", "md", "html", "verbose", "v", "json", "format"])
     var code = args.need(2, "task code")
-    var text = args.need(3, "comment text")
+    var text = text_from(args, args.pos(3), "the comment")
+    if text == "":
+        raise Error("missing comment text: eva task comment CODE TEXT, or -F FILE (- for stdin)")
     var d = JsonDoc()
     var kw = d.object()
     d.set_str(kw, "parent", code)
-    d.set_str(kw, "text", text_to_html(text))
+    d.set_str(kw, "text", body_html(args, text))
     _ = client.call("CmfComment.create", d.dump(kw))
     print("commented on " + ui.bold(code))
 
 
+def comments_kwargs(task_id: String, human: Bool, fields: List[String]) raises -> String:
+    """CmfComment.list over one task, oldest first. log_level 0 is what people
+    wrote; 1 is field and status changes, 2 is system records."""
+    var d = JsonDoc()
+    var kw = d.object()
+    var flt = d.array()
+    var tid = d.string(task_id)
+    var by_task = d.triple("parent_id", "==", tid)
+    d.push(flt, by_task)
+    if human:
+        var zero = d.number(0)
+        var by_people = d.triple("log_level", "==", zero)
+        d.push(flt, by_people)
+    d.set(kw, "filter", flt)
+    if len(fields) > 0:
+        var fl = d.str_array(fields)
+        d.set(kw, "fields", fl)
+        var order = d.str_array([String("cmf_created_at")])
+        d.set(kw, "order_by", order)
+        var s = d.array()
+        var lo = d.number(0)
+        var hi = d.number(10000)
+        d.push(s, lo)
+        d.push(s, hi)
+        d.set(kw, "slice", s)
+    return d.dump(kw)
+
+
 def task_comments(client: Client, args: Args, ui: Out) raises:
-    args.check_known(["verbose", "v", "json", "format", "full"])
+    args.check_known(["human", "ids", "verbose", "v", "json", "format", "full"])
     var code = args.need(2, "task code")
-    var r = get_by_code(client, "CmfTask", code, [String("comments.*"), String("comments.cmf_author.name")])
-    var list = r.doc.get(r.result, "comments")
+    var human = args.has("human")
+    # Listed from CmfComment itself: the task's `comments` relation can miss
+    # comments posted from the web UI.
+    var task_id = id_of(client, "CmfTask", "code", code)
+    var fields: List[String] = ["id", "text", "cmf_created_at", "cmf_author.name", "log_level"]
+    var r = client.call("CmfComment.list", comments_kwargs(task_id, human, fields))
     if want_json(args):
-        print(r.doc.dump_pretty(list))
+        print_json(r)
         return
-    var n = r.doc.len(list)
+    var n = r.doc.len(r.result)
     for i in range(n):
-        var c = r.doc.at(list, i)
+        var c = r.doc.at(r.result, i)
         var who = r.doc.text_at(c, "cmf_author.name")
-        print(ui.accent(r.doc.text_at(c, "cmf_created_at")) + ("  " + who if who != "" else ""))
+        var head = ui.accent(r.doc.text_at(c, "cmf_created_at")) + ("  " + who if who != "" else "")
+        if args.has("ids"):
+            head += "  " + ui.dim(r.doc.text_at(c, "id"))
+        print(head)
         ui.untrusted(code + "/comments/" + String(i + 1), r.doc.text_at(c, "text"))
-    print(ui.dim(String(n) + " comments"))
+    var tally = String(n) + (" comment" if n == 1 else " comments")
+    if human:
+        var all = client.call("CmfComment.count", comments_kwargs(task_id, False, List[String]()))
+        var hidden = Int(all.doc.text(all.result)) - n
+        tally += " by people"
+        if hidden > 0:
+            tally += ", " + String(hidden) + " workflow and system entries hidden"
+    print(ui.dim(tally))
+
+
+def task_comment_delete(client: Client, args: Args, ui: Out) raises:
+    args.check_known(["verbose", "v"])
+    var id = args.need(2, "comment id; eva task comments CODE --ids shows them")
+    if id.find(":") < 0:
+        id = "CmfComment:" + id
+    if not id.startswith("CmfComment:"):
+        raise Error(id + " is not a comment id (CmfComment:…)")
+    # .delete takes the id positionally; as a kwarg the server refuses it.
+    _ = client.call("CmfComment.delete", "", "[" + quote_str(id) + "]")
+    print("deleted " + ui.bold(id) + "; EvaTeam keeps a 'comment deleted' entry with its text")
 
 
 def task_log(client: Client, args: Args, ui: Out) raises:

@@ -20,8 +20,10 @@ def test_last_value_wins() raises:
 
 
 def test_bool_flags_take_no_value() raises:
-    var a = Args(["--full", "CODE", "-v", "--insecure", "--version"])
+    var a = Args(["--full", "CODE", "-v", "--insecure", "--version", "--md", "--html", "--human", "--ids"])
     assert_true(a.has("full"))
+    for f in ["md", "html", "human", "ids"]:
+        assert_true(a.has(String(f)), String(f))
     assert_true(a.has("verbose", "v"))
     assert_true(a.has("insecure"))
     assert_equal(a.pos(0), "CODE")
