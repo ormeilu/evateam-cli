@@ -29,7 +29,7 @@ from eva.upgrade import upgrade
 from eva.attachments import attachment_download, attachment_get, task_attachments
 from eva.auth import auth_login, auth_logout, auth_status, auth_use
 
-comptime VERSION = "0.5.1"  # x-release-please-version
+comptime VERSION = "0.6.0"  # x-release-please-version
 
 comptime USAGE = """eva — EvaTeam from the command line
 

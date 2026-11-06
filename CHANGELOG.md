@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.0](https://github.com/ormeilu/evateam-cli/compare/v0.5.1...v0.6.0) (2026-11-06)
+
+
+### Features
+
+* auth login and the READMEs explain where to get an API token ([3736d17](https://github.com/ormeilu/evateam-cli/commit/3736d17e4b6664277fdcaaef2767d9cefbbb887c))
+* task create --parent, --type and --set ([751d27c](https://github.com/ormeilu/evateam-cli/commit/751d27c6481341f9c766ac5b4604dcc02affdd4a))
+* task create --parent, --type and --set; notes when the server changes more ([751d27c](https://github.com/ormeilu/evateam-cli/commit/751d27c6481341f9c766ac5b4604dcc02affdd4a))
+
+
+### Bug Fixes
+
+* task list hides rows without access instead of printing them empty ([751d27c](https://github.com/ormeilu/evateam-cli/commit/751d27c6481341f9c766ac5b4604dcc02affdd4a))
+* task update says when EvaTeam also changed a field it was not asked to ([751d27c](https://github.com/ormeilu/evateam-cli/commit/751d27c6481341f9c766ac5b4604dcc02affdd4a))
+
 ## [0.5.1](https://github.com/ormeilu/evateam-cli/compare/v0.5.0...v0.5.1) (2026-11-06)
 
 
