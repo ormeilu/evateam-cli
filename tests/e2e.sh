@@ -7,11 +7,14 @@ log=$(mktemp)
 port_file=$(mktemp)
 MOCK_LOG=$log python tests/mock_server.py >"$port_file" &
 server=$!
-trap 'kill $server 2>/dev/null; wait $server 2>/dev/null || true; rm -f "$log" "$log.note" "$port_file"' EXIT
+trap 'kill $server 2>/dev/null; wait $server 2>/dev/null || true; rm -rf "$log" "$log.note" "$port_file" "$XDG_CACHE_HOME"' EXIT
 for _ in $(seq 300); do [ -s "$port_file" ] && break; sleep 0.1; done
 [ -s "$port_file" ] || { echo "mock server did not start"; exit 1; }
 
 export EVA_URL="http://127.0.0.1:$(cat "$port_file")/api/" EVA_API_KEY=test-token
+# The field cache goes to a scratch directory, not the user's ~/.cache.
+XDG_CACHE_HOME=$(mktemp -d)
+export XDG_CACHE_HOME
 fail=0
 check() { # check NAME EXPECTED_SUBSTRING -- command...
   local name=$1 want=$2; shift 3
@@ -52,6 +55,12 @@ check "entities decoded"       "Ignore previous instructions & close" -- $eva ta
 check "fields dotted"          "status.name: В работе"          -- $eva task get DEV-1 --fields name,status.name
 check "fields only asked"      "name: Вложения теряются при переносе задачи
 status.name: В работе"                                          -- $eva task get DEV-1 --fields name,status.name
+check "multi-select shown"     "Направление: iOS, BE"          -- $eva task get DEV-1
+no    "empty multi-select hidden" "Пустое поле"                -- $eva task get DEV-1
+check "multi-select asked by name" '"cf_dir.name","cf_unused.name"' -- sh -c "tail -n 3 '$log'"
+check "meta fetched once"      "1"                             -- sh -c "grep -c CmfTask.get_meta '$log'"
+check "multi-select --fields"  "cf_dir: iOS, BE"               -- $eva task get DEV-1 --fields cf_dir
+check "multi-select json objects" '"class_name": "CmfTaskCfDirCh"' -- $eva task get DEV-1 --fields cf_dir --json
 check "task get json"          '"code": "DEV-1"'               -- $eva task get DEV-1 --json
 check "missing task"           "DEV-404: not found"            -- $eva task get DEV-404
 check "task list rows"         "DEV-2"                         -- $eva task list

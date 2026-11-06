@@ -8,6 +8,7 @@ from eva.args import Args
 from eva.client import Client, Reply, load_config
 from eva.json import JsonDoc, NO_NODE, J_ARR, J_OBJ
 from eva.render import Out, pad, clip, text_to_html, markdown_to_html
+from eva.fields import MultiSelect, multiselect_fields, value_names
 from eva.term import read_all
 
 comptime TASK_FIELDS = (
@@ -195,7 +196,14 @@ def footer(ui: Out, shown: Int, total: Int, args: Args) raises:
 def task_get(client: Client, args: Args, ui: Out) raises:
     args.check_known(["fields", "json", "format", "full", "verbose", "v"])
     var code = args.need(2, "task code, e.g. eva task get DEV-12")
-    var r = get_by_code(client, "CmfTask", code, fields_from(args, TASK_FIELDS))
+    var fields = fields_from(args, TASK_FIELDS)
+    # Multi-select custom fields come back only by name; ask for each.
+    var multi = List[MultiSelect]()
+    if args.get("fields") == "":
+        multi = multiselect_fields(client)
+        for m in multi:
+            fields.append(m.name + ".name")
+    var r = get_by_code(client, "CmfTask", code, fields)
     if want_json(args):
         print_json(r)
         return
@@ -203,9 +211,9 @@ def task_get(client: Client, args: Args, ui: Out) raises:
     var t = r.result
     if args.get("fields") != "":
         # Only what was asked for: the server adds ids, and a dotted path
-        # comes back nested.
+        # comes back nested. A multi-select prints as its value names.
         for f in split_csv(args.get("fields")):
-            print(f + ": " + d.text_at(t, f))
+            print(f + ": " + value_names(d, d.path(t, f)))
         return
     print(ui.bold(d.text_at(t, "code")) + "  " + String(d.text_at(t, "name").strip()))
     var status = d.text_at(t, "status.name")
@@ -227,6 +235,10 @@ def task_get(client: Client, args: Args, ui: Out) raises:
     var deadline = d.text_at(t, "deadline")
     if deadline != "":
         print("deadline: " + deadline)
+    for m in multi:
+        var values = value_names(d, d.get(t, m.name))
+        if values != "":
+            print(m.caption + ": " + values)
     var files = d.get(t, "attachments")
     var nfiles = d.len(files)
     if nfiles > 0:

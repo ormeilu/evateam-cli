@@ -72,6 +72,10 @@ TASKS = [
         ],
         "out_tasks": [{"out_link": {"code": "DEV-2", "name": "Retry uploads"}}],
         "attachments": [{"code": "ATT-1", "file_name": "report.xlsx"}],
+        # Multi-select custom fields: one filled, one empty.
+        "cf_dir": [{"id": "CmfTaskCfDirCh:1", "class_name": "CmfTaskCfDirCh", "name": "iOS"},
+                   {"id": "CmfTaskCfDirCh:2", "class_name": "CmfTaskCfDirCh", "name": "BE"}],
+        "cf_unused": [],
         "in_tasks": [],
     },
     {
@@ -254,6 +258,14 @@ class Handler(BaseHTTPRequestHandler):
             if method == "CmfAttachment.get":
                 return self.reply(200, {"jsonrpc": "2.2", "result": rows[0] if rows else None})
             return self.reply(200, {"jsonrpc": "2.2", "result": rows})
+        if method == "CmfTask.get_meta":
+            return self.reply(200, {"jsonrpc": "2.2", "result": {"fields": {
+                "name": {"widget": "CmfStr", "caption": "Название"},
+                "cf_dir": {"widget": "CmfM2M", "custom": True, "caption": "Направление", "model": "CmfTaskCfDirCh"},
+                "cf_unused": {"widget": "CmfM2M", "custom": True, "caption": "Пустое поле", "model": "CmfTaskCfUnusedCh"},
+                "cf_kind": {"widget": "CmfChoice", "custom": True, "caption": "Вид услуги"},
+                "cf_evil": {"widget": "CmfM2M", "custom": True, "caption": "Evil\tcap\ntion\u001b[2J", "model": "X"},
+            }}})
         if method == "CmfPerson.get_current_user":
             return self.reply(200, {"jsonrpc": "2.2", "result": {"id": "CmfPerson:me", "login": "me@example.ru", "name": "Me"}})
         if method == "CmfTimeTrackerHistory.list":
