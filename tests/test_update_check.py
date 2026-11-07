@@ -3,6 +3,8 @@
 import os
 from pathlib import Path
 import re
+import shutil
+import ssl
 import subprocess
 import tempfile
 import time
@@ -18,8 +20,12 @@ TOKEN = "fixture-token-must-not-leave"
 
 
 class ReleaseServer(ThreadingHTTPServer):
-    def __init__(self):
+    def __init__(self, tls=None):
         super().__init__(("127.0.0.1", 0), ReleaseHandler)
+        self.scheme = "http"
+        if tls is not None:
+            self.socket = tls.wrap_socket(self.socket, server_side=True)
+            self.scheme = "https"
         self.requests = []
         self.location = "https://github.com/ormeilu/evateam-cli/releases/tag/v" + NEWER
         self.status = 302
@@ -28,7 +34,7 @@ class ReleaseServer(ThreadingHTTPServer):
 
     @property
     def url(self):
-        return "http://127.0.0.1:" + str(self.server_address[1]) + "/ormeilu/evateam-cli/releases/latest"
+        return self.scheme + "://127.0.0.1:" + str(self.server_address[1]) + "/ormeilu/evateam-cli/releases/latest"
 
     def close(self):
         self.shutdown()
@@ -100,6 +106,27 @@ class UpdateCheck(unittest.TestCase):
         self.assertNotIn("is out", third.stdout + third.stderr)
         # One check per interval, however many runs.
         self.assertEqual(len(self.releases.requests), 1)
+
+    @unittest.skipUnless(shutil.which("openssl"), "needs openssl for a test certificate")
+    def test_https_source_is_verified_with_the_system_ca_bundle(self):
+        # Release builds bundle OpenSSL, whose compiled-in CA path is the build
+        # machine's: the check must use the same CA bundle as EvaTeam calls.
+        tls = Path(tempfile.mkdtemp(prefix="eva-tls-"))
+        self.addCleanup(shutil.rmtree, tls, True)
+        subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                        "-subj", "/CN=localhost", "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1",
+                        "-keyout", str(tls / "key.pem"), "-out", str(tls / "cert.pem")],
+                       check=True, capture_output=True)
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(tls / "cert.pem", tls / "key.pem")
+        server = ReleaseServer(context)
+        self.addCleanup(server.close)
+        untrusted = tls / "untrusted-cache"
+        self.eva("cheatsheet", EVA_UPDATE_URL=server.url, XDG_CACHE_HOME=str(untrusted))
+        time.sleep(3)
+        self.assertFalse((untrusted / "eva-diagnostics" / "update-latest").exists())
+        self.eva("cheatsheet", EVA_UPDATE_URL=server.url, EVA_CA_BUNDLE=str(tls / "cert.pem"))
+        self.assertEqual(self.wait_for_check(), NEWER)
 
     def test_release_source_gets_no_credentials_or_address(self):
         self.eva("cheatsheet")

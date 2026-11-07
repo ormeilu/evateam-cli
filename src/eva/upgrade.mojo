@@ -10,6 +10,8 @@ from std.os.path import exists
 
 import requests
 from requests._dns import _cstr
+
+from eva.client import ca_bundle
 from requests._tls import _self_exe
 
 comptime INSTALL_URL = "https://raw.githubusercontent.com/ormeilu/evateam-cli/main/install.sh"
@@ -59,8 +61,18 @@ def latest_release(url: String, timeout: Float64) raises -> String:
     reply names none. No credentials go out and no redirect is followed."""
     var headers = Dict[String, String]()
     headers["User-Agent"] = "eva-cli"
+    # A release build bundles OpenSSL, whose default CA path is the build
+    # machine's; without the system bundle every handshake fails.
+    var ca: Optional[String] = None
+    var bundle = ca_bundle()
+    if bundle != "":
+        ca = bundle
     var resp = requests.get(
-        url, headers=headers^, timeout=timeout, allow_redirects=False
+        url,
+        headers=headers^,
+        timeout=timeout,
+        allow_redirects=False,
+        ca_bundle=ca,
     )
     if resp.status_code < 300 or resp.status_code >= 400:
         return ""
