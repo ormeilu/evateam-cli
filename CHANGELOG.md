@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/ormeilu/evateam-cli/compare/v0.9.0...v0.9.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* release suite runs where no Mojo toolchain is installed ([bfe3a45](https://github.com/ormeilu/evateam-cli/commit/bfe3a45729d3e99c846cd8b25201bd398f38c39e))
+
 ## [0.9.0](https://github.com/ormeilu/evateam-cli/compare/v0.8.1...v0.9.0) (2026-11-07)
 
 
