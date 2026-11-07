@@ -8,10 +8,65 @@ a source checkout.
 from std.ffi import external_call, c_int
 from std.os.path import exists
 
+import requests
 from requests._dns import _cstr
 from requests._tls import _self_exe
 
 comptime INSTALL_URL = "https://raw.githubusercontent.com/ormeilu/evateam-cli/main/install.sh"
+# install.sh finds the newest release the same way: /releases/latest redirects
+# to /releases/tag/vX.Y.Z, and reading the redirect needs no API token.
+comptime LATEST_URL = "https://github.com/ormeilu/evateam-cli/releases/latest"
+
+
+def clean_version(raw: String) -> String:
+    """A version string from the network, or "" when it does not look like one.
+    It ends up on the terminal, so only digits, letters, dots and dashes pass.
+    """
+    var v = String(raw.strip())
+    if v.startswith("v"):
+        var rest = String(v[byte=1:])
+        v = rest
+    if v.byte_length() == 0 or v.byte_length() > 32:
+        return ""
+    var bytes = v.as_bytes()
+    if Int(bytes[0]) < ord("0") or Int(bytes[0]) > ord("9"):
+        return ""
+    for byte in bytes:
+        var b = Int(byte)
+        var ok = (
+            (b >= ord("0") and b <= ord("9"))
+            or (b >= ord("a") and b <= ord("z"))
+            or (b >= ord("A") and b <= ord("Z"))
+            or b == ord(".")
+            or b == ord("-")
+        )
+        if not ok:
+            return ""
+    return v
+
+
+def version_from_location(location: String) -> String:
+    """The version in a `.../releases/tag/vX.Y.Z` redirect target, or ""."""
+    var slash = location.rfind("/")
+    var tag = String(location[byte = slash + 1 :])
+    if not tag.startswith("v"):
+        return ""
+    return clean_version(tag)
+
+
+def latest_release(url: String, timeout: Float64) raises -> String:
+    """The newest release's version from where `url` redirects, or "" when the
+    reply names none. No credentials go out and no redirect is followed."""
+    var headers = Dict[String, String]()
+    headers["User-Agent"] = "eva-cli"
+    var resp = requests.get(
+        url, headers=headers^, timeout=timeout, allow_redirects=False
+    )
+    if resp.status_code < 300 or resp.status_code >= 400:
+        return ""
+    if not resp.headers.contains("location"):
+        return ""
+    return version_from_location(resp.headers["location"])
 
 
 def dirname(path: String) -> String:

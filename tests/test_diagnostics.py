@@ -67,6 +67,7 @@ def main() raises:
 def fixture_env(**overrides):
     """Never let an inherited profile override the loopback fixture identity."""
     env = {key: value for key, value in os.environ.items() if not key.startswith("EVA_")}
+    env["EVA_NO_UPDATE_CHECK"] = "1"
     env.update(overrides)
     return env
 
@@ -220,7 +221,7 @@ class DiagnosticsTests(unittest.TestCase):
     def test_cheatsheet_is_offline_and_recipes_match_dispatcher(self):
         import re
         import shlex
-        result = self.run_driver("cheatsheet", env={"PATH": os.environ["PATH"], "HOME": str(self.work / "missing-home")})
+        result = self.run_driver("cheatsheet", env={"PATH": os.environ["PATH"], "HOME": str(self.work / "missing-home"), "EVA_NO_UPDATE_CHECK": "1"})
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(len(re.findall(r"^\d+\. ", result.stdout, re.M)), 10)
         commands = [shlex.split(line.strip()) for line in result.stdout.splitlines() if line.strip().startswith("eva ")]
@@ -333,7 +334,7 @@ class DiagnosticsTests(unittest.TestCase):
 
     def test_schema_catalog_covers_literal_model_call_sites(self):
         import re
-        result = self.run_driver("schema", "--classes", env={"PATH": os.environ["PATH"]})
+        result = self.run_driver("schema", "--classes", env={"PATH": os.environ["PATH"], "EVA_NO_UPDATE_CHECK": "1"})
         self.assertEqual(result.returncode, 0, result.stderr)
         catalog = set(result.stdout.split())
         self.assertIn("CmfTestplan", catalog)
