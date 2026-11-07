@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/ormeilu/evateam-cli/compare/v0.8.1...v0.9.0) (2026-11-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* task comments shows the newest 20 by default (--all for everything); --fields with --json drops implicit id/class_name; a move to the current status is a no-op; unknown doc subcommands are errors; piped eva call replies over 64 KiB are previewed and spilled to a private file; task update -m needs -s; option values starting with -- need --opt=VALUE.
+
+### Features
+
+* add task, wiki and agent workflows across the open backlog ([c9065fb](https://github.com/ormeilu/evateam-cli/commit/c9065fb5a4bee50b51cc4fdf5edc97ab904a624a))
+* doc download-all, doc watch and the Gantt schedule in task get ([6b2f081](https://github.com/ormeilu/evateam-cli/commit/6b2f081d561f0d7609c610acc032b5d225416d16))
+
 ## [0.8.1](https://github.com/ormeilu/evateam-cli/compare/v0.8.0...v0.8.1) (2026-11-06)
 
 
