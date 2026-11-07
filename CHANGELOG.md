@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/ormeilu/evateam-cli/compare/v0.10.0...v0.10.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* the update check verifies GitHub with the system CA bundle ([a61cdc8](https://github.com/ormeilu/evateam-cli/commit/a61cdc81910fa23de01f3bb94add994bc6102a77))
+
 ## [0.10.0](https://github.com/ormeilu/evateam-cli/compare/v0.9.1...v0.10.0) (2026-11-07)
 
 
