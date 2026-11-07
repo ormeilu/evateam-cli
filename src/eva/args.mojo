@@ -29,6 +29,8 @@ def is_bool_flag(name: String) -> Bool:
         or name == "publish"
         or name == "yes"
         or name == "y"
+        or name == "off"
+        or name == "children"
     )
 
 
@@ -56,22 +58,41 @@ struct Args(Movable):
                 a[byte=1:]
             )
             var eq = name.find("=")
-            if eq >= 0:
-                self.keys.append(String(name[byte=0:eq]))
-                self.values.append(String(name[byte = eq + 1 :]))
-                continue
+            var key = String(name[byte=0:eq]) if eq >= 0 else name
             var doc_version = (
-                name == "version"
+                key == "version"
                 and len(self.positionals) >= 2
                 and (self.pos(0) == "doc" or self.pos(0) == "docs")
                 and (self.pos(1) == "get" or self.pos(1) == "show")
             )
-            if is_bool_flag(name) and not doc_version:
+            var switch = is_bool_flag(key) and not doc_version
+            if eq >= 0:
+                var value = String(name[byte = eq + 1 :])
+                # --yes=false must not read as yes.
+                if switch and value != "true":
+                    raise Error(
+                        "option --" + key + " is a switch; drop =" + value
+                    )
+                self.keys.append(key)
+                self.values.append(value)
+                continue
+            if switch:
                 self.keys.append(name)
                 self.values.append("true")
                 continue
             if i >= len(argv):
                 raise Error("option " + a + " needs a value")
+            # `-m $EMPTY --dry-run` must not turn --dry-run into the comment.
+            if argv[i].startswith("--") and argv[i].byte_length() > 2:
+                raise Error(
+                    "option "
+                    + a
+                    + " needs a value, not "
+                    + argv[i]
+                    + "; write "
+                    + a
+                    + "=VALUE for a value that starts with --"
+                )
             self.keys.append(name)
             self.values.append(argv[i])
             i += 1

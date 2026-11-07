@@ -43,9 +43,11 @@ Create/update shortcuts:
 
 `--set` still accepts raw fields. Tag/component and custom multi-select values
 can be names or IDs; ambiguous names are rejected. The server decides which
-labels a project/workflow permits. Typed planning flags write the task fields;
-they do not create or reschedule a Gantt object. Readback must confirm what was
-written; server-side scheduling propagation is not claimed.
+labels a project/workflow permits. Typed planning flags write the task's own
+planned dates. The Gantt chart keeps a separate schedule (`op_gantt_task`,
+aligned to the working calendar) that these writes do not move; `task get`
+prints it as a `gantt schedule` line. Readback compares dates in the server's
+datetime form; a datetime or markup it cannot confirm gives a note on stderr.
 
 `task watch/unwatch CODE [--login LOGIN]` changes task spectators, defaulting to
 self. Repeated calls are no-ops. Groups and departments are not resolved by
@@ -72,8 +74,11 @@ keeps the already-created comment and names the failed file.
 
 `doc attach/attachments` use the same upload/name-collision checks as tasks.
 `attachment delete ATT-1 --yes` confirms removal through the API; it does not
-promise physical erasure of stored bytes. `doc download-all` is not implemented:
-archive layout and extraction safety are not established.
+promise physical erasure of stored bytes. Attachments that share a file name on
+one parent share the stored file, so deleting one of them needs `--force`.
+`doc download-all CODE [-o DIR]` downloads each attachment into DIR (default
+CODE/), checking every target name before the first write. It does not call
+`CmfDocument.download_all_attachment`, which stores its zip as a new attachment.
 
 `task history` contains status transitions only, newest first. `task checklist`
 shows each checklist and a page of its ordered items. `task check CHLI-1` sets
@@ -143,9 +148,10 @@ compilation remain outside this interface.
 
 `doc followers` and the default document text view show explicit followers
 readable to the account. These differ from spectators, implicit notification
-recipients and page viewers. **No `doc watch` write is shipped**: the separate
-`CmfFollower` model is confirmed, but its write/permission contract has not been
-verified. Issue #68 stays open; do not substitute a spectator update.
+recipients and page viewers. `doc watch CODE [--children] [--off]` creates,
+updates or deletes your own `CmfFollower` record and reads it back; on the
+server these records are made by the person who follows, so there is no
+`--login`. Repeats are no-ops. Task spectators are a different mechanism.
 
 ## Preview, bulk operations and recovery
 

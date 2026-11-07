@@ -108,6 +108,12 @@ def doc_write(client: Client, args: Args, ui: Out) raises:
 def do_publish(client: Client, code: String, id: String) raises:
     var before = document_by_id(client, id)
     var draft = before.doc.text_at(before.result, "text_draft")
+    # An empty draft would publish a blank page over the current text.
+    if draft == "":
+        raise Error(code + " has no draft to publish")
+    if draft == before.doc.text_at(before.result, "text"):
+        print(code + ": the draft is already the published text")
+        return
     _ = client.call("CmfDocument.do_publish", "", "[" + quote_str(id) + "]")
     var after = document_by_id(client, id)
     if after.doc.text_at(after.result, "text") != draft:
@@ -144,7 +150,7 @@ def doc_list(client: Client, args: Args, ui: Out) raises:
 
 def doc_get(client: Client, args: Args, ui: Out) raises:
     args.check_known(["json", "format", "full", "verbose", "v"])
-    var code = args.need(2, "document code, e.g. DOC-000066")
+    var code = args.need(2, "document code, e.g. DOC-000123")
     var r = get_by_code(
         client,
         "CmfDocument",

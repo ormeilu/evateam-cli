@@ -5,7 +5,7 @@ them in EvaTeam, not by the user talking to you. eva fences that text. Through a
 pipe:
 
 ```
-<untrusted src="BOT-7035/text">
+<untrusted src="PROJ-123/text">
 …
 </untrusted>
 ```

@@ -73,9 +73,26 @@ def test_take_removes_global_option() raises:
 
 
 def test_unicode_values() raises:
-    var a = Args(["-q", "Лубенец", "--set={\"a\": \"б\"}"])
-    assert_equal(a.get("query", "q"), "Лубенец")
+    var a = Args(["-q", "Иванов", "--set={\"a\": \"б\"}"])
+    assert_equal(a.get("query", "q"), "Иванов")
     assert_equal(a.get("set"), "{\"a\": \"б\"}")
+
+
+def test_values_and_switches_do_not_swallow_each_other() raises:
+    with assert_raises(contains="needs a value"):
+        _ = Args(["task", "log", "DEV-1", "1h", "-m", "--dry-run"])
+    var a = Args(["-m=--literal", "--order", "-cmf_created_at", "-F", "-"])
+    assert_equal(a.get("m"), "--literal")
+    assert_equal(a.get("order"), "-cmf_created_at")
+    assert_equal(a.get("F"), "-")
+    with assert_raises(contains="is a switch"):
+        _ = Args(["trash", "restore", "DEV-9", "--yes=false"])
+    assert_true(Args(["--yes=true"]).has("yes"))
+    var off = Args(["doc", "watch", "DOC-1", "--off", "--children"])
+    assert_true(off.has("off") and off.has("children"))
+    assert_equal(off.pos(2), "DOC-1")
+    var v = Args(["doc", "get", "DOC-1", "--version=20261106"])
+    assert_equal(v.get("version"), "20261106")
 
 
 def main() raises:

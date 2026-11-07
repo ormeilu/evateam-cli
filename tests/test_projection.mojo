@@ -113,12 +113,19 @@ def test_shared_date_validation() raises:
 def test_bql_shapes_are_data_not_code() raises:
     var d = JsonDoc()
     for good in [
-        "[]",
         '["code","==","X"]',
         '["OR",["name","ILIKE","%x%"],["text","ILIKE","%x%"]]',
     ]:
         validate_bql(d, d.parse(String(good)))
-    for bad in ['{"code":"X"}', '["OR"]', '["code"]', "[1,2,3]"]:
+    # [] would match every task, so a saved filter of [] must not reach a bulk.
+    for bad in [
+        '{"code":"X"}',
+        '["OR"]',
+        '["code"]',
+        "[1,2,3]",
+        "[]",
+        '["AND",[]]',
+    ]:
         with assert_raises():
             validate_bql(d, d.parse(String(bad)))
 

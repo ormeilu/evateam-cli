@@ -14,7 +14,10 @@ from eva.common import (
 )
 from eva.task_options import person_id
 from eva.selection import collect_rows
+from std.sys import stderr
+
 from eva.attachments import task_attach
+from eva.validation import text_confirmed
 from eva.json import JsonDoc, J_OBJ
 from eva.render import Out
 
@@ -100,6 +103,7 @@ def comment_write(client: Client, args: Args, ui: Out) raises:
         )
     var html = body_html(args, text)
     var paths = List[String]()
+    var names = Dict[String, Bool]()
     for i in range(len(args.keys)):
         if args.keys[i] == "attach":
             var path = args.values[i]
@@ -108,6 +112,17 @@ def comment_write(client: Client, args: Args, ui: Out) raises:
                     _ = f.read_bytes()
             except e:
                 raise Error("cannot read " + path + ": " + String(e))
+            # Checked here as well as in task_attach: there it would come
+            # after the comment exists.
+            var slash = path.rfind("/")
+            var name = String(path[byte = slash + 1 :]) if slash >= 0 else path
+            if name in names:
+                raise Error(
+                    "two files in this batch have the same name "
+                    + name
+                    + "; attach them separately or rename one"
+                )
+            names[name] = True
             paths.append(path)
     var d = JsonDoc()
     var kw = d.object()
@@ -134,13 +149,13 @@ def comment_write(client: Client, args: Args, ui: Out) raises:
     var r = client.call("CmfComment.create", d.dump(kw))
     var id = r.doc.text(r.result)
     var got = comment_by_id(client, id)
-    if got.doc.text_at(got.result, "text") != html:
-        raise Error(
-            "comment created as "
-            + id
-            + ", but readback did not confirm its text"
-        )
     print("commented on " + ui.bold(code) + "  " + id)
+    # The comment exists either way: failing here would invite a duplicate.
+    if not text_confirmed(html, got.doc.text_at(got.result, "text")):
+        print(
+            "note: " + id + " reads back with different text; check it",
+            file=stderr,
+        )
     if len(paths) > 0:
         var raw: List[String] = ["task", "attach", id]
         for path in paths:
@@ -165,7 +180,7 @@ def comment_edit(client: Client, args: Args, ui: Out) raises:
     d.set_str(kw, "text", html)
     _ = client.call("CmfComment.update", d.dump(kw), "[" + quote_str(id) + "]")
     var got = comment_by_id(client, id)
-    if got.doc.text_at(got.result, "text") != html:
+    if not text_confirmed(html, got.doc.text_at(got.result, "text")):
         raise Error(id + ": edit returned, but text was not confirmed")
     print("edited " + id + "; EvaTeam controls the edited marker")
 

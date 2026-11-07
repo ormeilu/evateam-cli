@@ -82,6 +82,9 @@ def task_link(client: Client, args: Args, ui: Out) raises:
     if r.doc.len(r.result) >= 1000:
         raise Error("too many matching links to modify safely")
     if args.pos(1) == "link":
+        if r.doc.len(r.result) > 0:
+            print("already linked " + src + " → " + dst + "  " + kind)
+            return
         if r.doc.len(r.result) == 0:
             var d = JsonDoc()
             var fields = d.object()
@@ -94,6 +97,17 @@ def task_link(client: Client, args: Args, ui: Out) raises:
             raise Error("link creation was not confirmed")
         print("linked " + src + " → " + dst + "  " + kind)
     else:
+        if r.doc.len(r.result) == 0:
+            print(
+                "no "
+                + kind
+                + " link "
+                + src
+                + " → "
+                + dst
+                + "; nothing to remove"
+            )
+            return
         for i in range(r.doc.len(r.result)):
             var id = r.doc.text_at(r.doc.at(r.result, i), "id")
             _ = client.call(

@@ -74,7 +74,9 @@ eva call CmfTask.get --kwargs '{"filter":["code","==","DEMO-1"],"fields":["code"
 Small raw results remain pretty-printed JSON. Through a pipe, a result larger
 than 65,536 bytes goes to a unique private JSON file. Stdout contains the first
 40 lines (at most 160 characters each), byte/line statistics and the file path.
-`--full` and terminal output preserve complete JSON. Only the API result is
+`--full`, terminal output and a redirect to a regular file (`> out.json`)
+preserve complete JSON; if the spill file cannot be written, the whole result is
+printed with a note on stderr. Only the API result is
 saved, not the request/envelope/authorization token. Results can themselves
 contain sensitive data; protect and delete spill files. They do not expire
 or get overwritten automatically.

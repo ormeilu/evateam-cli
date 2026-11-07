@@ -1,7 +1,7 @@
 """Visible work-log totals, grouped locally by project and start-date day."""
 from eva.args import Args
 from eva.client import Client
-from eva.dates import parse_day, date_text, fmt_minutes
+from eva.dates import parse_day, date_text, fmt_minutes, minutes_of
 from eva.task_options import person_id
 from eva.selection import collect_rows
 from eva.json import JsonDoc
@@ -81,7 +81,7 @@ def time_report(client: Client, args: Args, ui: Out) raises:
             indices[key] = len(groups)
             groups.append(TimeGroup(project, date, 0, 0, 0))
         var index = indices[key]
-        var minutes = Int(rows.doc.text_at(row, "time_spent"))
+        var minutes = minutes_of(rows.doc.text_at(row, "time_spent"))
         var kind = rows.doc.text_at(row, "history_type")
         if kind == "fact":
             groups[index].actual += minutes

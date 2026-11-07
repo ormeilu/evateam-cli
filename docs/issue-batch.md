@@ -3,25 +3,28 @@
 Snapshot: November 7, 2026, issues #36–#80. One PR carries the whole batch;
 “implemented” below means the documented command contract is exercised against
 loopback fixtures, not that every live-server version has been mutation-tested.
-No live tracker writes were used to validate this batch.
+Validation used read-only API calls, plus one approved live `doc watch`
+subscribe/unsubscribe on the author's own document. One read-intended call,
+`CmfDocument.download_all_attachment`, turned out to be a write: it stores the
+zip it builds as a new attachment on the document. That is why `doc download-all`
+does not use it.
 
-Three issues remain partial and must not receive closing keywords: #38 (the
-conditional archive wrapper), #44 (Gantt propagation), and #68 (subscription
-writes). Read-only API discovery confirmed the underlying models used for wiki,
-project roles, EvaTest, queues/SLA and saved JSON filters. Unverified behavior is
-not replaced with a guessed API or a successful-looking empty answer.
+Read-only API discovery confirmed the underlying models used for wiki, project
+roles, EvaTest, queues/SLA, saved JSON filters, document followers and the Gantt
+schedule. Unverified behavior is not replaced with a guessed API or a
+successful-looking empty answer.
 
 | Issue | State | Delivered contract / remaining limit | Regression evidence |
 |---|---|---|---|
 | #36 | implemented | Wiki drafts, explicit publish, published-text readback | `test_document_draft_and_explicit_publish` |
 | #37 | implemented | Document comments use the task reader/writer and thread rules | `test_document_comments_and_attachments` |
-| #38 | partial | Document attachment list/upload, shared collision and cleanup checks; archive layout/extraction not verified, no download-all wrapper | `test_document_comments_and_attachments` |
+| #38 | implemented | Document attachment list/upload with the task safeguards; `doc download-all` fetches each attachment after checking every target name, and avoids the archive call because it writes | `test_document_comments_and_attachments`, `test_document_download_all_is_one_download_per_file` |
 | #39 | implemented | Typed directional links, unlink, duplicate/absent no-ops | `test_links_types_and_noops` |
 | #40 | implemented | Sprint discovery/cards and additive task membership | `test_sprints_releases_and_membership` |
 | #41 | implemented | Release discovery/cards and additive membership; no shipping action | `test_sprints_releases_and_membership` |
 | #42 | implemented | Person spectators, self/login resolution and repeated watch/unwatch | `test_watch_unwatch_idempotent` |
 | #43 | implemented | Priority captions, points, dates, alarm and existing raw fields | `test_task_planning_participants_and_tags` |
-| #44 | partial | Validated typed task-field writes and readback; no claim that these create/reschedule a Gantt object | `test_task_planning_participants_and_tags` |
+| #44 | implemented | Typed planning writes, read back in the server's datetime form. On the supported server task planned dates and the Gantt schedule (`op_gantt_task.sched_*`) are stored independently: most tasks with planned dates have no Gantt schedule, and where both exist they differ. The flags write the card; `task get` shows the Gantt schedule on its own line | `test_task_planning_participants_and_tags`, `test_readback_accepts_server_datetime_form` |
 | #45 | implemented | Checklist progress, ordered items, DONE/OPEN tick/undo | `test_checklists_and_template` |
 | #46 | implemented | Template creation, prevalidated overrides and post-create update | `test_checklists_and_template` |
 | #47 | implemented | Status-only history, descending dates, bounded page | `test_read_history_time_dev_notifications` |
@@ -45,7 +48,7 @@ not replaced with a guessed API or a successful-looking empty answer.
 | #65 | implemented | Component display/list/filter and shared multi-select name/ID resolution | `test_components_saved_filters_and_subscriptions` |
 | #66 | implemented | Own saved JSON BQL with model/name validation; null/malformed/UBQL-only definitions fail closed | `test_components_saved_filters_and_subscriptions` |
 | #67 | implemented | Complete visible period aggregation by project/day; fact/plan/other kept separate | `test_time_report_grouped_visible_minutes`, `test_complete_selection_pages_and_bulk_cap` |
-| #68 | partial | Explicit followers are readable; CmfFollower create/delete and permission contracts remain unverified | `test_components_saved_filters_and_subscriptions` |
+| #68 | implemented | `doc watch` creates, updates or deletes the caller's own `CmfFollower` (`parent`, `person`, `follow_children`) and reads it back; repeats are no-ops. Existing follower records on the supported server are all made by the person who follows, so there is no `--login`. Checked once on the live server: subscribe, repeat, unsubscribe and repeat on one of the author's own documents, with readback after each write | `test_components_saved_filters_and_subscriptions`, `test_doc_watch_is_self_service_and_idempotent` |
 | #69 | implemented | Shared private principal-scoped metadata cache, local schema filtering and tested offline class catalog | `test_schema_filters_locally_refreshes_and_keeps_only_metadata`, `test_schema_catalog_covers_literal_model_call_sites` |
 | #70 | implemented | Six task write previews with resolved methods/kwargs and no mutation; not validate-only | `test_write_previews_never_mutate` |
 | #71 | implemented | Ordered deduplicated text-card sections reusing readers; not a single-RPC optimization | `test_json_projection_columns_and_comment_windows` |
@@ -74,8 +77,30 @@ not replaced with a guessed API or a successful-looking empty answer.
   name written by its earlier update instead of the stale original fixture name.
 - A move to the existing status is now an explicit no-op. Transition-only
   fields/comments/resolution are refused in that case instead of silently lost.
-- Duplicate filenames within an upload batch are rejected before creation;
-  collision discovery is paginated rather than silently stopping at 2,000.
+- Duplicate filenames within an upload batch are rejected before creation,
+  including `--attach` on a new comment; collision discovery is paginated rather
+  than silently stopping at 2,000.
+- Readback compares datetimes by date and minute, numbers by value and markup by
+  its visible text. A datetime or markup value it still cannot confirm prints a
+  note on stderr instead of failing a write that happened. A comment whose text
+  reads back differently is reported, not failed, so a retry does not post it
+  twice.
+- `task update -s STATUS -m/--resolution` on a task already in STATUS refuses
+  before any field is written; `-m` without `-s` is refused instead of dropped.
+- An option value that starts with `--` is refused (`-m=--text` passes one), and
+  switches refuse `=value`, so `--yes=false` is an error rather than a yes.
+- An empty BQL expression is refused everywhere, so a saved filter of `[]`
+  cannot select every task for a bulk change.
+- `attachment delete` needs `--force` when another attachment on the same parent
+  shares the file name, since they share the stored file.
+- `doc publish` refuses an empty draft and is a no-op when the draft is already
+  the published text.
+- Repeated `task link`/`unlink` say "already linked"/"nothing to remove".
+- `eva call` redirected to a regular file prints the whole reply; only pipes get
+  the bounded preview. If the private spill file cannot be written, the whole
+  reply is printed with a note.
+- The diagnostics cache opens with the right `O_NOFOLLOW`/`O_DIRECTORY` values
+  on Linux arm64.
 
 ## Verification entrypoints
 

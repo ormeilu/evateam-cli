@@ -16,7 +16,7 @@ from eva.common import (
 from eva.json import JsonDoc
 from eva.render import Out
 from eva.task_options import person_id
-from eva.dates import fmt_minutes
+from eva.dates import fmt_minutes, minutes_of
 
 
 def filter_eq(field: String, value: String) -> String:
@@ -264,7 +264,7 @@ def task_time(client: Client, args: Args, ui: Out) raises:
     for i in range(r.doc.len(r.result)):
         var row = r.doc.at(r.result, i)
         var kind = r.doc.text_at(row, "history_type")
-        var minutes = Int(r.doc.text_at(row, "time_spent"))
+        var minutes = minutes_of(r.doc.text_at(row, "time_spent"))
         if kind == "fact":
             actual += minutes
         elif kind == "plan" or kind == "plan_oper":
@@ -284,13 +284,21 @@ def task_time(client: Client, args: Args, ui: Out) raises:
             code + "/time/" + r.doc.text_at(row, "code"),
             escape_text(r.doc.text_at(row, "text")).replace("\n", "<br>"),
         )
-    print(
-        "visible page total: "
-        + fmt_minutes(actual)
-        + " actual, "
-        + fmt_minutes(planned)
-        + " planned; only entries this account may read"
-    )
+    if args.has("all"):
+        print(
+            "visible page total: "
+            + fmt_minutes(actual)
+            + " actual, "
+            + fmt_minutes(planned)
+            + " planned; only entries this account may read"
+        )
+    else:
+        print(
+            "visible page total: "
+            + fmt_minutes(actual)
+            + " actual; --all adds planned entries; only entries this"
+            " account may read"
+        )
     page_footer(
         client, args, ui, "CmfTimeTrackerHistory", filter, r.doc.len(r.result)
     )

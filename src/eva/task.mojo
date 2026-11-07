@@ -18,7 +18,7 @@ from eva.common import (
     footer,
     quote_str,
 )
-from eva.workflow import find_resolution, move_task
+from eva.workflow import find_resolution, move_task, refuse_noop_move
 from eva.fields import MultiSelect, multiselect_fields, resolve_set, value_names
 from eva.filters import task_filter_text
 from eva.validation import require_fields
@@ -38,6 +38,7 @@ comptime TASK_FIELDS = (
     "parent_task.code,parent_task.name,child_tasks.code,child_tasks.name,"
     "child_tasks.status.name,child_tasks.cache_status_type,child_tasks.responsible.login,"
     "attachments.code,attachments.file_name,priority,agile_story_points,plan_start_date,plan_end_date,alarm_date,"
+    "op_gantt_task.sched_start_date,op_gantt_task.sched_finish_date,"
     "spectators.login,spectators.name,executors.login,executors.name,waiting_for.login,waiting_for.name,"
     "tags.name,components.name,fix_versions.code,fix_versions.name,lists.code,lists.name,"
     "checklists_items_count,checklists_items_done_count"
@@ -206,6 +207,19 @@ def task_get(client: Client, args: Args, ui: Out) raises:
             + d.text_at(t, "plan_start_date")
             + " → "
             + d.text_at(t, "plan_end_date")
+        )
+    # The Gantt chart schedules its own copy of the task: writing the planned
+    # dates does not move it, and its dates follow the working calendar.
+    if (
+        d.text_at(t, "op_gantt_task.sched_start_date") != ""
+        or d.text_at(t, "op_gantt_task.sched_finish_date") != ""
+    ):
+        print(
+            "gantt schedule: "
+            + d.text_at(t, "op_gantt_task.sched_start_date")
+            + " → "
+            + d.text_at(t, "op_gantt_task.sched_finish_date")
+            + "  (separate from planned dates)"
         )
     if d.text_at(t, "alarm_date") != "":
         print("alarm: " + d.text_at(t, "alarm_date"))
@@ -787,6 +801,15 @@ def task_update(client: Client, args: Args, ui: Out) raises:
             "nothing to change: pass -t, -d or -F, -s, -a, --resolution or"
             " --set"
         )
+    var comment = args.get("comment", "m")
+    if comment != "" and status == "":
+        raise Error(
+            "-m is the comment of a status change and needs -s; for a comment"
+            " alone use eva task comment"
+        )
+    # Refuse before any field is written, not after.
+    if status != "" and (comment != "" or args.get("resolution", "r") != ""):
+        refuse_noop_move(client, code, status)
     if args.has("dry-run"):
         if len(changed) > 0:
             var id = id_of(client, "CmfTask", "code", code)

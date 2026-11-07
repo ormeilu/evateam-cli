@@ -252,9 +252,11 @@ verification off.
 | `eva doc comments CODE [--human] [--ids] [-n 20] [--page 1] [--all]` | same window and fencing as task comments |
 | `eva doc attachments CODE` | files attached to a document |
 | `eva doc attach CODE FILE [FILE...] [--force]` | same upload safeguards as task attach |
+| `eva doc download-all CODE [-o DIR] [--force]` | every attachment into a directory, one download each, no server-side archive |
 | `eva doc children CODE [--depth 1] [-n 25] [--page 1]` | document-only children; paginated per parent, depth capped at 10 |
 | `eva doc history CODE [-n 25] [--page 1]` | opaque version strings and history IDs, newest first |
-| `eva doc followers CODE [-n 25] [--page 1]` | explicit followers only; no unverified doc watch write |
+| `eva doc followers CODE [-n 25] [--page 1]` | explicit followers only, not viewers or implicit recipients |
+| `eva doc watch CODE [--children] [--off] [--dry-run]` | follow a document as yourself; `--children` adds the pages under it, `--off` stops |
 | `eva sprint list [-p PROJ] [-s open\|closed\|all]` | discover sprint codes |
 | `eva sprint get CODE [-n 25] [--page 1]` | sprint metadata and its tasks |
 | `eva sprint add CODE TASK [TASK...]` | append tasks without replacing their other sprints |
@@ -300,14 +302,20 @@ fields; `--json` without projection keeps the result.
 `--co-assignee` and `--tag` replace the set; `none` clears it. Repeated flags
 supply several values. Sprint/release `add` appends instead of replacing.
 
+Planned dates are written to the task card. The Gantt chart keeps its own
+schedule, aligned to the working calendar, and `--plan-start` does not move it;
+`task get` prints it on a separate `gantt schedule` line.
+
 `--dry-run` previews task create/update/move/log/attach/comment without mutations.
 It resolves references but does not validate server permissions or workflow rules.
 Bulk operations preview unless `--yes` is present, cap the resolved set at 1,000,
 and report each failure; successful writes are not rolled back.
 
-Document subscription writes remain unverified (#68): `doc followers` reads
-explicit subscriptions, not implicit recipients or page readers. No `doc watch`
-mutation is shipped. See [scope and verification notes](docs/backlog.md),
+`doc watch` subscribes only you: on the server each follower record is made by
+the person who follows. Repeating it changes nothing. `doc followers` reads
+explicit subscriptions, not implicit recipients or page readers.
+`doc download-all` avoids the server's archive call, which stores its zip as a
+new attachment on the document. See [scope and verification notes](docs/issue-batch.md),
 [reading](plugin/skills/eva/reading.md), [writing](plugin/skills/eva/writing.md)
 and the [expanded reference](plugin/skills/eva/expanded.md).
 
