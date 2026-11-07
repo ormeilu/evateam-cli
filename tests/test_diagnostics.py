@@ -19,6 +19,7 @@ from eva.args import Args
 from eva.client import Reply, Config, Client
 from eva.json import JsonDoc
 from eva.render import Out
+from eva.term import read_all
 
 def main() raises:
     var raw = argv()
@@ -28,10 +29,10 @@ def main() raises:
         print(public_address(String(raw[2])))
     elif raw[1] == "raw":
         var d = JsonDoc()
-        var root = d.parse(raw[2])
+        var root = d.parse(read_all())
         var r = Reply(d^, root)
         var opts = List[String]()
-        for i in range(3, len(raw)):
+        for i in range(2, len(raw)):
             opts.append(raw[i])
         var args = Args(opts)
         var ui = Out(args.has("full"))
@@ -91,7 +92,11 @@ class DiagnosticsTests(unittest.TestCase):
 
     def run_driver(self, *args, env=None):
         target = os.environ.get("EVA_BIN") if args[0] in ("schema", "context", "cheatsheet") else None
-        return subprocess.run([str(Path(target).resolve()) if target else str(self.bin), *args], cwd=self.work, env=env, text=True, capture_output=True, timeout=30)
+        # Raw fixtures can exceed Linux's per-argument limit even when their
+        # decoded result is small (for example ASCII-escaped Unicode JSON).
+        payload = args[1] if args[0] == "raw" else None
+        command_args = (args[0], *args[2:]) if args[0] == "raw" else args
+        return subprocess.run([str(Path(target).resolve()) if target else str(self.bin), *command_args], input=payload, cwd=self.work, env=env, text=True, capture_output=True, timeout=30)
 
     def test_context_address_hides_url_secrets(self):
         result = self.run_driver("address", "https://someone:password@example.invalid:8443/private-token?api_key=secret#secret")
