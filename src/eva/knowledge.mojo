@@ -9,7 +9,6 @@ from eva.client import Client
 from eva.common import (
     get_by_code,
     id_of,
-    quote_str,
     split_csv,
     print_json,
     want_json,
@@ -17,7 +16,7 @@ from eva.common import (
     like_filter,
 )
 from eva.resources import filter_eq, page_rows, page_footer, escape_text
-from eva.json import JsonDoc, J_OBJ
+from eva.json import JsonDoc
 from eva.render import Out
 
 

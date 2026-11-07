@@ -1,19 +1,18 @@
 """Relations, checklists and creation from task templates."""
 from eva.args import Args
 from eva.writes import preview_write
-from eva.client import Client, Reply
+from eva.client import Client
 from eva.common import (
     get_by_code,
     id_of,
     quote_str,
     split_csv,
     simple_list,
-    print_json,
     want_json,
 )
 from eva.task import build_update, task_by_id
 from eva.validation import require_fields
-from eva.json import JsonDoc, J_OBJ
+from eva.json import JsonDoc
 from eva.render import Out
 from eva.resources import filter_eq, page_rows, page_footer
 

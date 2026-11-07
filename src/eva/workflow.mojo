@@ -1,25 +1,15 @@
 """Task transitions and resolutions."""
 from eva.args import Args
 from eva.writes import preview_write
-from eva.client import Client, Reply
-from eva.json import JsonDoc, NO_NODE, J_ARR, J_OBJ
-from eva.render import Out, pad, clip, text_to_html, markdown_to_html
+from eva.client import Client
+from eva.json import JsonDoc, J_OBJ
+from eva.render import Out, pad, text_to_html
 from eva.common import (
     split_csv,
-    fields_from,
-    code_kwargs,
     get_by_code,
-    id_of,
-    text_from,
-    body_html,
     print_json,
     want_json,
-    person,
-    page_slice,
-    footer,
     quote_str,
-    simple_list,
-    like_filter,
 )
 
 
