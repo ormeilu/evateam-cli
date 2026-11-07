@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/ormeilu/evateam-cli/compare/v0.9.1...v0.10.0) (2026-11-07)
+
+
+### Features
+
+* periodic update check with a once-a-day notice ([1938254](https://github.com/ormeilu/evateam-cli/commit/1938254e61ef39fc0975046d66fd5dea8bfac297))
+
 ## [0.9.1](https://github.com/ormeilu/evateam-cli/compare/v0.9.0...v0.9.1) (2026-11-07)
 
 
