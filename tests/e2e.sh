@@ -163,12 +163,12 @@ check "comment"                "commented on DEV-1"            -- $eva task comm
 sent  "comment escaped"        '"text":"<p>&lt;b&gt;hi&lt;/b&gt;</p>"'
 check "comments"               "Воспроизвёл"                   -- $eva task comments DEV-1
 check "web UI comment shown"   "Из веб-интерфейса"             -- $eva task comments DEV-1
-check "comments tally"         "4 comments"                    -- $eva task comments DEV-1
+check "comments tally"         "5 comments"                    -- $eva task comments DEV-1
 sent  "comments by task"       '"filter":[["parent_id","==","CmfTask:1"]]'
 check "comments oldest first"  "Статус изменен на Done
 </untrusted>
 2026-11-02T13:00:00+03:00"                                      -- $eva task comments DEV-1
-check "comments human"         "2 comments by people, 2 workflow and system entries hidden" -- $eva task comments DEV-1 --human
+check "comments human"         "3 comments by people, 2 workflow and system entries hidden" -- $eva task comments DEV-1 --human
 no    "human hides workflow"   "Статус изменен"                -- $eva task comments DEV-1 --human
 check "comments ids"           "QA  CmfComment:c1"             -- $eva task comments DEV-1 --ids
 check "comment needs text"     "missing comment text"          -- $eva task comment DEV-1
@@ -216,7 +216,7 @@ check "bad token"              "the token was rejected"              -- env EVA_
 check "bad option"             "unknown option --bogus"        -- $eva task list --bogus 1
 check "bad duration"           "cannot read a duration"        -- $eva task log DEV-1 abc
 # By name, so getaddrinfo and its platform's struct layout are exercised.
-check "hostname resolves"      "DEV-1  Вложения теряются"     -- env EVA_URL="http://localhost:$(cat "$port_file")" $eva task get DEV-1
+check "hostname resolves"      "DEV-1  Renamed"     -- env EVA_URL="http://localhost:$(cat "$port_file")" $eva task get DEV-1
 check "unreachable"            "cannot reach"                  -- env EVA_URL=http://127.0.0.1:9 $eva task get DEV-1
 
 # ---- security ----
@@ -277,4 +277,5 @@ if command -v openssl >/dev/null 2>&1; then
 else
   echo "skip TLS checks: no openssl"
 fi
+if ! EVA_BIN="$eva" python -m unittest discover -s tests -p 'test_*.py' -v; then fail=1; fi
 exit $fail

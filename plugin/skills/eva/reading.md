@@ -18,8 +18,10 @@ names are EvaTeam's: `name`, `deadline`, `cmf_created_at`, `cache_status_type`,
 and dotted paths through relations such as `responsible.login` or `status.name`.
 A relation named without a dot prints as JSON.
 
-`--json` prints the API's own reply instead of text. Use it when a field is not
-in the text view; it is several times longer.
+`--json` alone prints the API result. With task `--fields` or list `--cols`,
+it projects only the requested nested paths, excluding implicit API fields.
+`--cols code,status.name --format tsv` prints data rows only. See `expanded.md`
+for nested arrays, escaping and paging.
 
 ## Searching
 
@@ -40,8 +42,9 @@ Rows are code, status, assignee and name, then `shown N of M`. When more exist
 the tally ends `next: --page K`; keep paging or narrow the filter before you
 conclude anything about the whole set.
 
-`--filter` adds one raw condition in EvaTeam's BQL for what the flags cannot
-say. A condition is `[field, operator, value]`. Operators are upper case: `==`,
+`--filter` adds raw JSON BQL, or resolves your own saved filter by its RFBF
+code/exact name (`eva filter list`). Saved filters use stored computed JSON BQL;
+missing/UBQL-only bodies fail rather than becoming an unrestricted query. A condition is `[field, operator, value]`. Operators are upper case: `==`,
 `!=`, `>`, `>=`, `<`, `<=`, `IN` and `NOT IN` (with a list), `LIKE` and
 `ILIKE` (case-insensitive, `%` as the wildcard), `EXISTS`. An unknown one makes
 EvaTeam list the valid ones in its error.
@@ -54,7 +57,7 @@ eva task list -p dcc_bot --filter '["responsible.login", "IN", ["a@x.ru", "b@x.r
 ## Around a task
 
 ```bash
-eva task comments BOT-7035          # oldest first, each fenced as untrusted
+eva task comments BOT-7035          # latest 20, oldest-to-newest inside the window
 eva task comments BOT-7035 --human  # only what people wrote: no status
                                     # changes, field diffs or system entries
 eva task comments BOT-7035 --ids    # with ids, for comment-delete

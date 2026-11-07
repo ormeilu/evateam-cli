@@ -5,10 +5,13 @@ from std.ffi import external_call, c_int
 from std.os.path import exists
 
 from eva.args import Args
+from eva.selection import collect_rows
+from eva.writes import preview_write
 from eva.client import Client, Reply
-from eva.commands import id_of, print_json, quote_str, split_csv, want_json
+from eva.common import id_of, print_json, quote_str, split_csv, want_json
 from eva.json import JsonDoc, J_OBJ, clean
 from eva.render import Out, pad
+from eva.term import stdin_is_tty, prompt_line
 
 comptime ATTACHMENT_FIELDS = "id,code,file_name,file_type,st_size,embedded,cmf_created_at,cmf_author.name,parent_id,url"
 
@@ -40,8 +43,7 @@ def safe_file_name(name: String, fallback: String) -> String:
     while trimmed.startswith("."):
         var rest = String(trimmed[byte=1:])
         trimmed = rest
-    out = trimmed
-    return out if out != "" else fallback
+    return trimmed if trimmed != "" else fallback
 
 
 def attachment_kwargs(ref_: String, fields: String) raises -> String:
@@ -49,14 +51,18 @@ def attachment_kwargs(ref_: String, fields: String) raises -> String:
     var d = JsonDoc()
     var kw = d.object()
     var v = d.string(ref_)
-    var f = d.triple("id" if ref_.startswith("CmfAttachment:") else "code", "==", v)
+    var f = d.triple(
+        "id" if ref_.startswith("CmfAttachment:") else "code", "==", v
+    )
     d.set(kw, "filter", f)
     var fl = d.str_array(split_csv(fields))
     d.set(kw, "fields", fl)
     return d.dump(kw)
 
 
-def get_attachment(client: Client, ref_: String, fields: String) raises -> Reply:
+def get_attachment(
+    client: Client, ref_: String, fields: String
+) raises -> Reply:
     var r = client.call("CmfAttachment.get", attachment_kwargs(ref_, fields))
     if r.doc.is_null(r.result) or r.doc.kind(r.result) != J_OBJ:
         raise Error(ref_ + ": no such attachment, or no access to it")
@@ -66,7 +72,12 @@ def get_attachment(client: Client, ref_: String, fields: String) raises -> Reply
 def task_attachments(client: Client, args: Args, ui: Out) raises:
     args.check_known(["json", "format", "verbose", "v"])
     var code = args.need(2, "task code")
-    var task_id = id_of(client, "CmfTask", "code", code)
+    var cls = "CmfDocument" if (
+        args.pos(0) == "doc" or args.pos(0) == "docs"
+    ) else "CmfTask"
+    var task_id = code if code.startswith("CmfComment:") else id_of(
+        client, cls, "code", code
+    )
     var d = JsonDoc()
     var kw = d.object()
     var v = d.string(task_id)
@@ -83,41 +94,86 @@ def task_attachments(client: Client, args: Args, ui: Out) raises:
     var n = r.doc.len(r.result)
     for i in range(n):
         var a = r.doc.at(r.result, i)
-        var size = Int(r.doc.text_at(a, "st_size")) if r.doc.text_at(a, "st_size") != "" else 0
-        var line = ui.accent(pad(r.doc.text_at(a, "code"), 12)) + " " + pad(human_size(size), 8)
-        line += " " + String(r.doc.text_at(a, "cmf_created_at")[byte=0:10]) + "  " + r.doc.text_at(a, "file_name")
+        var size = (
+            Int(r.doc.text_at(a, "st_size")) if r.doc.text_at(a, "st_size")
+            != "" else 0
+        )
+        var line = (
+            ui.accent(pad(r.doc.text_at(a, "code"), 12))
+            + " "
+            + pad(human_size(size), 8)
+        )
+        line += (
+            " "
+            + String(r.doc.text_at(a, "cmf_created_at")[byte=0:10])
+            + "  "
+            + r.doc.text_at(a, "file_name")
+        )
         if r.doc.text_at(a, "embedded") == "true":
             line += ui.dim("  (image in the text)")
         print(line)
-    print(ui.dim(String(n) + (" attachment" if n == 1 else " attachments") + "; read one: eva attachment get ATT-…"))
+    print(
+        ui.dim(
+            String(n)
+            + (" attachment" if n == 1 else " attachments")
+            + "; read one: eva attachment get ATT-…"
+        )
+    )
 
 
 def attachment_get(client: Client, args: Args, ui: Out) raises:
     args.check_known(["json", "format", "full", "verbose", "v"])
-    var ref_ = args.need(2, "attachment code, e.g. eva attachment get ATT-190580")
+    var ref_ = args.need(
+        2, "attachment code, e.g. eva attachment get ATT-190580"
+    )
     var r = get_attachment(client, ref_, ATTACHMENT_FIELDS + ",text")
     if want_json(args):
         print_json(r)
         return
     ref d = r.doc
     var a = r.result
-    var size = Int(d.text_at(a, "st_size")) if d.text_at(a, "st_size") != "" else 0
+    var size = (
+        Int(d.text_at(a, "st_size")) if d.text_at(a, "st_size") != "" else 0
+    )
     print(ui.bold(d.text_at(a, "code")) + "  " + d.text_at(a, "file_name"))
-    print("type: " + d.text_at(a, "file_type") + "   size: " + human_size(size) + "   on: " + d.text_at(a, "parent_id"))
-    print(ui.dim("added: " + d.text_at(a, "cmf_created_at") + " by " + d.text_at(a, "cmf_author.name")))
+    print(
+        "type: "
+        + d.text_at(a, "file_type")
+        + "   size: "
+        + human_size(size)
+        + "   on: "
+        + d.text_at(a, "parent_id")
+    )
+    print(
+        ui.dim(
+            "added: "
+            + d.text_at(a, "cmf_created_at")
+            + " by "
+            + d.text_at(a, "cmf_author.name")
+        )
+    )
     var text = d.text_at(a, "text")
     if String(text.strip()) == "":
-        print(ui.dim("no extracted text; get the file: eva attachment download " + d.text_at(a, "code")))
+        print(
+            ui.dim(
+                "no extracted text; get the file: eva attachment download "
+                + d.text_at(a, "code")
+            )
+        )
         return
     # Plain text, not HTML: escape it so the fence's HTML reading keeps it as is.
-    var esc = String(text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+    var esc = String(
+        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    )
     ui.untrusted(d.text_at(a, "code") + "/text", esc.replace("\n", "<br>"))
 
 
 def _write_stdout(data: List[UInt8]) raises:
     var done = 0
     while done < len(data):
-        var n = external_call["write", Int](c_int(1), data.unsafe_ptr().unsafe_offset(done), len(data) - done)
+        var n = external_call["write", Int](
+            c_int(1), data.unsafe_ptr().unsafe_offset(done), len(data) - done
+        )
         if n <= 0:
             raise Error("cannot write to stdout")
         done += n
@@ -125,26 +181,45 @@ def _write_stdout(data: List[UInt8]) raises:
 
 def attachment_download(client: Client, args: Args, ui: Out) raises:
     args.check_known(["output", "o", "force", "verbose", "v"])
-    var ref_ = args.need(2, "attachment code, e.g. eva attachment download ATT-190580")
+    var ref_ = args.need(
+        2, "attachment code, e.g. eva attachment download ATT-190580"
+    )
     var r = get_attachment(client, ref_, ATTACHMENT_FIELDS)
     ref d = r.doc
     var a = r.result
     var code = d.text_at(a, "code")
-    var expected = Int(d.text_at(a, "st_size")) if d.text_at(a, "st_size") != "" else -1
+    var expected = (
+        Int(d.text_at(a, "st_size")) if d.text_at(a, "st_size") != "" else -1
+    )
     var out = args.get("output", "o")
     if out == "":
-        out = safe_file_name(d.text_at(a, "file_name"), code + d.text_at(a, "file_type"))
+        out = safe_file_name(
+            d.text_at(a, "file_name"), code + d.text_at(a, "file_type")
+        )
     if out != "-" and exists(out) and not args.has("force"):
-        raise Error(out + " already exists; pass --force to overwrite it, or -o another path")
+        raise Error(
+            out
+            + " already exists; pass --force to overwrite it, or -o another"
+            " path"
+        )
     var data = client.download(d.text_at(a, "url"))
     # A refusal comes back as a short JSON reply with HTTP 200. Files uploaded
     # through the API keep st_size 0, so a size of 0 says nothing.
     var head = String(from_utf8_lossy=Span(data)[0 : min(len(data), 200)])
     if expected > 0 and len(data) != expected:
         raise Error(
-            "got " + String(len(data)) + " bytes instead of " + String(expected) + "; the server said: " + clean(head)
+            "got "
+            + String(len(data))
+            + " bytes instead of "
+            + String(expected)
+            + "; the server said: "
+            + clean(head)
         )
-    if expected <= 0 and head.startswith('{"error"') and not d.text_at(a, "file_type").lower().endswith("json"):
+    if (
+        expected <= 0
+        and head.startswith('{"error"')
+        and not d.text_at(a, "file_type").lower().endswith("json")
+    ):
         raise Error("the server refused the download: " + clean(head))
     if out == "-":
         _write_stdout(data)
@@ -154,19 +229,75 @@ def attachment_download(client: Client, args: Args, ui: Out) raises:
     print("saved " + ui.bold(out) + " (" + human_size(len(data)) + ")")
 
 
+def attachment_delete(client: Client, args: Args, ui: Out) raises:
+    args.check_known(["yes", "y", "verbose", "v"])
+    var code = args.need(2, "attachment code")
+    var r = get_attachment(client, code, ATTACHMENT_FIELDS)
+    var id = r.doc.text_at(r.result, "id")
+    var what = (
+        code
+        + "  "
+        + r.doc.text_at(r.result, "file_name")
+        + " on "
+        + r.doc.text_at(r.result, "parent_id")
+    )
+    if not args.has("yes", "y"):
+        if not stdin_is_tty():
+            raise Error(
+                "removing "
+                + what
+                + " needs confirmation: run it in a terminal, or pass --yes"
+            )
+        var answer = prompt_line("remove " + what + "? [y/N] ").lower()
+        if (
+            answer != "y"
+            and answer != "yes"
+            and answer != "д"
+            and answer != "да"
+        ):
+            print("not removed")
+            return
+    _ = client.call("CmfAttachment.delete", "", "[" + quote_str(id) + "]")
+    var got = client.call(
+        "CmfAttachment.get", attachment_kwargs(id, "id,cmf_deleted")
+    )
+    if (
+        got.doc.kind(got.result) == J_OBJ
+        and got.doc.text_at(got.result, "cmf_deleted") != "true"
+    ):
+        raise Error(
+            code + ": delete returned, but the attachment is still visible"
+        )
+    print(
+        "removed "
+        + ui.bold(code)
+        + "; server deletion confirmed, not proof that stored bytes were erased"
+    )
+
+
 def _base_name(path: String) -> String:
     var i = path.rfind("/")
     return String(path[byte = i + 1 :]) if i >= 0 else path
 
 
 def task_attach(client: Client, args: Args, ui: Out) raises:
-    args.check_known(["force", "verbose", "v"])
+    args.check_known(["dry-run", "force", "verbose", "v"])
     var code = args.need(2, "task code")
     var paths = List[String]()
     for i in range(3, len(args.positionals)):
         paths.append(args.positionals[i])
     if len(paths) == 0:
         raise Error("usage: eva task attach CODE FILE [FILE...]")
+    var names = Dict[String, Bool]()
+    for path in paths:
+        var name = _base_name(path)
+        if name in names:
+            raise Error(
+                "two files in this batch have the same name "
+                + name
+                + "; attach them separately or rename one"
+            )
+        names[name] = True
     # Read everything first: a missing file stops before anything is created.
     var contents = List[List[UInt8]]()
     for p in paths:
@@ -175,34 +306,58 @@ def task_attach(client: Client, args: Args, ui: Out) raises:
                 contents.append(f.read_bytes())
         except e:
             raise Error("cannot read " + p + ": " + String(e))
-    var task_id = id_of(client, "CmfTask", "code", code)
+    var cls = "CmfDocument" if (
+        args.pos(0) == "doc" or args.pos(0) == "docs"
+    ) else "CmfTask"
+    var task_id = code if code.startswith("CmfComment:") else id_of(
+        client, cls, "code", code
+    )
     # EvaTeam keeps a task's files by name: a second file with the same name
     # replaces the first one's bytes, and deleting either removes both.
-    var existing = client.call(
-        "CmfAttachment.list",
-        '{"filter":[["parent_id","==",' + quote_str(task_id) + ']],"fields":["code","file_name","name"],"slice":[0,2000]}',
+    var existing = collect_rows(
+        client,
+        "CmfAttachment",
+        '["parent_id","==",' + quote_str(task_id) + "]",
+        "code,file_name,name",
+        10000,
     )
     var force = args.has("force")
     for p in paths:
         var name = _base_name(p)
         for j in range(existing.doc.len(existing.result)):
             var x = existing.doc.at(existing.result, j)
-            if existing.doc.text_at(x, "file_name") == name or existing.doc.text_at(x, "name") == name:
+            if (
+                existing.doc.text_at(x, "file_name") == name
+                or existing.doc.text_at(x, "name") == name
+            ):
                 if not force:
                     raise Error(
-                        code + " already has " + name + " (" + existing.doc.text_at(x, "code")
-                        + "); a file of the same name would replace it. Rename the file, or pass --force"
-                        " to replace it"
+                        code
+                        + " already has "
+                        + name
+                        + " ("
+                        + existing.doc.text_at(x, "code")
+                        + "); a file of the same name would replace it. Rename"
+                        " the file, or pass --force to replace it"
                     )
     for i in range(len(paths)):
         var name = _base_name(paths[i])
         var d = JsonDoc()
         var kw = d.object()
         d.set_str(kw, "name", name)
-        d.set_str(kw, "parent", code)
+        d.set_str(kw, "parent", task_id if cls == "CmfDocument" else code)
         # The server checks the size against its limit before the upload.
         var size_node = d.number(len(contents[i]))
         d.set(kw, "size", size_node)
+        if preview_write(
+            args.has("dry-run"), "CmfAttachment.create", d.dump(kw)
+        ):
+            print(
+                "upload "
+                + paths[i]
+                + " follows after the server supplies its attachment URL"
+            )
+            continue
         var created = client.call("CmfAttachment.create", d.dump(kw))
         var id = created.doc.text(created.result)
         try:
@@ -213,14 +368,23 @@ def task_attach(client: Client, args: Args, ui: Out) raises:
             # one that was there before (--force): deleting it would delete that.
             if not force:
                 try:
-                    _ = client.call("CmfAttachment.delete", "", "[" + quote_str(id) + "]")
+                    _ = client.call(
+                        "CmfAttachment.delete", "", "[" + quote_str(id) + "]"
+                    )
                 except:
                     pass
             raise Error(paths[i] + " was not attached: " + String(e))
         var got = get_attachment(client, id, "code,st_size")
         var size_text = got.doc.text_at(got.result, "st_size")
         var size = Int(size_text) if size_text != "" else -1
-        var line = "attached " + ui.bold(got.doc.text_at(got.result, "code")) + "  " + name + "  " + human_size(len(contents[i]))
+        var line = (
+            "attached "
+            + ui.bold(got.doc.text_at(got.result, "code"))
+            + "  "
+            + name
+            + "  "
+            + human_size(len(contents[i]))
+        )
         if size > 0 and size != len(contents[i]):
             line += ui.dim("  (the server reports " + String(size) + " bytes)")
         print(line)

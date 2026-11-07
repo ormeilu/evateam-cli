@@ -2,24 +2,22 @@ from std.testing import assert_equal, assert_true, assert_raises, TestSuite
 from std.os import getenv
 
 from eva.args import Args
-from eva.commands import (
+from eva.common import (
     body_html,
     code_kwargs,
-    comments_kwargs,
     fields_from,
     like_filter,
-    local_now,
     page_slice,
-    parse_minutes,
     person,
     quote_str,
-    shell_word,
     split_csv,
-    status_condition,
     text_from,
-    Transitions,
     want_json,
 )
+from eva.collaboration import comments_kwargs
+from eva.dates import local_now, parse_minutes
+from eva.task import status_condition
+from eva.workflow import Transitions, shell_word
 from eva.json import JsonDoc
 from eva.upgrade import dirname, shell_quote
 
@@ -37,11 +35,26 @@ def test_parse_minutes() raises:
 
 def test_status_condition() raises:
     var d = JsonDoc()
-    assert_equal(d.dump(status_condition(d, "open")), '["cache_status_type","!=","CLOSED"]')
-    assert_equal(d.dump(status_condition(d, "Closed")), '["cache_status_type","==","CLOSED"]')
-    assert_equal(d.dump(status_condition(d, "in_progress")), '["cache_status_type","==","IN_PROGRESS"]')
-    assert_equal(d.dump(status_condition(d, "in_review")), '["cache_status_type","==","IN_REVIEW"]')
-    assert_equal(d.dump(status_condition(d, "s7.in-dev")), '["status.code","==","s7.in-dev"]')
+    assert_equal(
+        d.dump(status_condition(d, "open")),
+        '["cache_status_type","!=","CLOSED"]',
+    )
+    assert_equal(
+        d.dump(status_condition(d, "Closed")),
+        '["cache_status_type","==","CLOSED"]',
+    )
+    assert_equal(
+        d.dump(status_condition(d, "in_progress")),
+        '["cache_status_type","==","IN_PROGRESS"]',
+    )
+    assert_equal(
+        d.dump(status_condition(d, "in_review")),
+        '["cache_status_type","==","IN_REVIEW"]',
+    )
+    assert_equal(
+        d.dump(status_condition(d, "s7.in-dev")),
+        '["status.code","==","s7.in-dev"]',
+    )
 
 
 def test_like_filter() raises:
@@ -51,12 +64,17 @@ def test_like_filter() raises:
         like_filter("name", "x", '["system", "==", false]'),
         '[["system","==",false],["name","ILIKE","%x%"]]',
     )
-    assert_equal(like_filter("name", "", '["system", "==", false]'), '["system","==",false]')
+    assert_equal(
+        like_filter("name", "", '["system", "==", false]'),
+        '["system","==",false]',
+    )
 
 
 def test_like_filter_quotes_input() raises:
     # A quote in the search text stays inside the JSON string.
-    assert_equal(like_filter("name", 'a"],["x', ""), '["name","ILIKE","%a\\"],[\\"x%"]')
+    assert_equal(
+        like_filter("name", 'a"],["x', ""), '["name","ILIKE","%a\\"],[\\"x%"]'
+    )
 
 
 def test_split_csv_and_fields() raises:
@@ -70,13 +88,20 @@ def test_split_csv_and_fields() raises:
 
 
 def test_code_kwargs_escapes() raises:
-    assert_equal(code_kwargs("DEV-1", [String("code")]), '{"filter":["code","==","DEV-1"],"fields":["code"]}')
-    assert_equal(code_kwargs('X"Y', List[String]()), '{"filter":["code","==","X\\"Y"]}')
+    assert_equal(
+        code_kwargs("DEV-1", [String("code")]),
+        '{"filter":["code","==","DEV-1"],"fields":["code"]}',
+    )
+    assert_equal(
+        code_kwargs('X"Y', List[String]()), '{"filter":["code","==","X\\"Y"]}'
+    )
 
 
 def test_page_slice() raises:
     var d = JsonDoc()
-    assert_equal(d.dump(page_slice(d, Args(["-n", "10", "--page", "3"]))), "[20,30]")
+    assert_equal(
+        d.dump(page_slice(d, Args(["-n", "10", "--page", "3"]))), "[20,30]"
+    )
     assert_equal(d.dump(page_slice(d, Args([]))), "[0,25]")
     with assert_raises(contains="start at 1"):
         _ = page_slice(d, Args(["--page", "0"]))
@@ -84,7 +109,9 @@ def test_page_slice() raises:
 
 def test_person_prefers_login() raises:
     var d = JsonDoc()
-    var r = d.parse('{"a": {"login": "l", "name": "N"}, "b": {"name": "Only"}, "c": null}')
+    var r = d.parse(
+        '{"a": {"login": "l", "name": "N"}, "b": {"name": "Only"}, "c": null}'
+    )
     assert_equal(person(d, r, "a"), "l")
     assert_equal(person(d, r, "b"), "Only")
     assert_equal(person(d, r, "c"), "-")
@@ -117,9 +144,13 @@ def test_shell_quote_and_dirname() raises:
 
 
 def test_body_html_modes() raises:
-    assert_equal(body_html(Args(["x"]), "<b>a</b>"), "<p>&lt;b&gt;a&lt;/b&gt;</p>")
+    assert_equal(
+        body_html(Args(["x"]), "<b>a</b>"), "<p>&lt;b&gt;a&lt;/b&gt;</p>"
+    )
     assert_equal(body_html(Args(["--html"]), "<b>a</b>"), "<b>a</b>")
-    assert_equal(body_html(Args(["--md"]), "**a**"), "<p><strong>a</strong></p>")
+    assert_equal(
+        body_html(Args(["--md"]), "**a**"), "<p><strong>a</strong></p>"
+    )
     with assert_raises(contains="exclude each other"):
         _ = body_html(Args(["--md", "--html"]), "a")
 
@@ -128,7 +159,10 @@ def test_text_from_file() raises:
     var path = String(getenv("TMPDIR", "/tmp")) + "/eva-text-from-test.md"
     with open(path, "w") as f:
         f.write("line one\n\nline 'two' \"quoted\"\n\n")
-    assert_equal(text_from(Args(["-F", path]), "", "the comment"), "line one\n\nline 'two' \"quoted\"")
+    assert_equal(
+        text_from(Args(["-F", path]), "", "the comment"),
+        "line one\n\nline 'two' \"quoted\"",
+    )
     assert_equal(text_from(Args(["x"]), "inline", "the comment"), "inline")
     with assert_raises(contains="not both"):
         _ = text_from(Args(["-F", path]), "inline", "the comment")
@@ -147,7 +181,10 @@ def test_comments_kwargs() raises:
     var people = comments_kwargs("CmfTask:1", True, [String("id")])
     assert_true(people.find('["log_level","==",0]') >= 0, people)
     # The count call sends the filter alone.
-    assert_equal(comments_kwargs("CmfTask:1", False, List[String]()), '{"filter":[["parent_id","==","CmfTask:1"]]}')
+    assert_equal(
+        comments_kwargs("CmfTask:1", False, List[String]()),
+        '{"filter":[["parent_id","==","CmfTask:1"]]}',
+    )
 
 
 def add(mut tr: Transitions, to: String, froms: String, limit: String = ""):

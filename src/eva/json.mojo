@@ -61,6 +61,11 @@ struct JsonDoc(Movable):
     def push(mut self, arr: Int, child: Int):
         self.nodes[arr].children.append(child)
 
+    def reverse_array(mut self, arr: Int) raises:
+        if self.kind(arr) != J_ARR:
+            raise Error("expected a JSON array")
+        self.nodes[arr].children.reverse()
+
     def set(mut self, obj: Int, key: String, child: Int):
         """Set `key` on an object, replacing an existing value."""
         for i in range(len(self.nodes[obj].keys)):
@@ -215,7 +220,12 @@ def clean(s: String) -> String:
         if (c < 0x20 and c != 0x09 and c != 0x0A) or c == 0x7F:
             dirty = True
             break
-        if c == 0xC2 and i + 1 < len(b) and Int(b[i + 1]) >= 0x80 and Int(b[i + 1]) <= 0x9F:
+        if (
+            c == 0xC2
+            and i + 1 < len(b)
+            and Int(b[i + 1]) >= 0x80
+            and Int(b[i + 1]) <= 0x9F
+        ):
             dirty = True
             break
     if not dirty:
@@ -227,7 +237,12 @@ def clean(s: String) -> String:
         if (c < 0x20 and c != 0x09 and c != 0x0A) or c == 0x7F:
             i += 1
             continue
-        if c == 0xC2 and i + 1 < len(b) and Int(b[i + 1]) >= 0x80 and Int(b[i + 1]) <= 0x9F:
+        if (
+            c == 0xC2
+            and i + 1 < len(b)
+            and Int(b[i + 1]) >= 0x80
+            and Int(b[i + 1]) <= 0x9F
+        ):
             i += 2
             continue
         out.append(b[i])
@@ -260,7 +275,7 @@ def write_quoted(s: String, mut out: String):
                 out += hex_digit(c & 15)
             start = i + 1
     if start < len(b):
-        out += String(s[byte=start : len(b)])
+        out += String(s[byte = start : len(b)])
     out += '"'
 
 
@@ -271,7 +286,7 @@ def quote(s: String) -> String:
 
 
 def hex_digit(v: Int) -> String:
-    return String("0123456789abcdef"[byte=v : v + 1])
+    return String("0123456789abcdef"[byte = v : v + 1])
 
 
 def hex_value(c: Int) raises -> Int:
@@ -315,7 +330,10 @@ struct Parser:
     def expect_word(mut self, word: String) raises:
         var w = word.as_bytes()
         for i in range(len(w)):
-            if self.pos + i >= len(self.data) or self.data[self.pos + i] != w[i]:
+            if (
+                self.pos + i >= len(self.data)
+                or self.data[self.pos + i] != w[i]
+            ):
                 self.fail("expected " + word)
         self.pos += len(w)
 
@@ -397,11 +415,18 @@ struct Parser:
         var start = self.pos
         while self.pos < len(self.data):
             var c = Int(self.data[self.pos])
-            if (c >= 0x30 and c <= 0x39) or c == 0x2D or c == 0x2B or c == 0x2E or c == 0x65 or c == 0x45:
+            if (
+                (c >= 0x30 and c <= 0x39)
+                or c == 0x2D
+                or c == 0x2B
+                or c == 0x2E
+                or c == 0x65
+                or c == 0x45
+            ):
                 self.pos += 1
             else:
                 break
-        return doc.number_text(String(self.src[byte=start : self.pos]))
+        return doc.number_text(String(self.src[byte = start : self.pos]))
 
     def hex4(mut self) raises -> Int:
         if self.pos + 4 > len(self.data):
@@ -422,14 +447,14 @@ struct Parser:
             var c = Int(self.data[self.pos])
             if c == 0x22:
                 if self.pos > start:
-                    out += String(self.src[byte=start : self.pos])
+                    out += String(self.src[byte = start : self.pos])
                 self.pos += 1
                 return out
             if c != 0x5C:
                 self.pos += 1
                 continue
             if self.pos > start:
-                out += String(self.src[byte=start : self.pos])
+                out += String(self.src[byte = start : self.pos])
             self.pos += 1
             var e = self.peek()
             self.pos += 1

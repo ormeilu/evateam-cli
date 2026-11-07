@@ -1,6 +1,7 @@
 """Command-line parsing: positionals plus `--name value`, `-n value`,
 `--name=value`, and boolean switches."""
 
+
 def is_bool_flag(name: String) -> Bool:
     """Switches that never take a value."""
     return (
@@ -18,6 +19,14 @@ def is_bool_flag(name: String) -> Bool:
         or name == "ids"
         or name == "path"
         or name == "force"
+        or name == "classes"
+        or name == "relations"
+        or name == "refresh"
+        or name == "dry-run"
+        or name == "undo"
+        or name == "all"
+        or name == "archived"
+        or name == "publish"
         or name == "yes"
         or name == "y"
     )
@@ -43,13 +52,21 @@ struct Args(Movable):
             if a == "--":
                 only_positionals = True
                 continue
-            var name = String(a[byte=2:]) if a.startswith("--") else String(a[byte=1:])
+            var name = String(a[byte=2:]) if a.startswith("--") else String(
+                a[byte=1:]
+            )
             var eq = name.find("=")
             if eq >= 0:
                 self.keys.append(String(name[byte=0:eq]))
                 self.values.append(String(name[byte = eq + 1 :]))
                 continue
-            if is_bool_flag(name):
+            var doc_version = (
+                name == "version"
+                and len(self.positionals) >= 2
+                and (self.pos(0) == "doc" or self.pos(0) == "docs")
+                and (self.pos(1) == "get" or self.pos(1) == "show")
+            )
+            if is_bool_flag(name) and not doc_version:
                 self.keys.append(name)
                 self.values.append("true")
                 continue

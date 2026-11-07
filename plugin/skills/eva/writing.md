@@ -1,9 +1,14 @@
 # Writing
 
-Every command here changes a tracker other people read, and eva sends it at
-once: there is no dry run and no undo command. Before each one, tell the user
-what will change on which task and wait for their yes. `-v` prints the exact
-request on stderr if they want to see it.
+Every write changes a tracker other people read. Before each mutation, tell the
+user what will change and wait for their yes. Task create/update/move/log/attach/
+comment accept `--dry-run`: they resolve references and print payloads without
+mutating. This is not server-side validation. Bulk operations preview by default
+and require `--yes` to apply. `trash restore` can recover a deleted task while
+the server retains it; successful bulk writes are not rolled back.
+
+`expanded.md` covers the newer commands, replacement/append semantics, bounds
+and the unverified document-subscription write.
 
 ## Creating a task
 
