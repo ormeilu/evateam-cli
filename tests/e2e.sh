@@ -15,6 +15,8 @@ export EVA_URL="http://127.0.0.1:$(cat "$port_file")/api/" EVA_API_KEY=test-toke
 # The field cache goes to a scratch directory, not the user's ~/.cache.
 XDG_CACHE_HOME=$(mktemp -d)
 export XDG_CACHE_HOME
+# No release checks against GitHub; tests/test_update_check.py covers them.
+export EVA_NO_UPDATE_CHECK=1
 fail=0
 check() { # check NAME EXPECTED_SUBSTRING -- command...
   local name=$1 want=$2; shift 3

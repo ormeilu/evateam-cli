@@ -92,6 +92,16 @@ lives in Modular's.
 
 `eva upgrade` updates eva the same way it was installed.
 
+Once a day eva checks for a newer release, in a background process that
+commands never wait for. It asks GitHub's `/releases/latest`, the same address
+the install script reads, and sends neither the token nor the EvaTeam address.
+When a newer version is out, a command prints one line on stderr, at most once
+a day per version: `eva 0.10.0 is out (you have 0.9.0); update with: eva upgrade`.
+`eva --version` and `eva context` show that line every time; stdout of other
+commands stays as it was. A failed check prints nothing. `EVA_NO_UPDATE_CHECK=1`
+turns the check off, it never runs when `CI` is set, and `EVA_UPDATE_CHECK_HOURS=6`
+checks every six hours instead.
+
 The archive and the wheel are about 3.5 MB each: the binary, Mojo's three
 runtime libraries and OpenSSL. The wheel installs the binary straight into
 the environment's `bin/`, with no Python wrapper. The conda package takes the
@@ -198,6 +208,10 @@ verification off.
   everything the server sends, so a task name cannot carry escape codes into the
   terminal.
 - eva warns when a file holding a token is readable by group or others.
+- The update check talks to GitHub alone, with no credentials and no EvaTeam
+  address. It keeps its state in the same private cache as the schema files,
+  and only digits, letters, dots and dashes of the version it reads reach the
+  terminal.
 - The test suite passes under AddressSanitizer, the Keychain and libsecret FFI
   included.
 
@@ -363,6 +377,8 @@ in its description. The end-to-end script checks what eva prints and what it
 sends, talks to the mock over HTTP, IPv6 and HTTPS with a self-signed
 certificate, and checks each rule in Security above. The test of the real
 keychain writes to it, so it runs only with `EVA_TEST_KEYRING=1`.
+`tests/test_update_check.py` stands in for GitHub's release redirect through
+`EVA_UPDATE_URL`; every other test sets `EVA_NO_UPDATE_CHECK=1`.
 
 Mojo has no coverage flag, so `pixi run coverage` goes through LLVM:
 `mojo build -O0 -g --emit llvm`, the `insert-gcov-profiling` pass, a clang

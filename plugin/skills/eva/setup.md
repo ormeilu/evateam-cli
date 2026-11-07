@@ -18,6 +18,13 @@ glibc 2.34+; nothing else on the machine is needed. The PyPI package is
 `evateam-cli`; the command is `eva`. `eva upgrade` updates it the same way it
 was installed, and `eva --version` says what is there.
 
+Once a day eva checks GitHub for a newer release in the background. When one
+is out, a command adds a line on stderr, at most once a day per version, and
+`eva --version` and `eva context` show it every time:
+`eva 0.10.0 is out (you have 0.9.0); update with: eva upgrade`. The check sends
+no token and no EvaTeam address. `EVA_NO_UPDATE_CHECK=1` turns it off; it is
+off when `CI` is set.
+
 ## Signing in
 
 The user creates a token in EvaTeam («Моя страница» → «Безопасность» →

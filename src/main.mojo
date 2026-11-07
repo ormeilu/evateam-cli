@@ -21,6 +21,7 @@ from eva.common import simple_list, like_filter
 from eva.resources import filter_eq
 from eva.render import Out
 from eva.upgrade import upgrade
+from eva.update_check import FETCH_ARG, check_for_update, fetch_latest
 from eva.fields import field_get, field_list
 from eva.timelog import task_log, time_delete, time_list
 from eva.attachments import (
@@ -277,13 +278,18 @@ configuration precedence: --profile/EVA_PROFILE; environment EVA_URL +
 EVA_API_KEY; ./.env; default keychain profile; ~/.config/eva-cli/env.
 Each source must contain both URL and token. EVA_CA_BUNDLE selects a PEM CA;
 EVA_INSECURE=1 explicitly disables TLS verification.
+once a day eva asks GitHub in the background for the latest release and names
+a newer one on stderr; EVA_NO_UPDATE_CHECK=1 or CI turns this off,
+EVA_UPDATE_CHECK_HOURS=N sets another interval.
 """
 
 
-def run(var raw: List[String]) raises:
+def run(var raw: List[String], update: String) raises:
     var args = Args(raw)
     if args.has("version") and len(args.positionals) == 0:
         print("eva " + VERSION)
+        if update != "":
+            print(update, file=stderr)
         return
     var group = args.pos(0)
     if group == "" or group == "help" or args.has("help", "h"):
@@ -435,7 +441,7 @@ def run(var raw: List[String]) raises:
     elif group == "schema":
         schema(client, args, ui)
     elif group == "context":
-        context(client, args, ui)
+        context(client, args, ui, update)
     elif group == "trash":
         trash_command(client, args, ui)
     elif group == "search":
@@ -549,11 +555,32 @@ def main():
     var all = argv()
     for i in range(1, len(all)):
         raw.append(String(all[i]))
+    if len(raw) == 1 and raw[0] == FETCH_ARG:
+        fetch_latest()
+        return
+    # eva --version and eva context print a known newer release themselves;
+    # eva upgrade is the update, so it does not check.
+    var checks = True
+    var own = False
     try:
-        run(raw^)
+        var parsed = Args(raw.copy())
+        var group = parsed.pos(0)
+        checks = group != "upgrade" and group != "self-update"
+        own = group == "context" or (
+            parsed.has("version") and len(parsed.positionals) == 0
+        )
+    except:
+        pass
+    var update = check_for_update(VERSION, own) if checks else String("")
+    try:
+        run(raw^, update)
     except e:
         print("eva: " + String(e), file=stderr)
         var hint = error_hint(String(e))
         if hint != "":
             print("hint: " + hint, file=stderr)
+        if update != "":
+            print(update, file=stderr)
         exit(1)
+    if update != "" and not own:
+        print(update, file=stderr)

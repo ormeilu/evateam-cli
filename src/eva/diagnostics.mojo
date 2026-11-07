@@ -172,8 +172,9 @@ def _context_activity(client: Client) raises:
     )
 
 
-def context(client: Client, args: Args, ui: Out) raises:
+def context(client: Client, args: Args, ui: Out, update: String = "") raises:
     """At most four bounded read calls; failures remain unavailable, never zero.
+    `update` is the line about a newer eva release, if one is known.
     """
     args.check_known(["verbose", "v", "full"])
     print(
@@ -182,6 +183,8 @@ def context(client: Client, args: Args, ui: Out) raises:
         + clip(public_address(client.cfg.url), 100)
     )
     print("config: " + clip(client.cfg.source, 120))
+    if update != "":
+        print("update: " + update)
     try:
         var user = client.call(
             "CmfPerson.get_current_user", '{"fields":["id","login","name"]}'

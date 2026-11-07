@@ -24,7 +24,8 @@ class Features(unittest.TestCase):
         cls.thread.start()
         cls.env = {key: value for key, value in os.environ.items() if not key.startswith("EVA_")}
         cls.env.update(EVA_URL=f"http://127.0.0.1:{cls.server.server_port}",
-                       EVA_API_KEY="test-token", XDG_CACHE_HOME=cls.tmp.name)
+                       EVA_API_KEY="test-token", XDG_CACHE_HOME=cls.tmp.name,
+                       EVA_NO_UPDATE_CHECK="1")
         cls.binary = os.environ.get("EVA_BIN", str(Path("build/eva").resolve()))
         cls.initial = copy.deepcopy({key: getattr(mock_server, key) for key in ["TASKS", "COMMENTS", "ATTACHMENTS", "CREATED", "CREATED_ATTACHMENTS", "DOCUMENTS", "LISTS", "RELATIONS", "CHECK_ITEMS", "CHECKLISTS", "TRASH", "WORKLOG", "FOLLOWERS"]})
 

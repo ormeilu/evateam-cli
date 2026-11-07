@@ -71,6 +71,14 @@ you are about to change and get the user's go-ahead before `task create`,
 `update`, `move`, `comment` or `log`, and before any `eva call` that is not a
 read. `writing.md` covers each of them.
 
+## When eva says a newer version is out
+
+A line such as `eva 0.10.0 is out (you have 0.9.0); update with: eva upgrade`
+can come on stderr of any command, and in `eva --version` and `eva context`.
+Tell the user and offer to run `eva upgrade`. Do not run it on your own:
+it replaces a program on their machine, which is why `setup.md` lists it under
+`ask`.
+
 ## When something goes wrong, offer to file an issue
 
 A crash, output that changed shape, a message that misleads, or a flag that does
