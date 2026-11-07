@@ -76,13 +76,24 @@ class DiagnosticsTests(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory(prefix="eva-diagnostics-")
         cls.work = Path(cls.tmp.name)
-        cls.bin = cls.work / "diagnostics"
+        cls.bin = None
+        pixi = shutil.which("pixi") or str(Path.home() / ".pixi/bin/pixi")
+        if not Path(pixi).exists():
+            # The release suite runs an installed eva in a clean environment
+            # with no Mojo toolchain: only the EVA_BIN tests can run there.
+            return
         source = cls.work / "driver.mojo"
         source.write_text(DRIVER)
-        pixi = shutil.which("pixi") or str(Path.home() / ".pixi/bin/pixi")
-        result = subprocess.run([pixi, "run", "mojo", "build", "-I", str(ROOT / "src"), str(source), "-o", str(cls.bin)], cwd=ROOT, text=True, capture_output=True)
+        driver = cls.work / "diagnostics"
+        result = subprocess.run([pixi, "run", "mojo", "build", "-I", str(ROOT / "src"), str(source), "-o", str(driver)], cwd=ROOT, text=True, capture_output=True)
         if result.returncode:
             raise AssertionError("diagnostics scratch driver did not build:\n" + result.stderr)
+        cls.bin = driver
+
+    def driver(self):
+        if self.bin is None:
+            self.skipTest("no pixi/Mojo toolchain to build the diagnostics driver")
+        return str(self.bin)
 
     @classmethod
     def tearDownClass(cls):
@@ -94,7 +105,7 @@ class DiagnosticsTests(unittest.TestCase):
         # decoded result is small (for example ASCII-escaped Unicode JSON).
         payload = args[1] if args[0] == "raw" else None
         command_args = (args[0], *args[2:]) if args[0] == "raw" else args
-        return subprocess.run([str(Path(target).resolve()) if target else str(self.bin), *command_args], input=payload, cwd=self.work, env=env, text=True, capture_output=True, timeout=30)
+        return subprocess.run([str(Path(target).resolve()) if target else self.driver(), *command_args], input=payload, cwd=self.work, env=env, text=True, capture_output=True, timeout=30)
 
     def test_context_address_hides_url_secrets(self):
         result = self.run_driver("address", "https://someone:password@example.invalid:8443/private-token?api_key=secret#secret")
@@ -128,7 +139,7 @@ class DiagnosticsTests(unittest.TestCase):
         path = next(cache.rglob("schema-*.json"))
         path.unlink()
         os.mkfifo(path, 0o600)
-        binary = str(Path(os.environ["EVA_BIN"]).resolve()) if os.environ.get("EVA_BIN") else str(self.bin)
+        binary = str(Path(os.environ["EVA_BIN"]).resolve()) if os.environ.get("EVA_BIN") else self.driver()
         result = subprocess.run([binary, "schema", "CmfTask"], cwd=self.work, env=env, capture_output=True, text=True, timeout=2)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(path.is_file())
@@ -367,7 +378,7 @@ class DiagnosticsTests(unittest.TestCase):
         # A regular file wants the whole reply; only pipes get the preview.
         out = self.work / "raw-out.json"
         with open(out, "w") as f:
-            redirected = subprocess.run([str(self.bin), "raw"], input=json.dumps(payload), cwd=self.work,
+            redirected = subprocess.run([self.driver(), "raw"], input=json.dumps(payload), cwd=self.work,
                                         env=env, text=True, stdout=f, stderr=subprocess.PIPE, timeout=30)
         self.assertEqual(redirected.returncode, 0, redirected.stderr)
         self.assertEqual(json.loads(out.read_text()), payload)
