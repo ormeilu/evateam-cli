@@ -5,11 +5,13 @@ body to the file named by MOCK_LOG, so the test can check what eva sent.
 """
 
 import json
+import mock_knowledge
 import os
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 TOKEN = "test-token"
+DROP_UPDATES = False
 
 TRANS = [
     {"id": "CmfTrans:done", "name": "Done", "status_to_id": "CmfStatus:3",
@@ -77,6 +79,12 @@ TASKS = [
                    {"id": "CmfTaskCfDirCh:2", "class_name": "CmfTaskCfDirCh", "name": "BE"}],
         "cf_unused": [],
         "in_tasks": [],
+        "git_commits": [{"hash": "f540fec", "message": "retry uploads"}],
+        "priority": 1, "agile_story_points": 3, "plan_start_date": "2026-11-10", "plan_end_date": "2026-11-14", "alarm_date": "2026-11-09 09:00",
+        "spectators": [{"id": "CmfPerson:me", "login": "me@example.ru", "name": "Me"}],
+        "executors": [{"id": "CmfPerson:me", "login": "me@example.ru", "name": "Me"}],
+        "waiting_for": {"id": "CmfPerson:me", "login": "me@example.ru", "name": "Me"},
+        "tags": [{"id": "CmfTag:backend", "name": "Backend"}],
     },
     {
         "id": "CmfTask:2",
@@ -161,6 +169,21 @@ CALENDAR_DAYS = [
 ]
 
 CREATED_ATTACHMENTS = []
+LISTS = [{"id": "CmfList:1", "code": "SPR-1", "name": "Sprint 1", "logic_type": {"code": "list.agile_sprint:default"}, "project": {"code": "DEV"}, "cache_status_type": "OPEN"}, {"id": "CmfList:2", "code": "REL-1", "name": "Release 1", "logic_type": {"code": "list.release:default"}, "project": {"code": "DEV"}, "cache_status_type": "OPEN"}]
+TASKS[1]["lists"] = [LISTS[0]]
+TASKS[1]["is_template"] = True
+TRASH = [{"id": "CmfTask:9", "code": "DEV-9", "name": "Removed task", "cmf_deleted": True, "project": {"code": "DEV"}, "system": False}]
+for task in TASKS:
+    task["system"] = False
+    task["cmf_deleted"] = False
+RELATIONS = []
+CHECKLISTS = [{"id": "CmfChecklist:1", "code": "CHL-1", "name": "Release", "parent_id": "CmfTask:1"}]
+CHECK_ITEMS = [{"id": "CmfChecklistItem:1", "code": "CHLI-1", "name": "Verify", "status": "OPEN", "parent_id": "CmfChecklist:1", "orderno": 1}]
+for entry in WORKLOG:
+    entry["parent_id"] = "CmfTask:1" if entry["parent"]["code"] == "DEV-1" else "CmfTask:2"
+    entry["history_type"] = "fact"
+    entry["project"] = {"code": "DEV" if entry["parent"]["code"] == "DEV-1" else "OPS"}
+DOCUMENTS = [{"id": "CmfDocument:1", "code": "DOC-1", "name": "Root", "text": "<p>Root</p>", "text_draft": "<p>Root</p>"}]
 
 
 def matches(obj, flt):
@@ -168,21 +191,31 @@ def matches(obj, flt):
         return True
     if isinstance(flt[0], list):
         return all(matches(obj, f) for f in flt)
+    if flt[0] in ("OR", "AND"):
+        return (any if flt[0] == "OR" else all)(matches(obj, f) for f in flt[1:])
     field, op, value = flt
-    cur = obj
-    for part in field.split("."):
-        cur = cur.get(part) if isinstance(cur, dict) else None
+    def follow(cur, parts):
+        if not parts:
+            return cur
+        if isinstance(cur, list):
+            return [follow(item, parts) for item in cur]
+        return follow(cur.get(parts[0]) if isinstance(cur, dict) else None, parts[1:])
+    cur = follow(obj, field.split("."))
+    if isinstance(cur, list) and op == "==":
+        return value in cur
+    if value == "__G_CURRENT_USER":
+        value = "CmfPerson:me"
     if op == "==":
         return cur == value
     if op == "!=":
         return cur != value
     if op == "IN":
-        return cur in value
+        return isinstance(value, list) and cur in value
     if op in (">=", "<="):
         a, b = str(cur or "").replace("T", " "), str(value).replace("T", " ")
         return a >= b if op == ">=" else a <= b
     if op in ("LIKE", "ILIKE"):
-        return value.strip("%").lower() in (cur or "").lower()
+        return any(value.strip("%").lower() in str(v or "").lower() for v in (cur if isinstance(cur, list) else [cur]))
     return True
 
 
@@ -247,25 +280,105 @@ class Handler(BaseHTTPRequestHandler):
         req = json.loads(body)
         method, kw = req["method"], req.get("kwargs", {})
         flt = kw.get("filter")
-        found = [t for t in TASKS if matches(t, flt)] if flt and flt[0] != "system" else TASKS
+        if method == "CmfTask.create_task_from_template":
+            return self.reply(200, {"result": "CmfTask:3"})
+        if method == "CmfChecklistItem.update":
+            row = next(r for r in CHECK_ITEMS if r["id"] == req["args"][0])
+            row.update(kw)
+            return self.reply(200, {"result": True})
+        if method == "CmfRelationOption.create":
+            src = next(t for t in TASKS if t["code"] == kw["out_link"])
+            dst = next(t for t in TASKS if t["code"] == kw["in_link"])
+            row = {"id": f"CmfRelationOption:{len(RELATIONS)}", "out_link": src, "in_link": dst, "relation_type": {"code": kw["relation_type"]}}
+            RELATIONS.append(row)
+            src.setdefault("out_tasks", []).append({"out_link": {"code": dst["code"], "name": dst["name"]}, "relation_type": row["relation_type"]})
+            return self.reply(200, {"result": row["id"]})
+        if method == "CmfRelationOption.delete":
+            RELATIONS[:] = [r for r in RELATIONS if r["id"] != req["args"][0]]
+            return self.reply(200, {"result": True})
+        tables = {
+            "CmfAttachment": ATTACHMENTS,
+            "CmfFollower": [],
+            "CmfBqlFilter": [{"id": "CmfBqlFilter:1", "code": "RFBF-1", "name": "My view", "cmf_owner": "CmfPerson:me", "bql": '["code","==","DEV-1"]', "cmf_model_name": "CmfTask"}],
+            "CmfComponent": [{"id": "CmfComponent:1", "code": "PCOM-1", "name": "Platform", "project": {"code": "DEV"}}],
+            "CmfRelationType": [{"id": "CmfRelationType:1", "code": "system.link", "name": "Related"}],
+            "CmfRelationOption": RELATIONS,
+            "CmfChecklist": CHECKLISTS,
+            "CmfChecklistItem": CHECK_ITEMS,
+            "CmfList": LISTS,
+            "CmfStatusHistory": [{"id": "CmfStatusHistory:1", "obj_code": "DEV-1", "from_status_name": "In Review", "to_status_name": "Done", "cmf_created_at": "2026-11-06", "cmf_author": {"login": "me@example.ru"}}],
+            "CmfGitRepo": [{"id": "CmfGitRepo:1", "code": "GRP-1", "name": "service", "url": "ssh://git.example/service"}],
+            "CmfNotify": [{"id": "CmfNotify:1", "code": "NTF-1", "name": "assigned you", "obj_code": "DEV-1", "person_id": "CmfPerson:me", "confirmed": False, "cmf_created_at": "2026-11-06"}],
+            "CmfTimeTrackerHistory": WORKLOG,
+        }
+        tables.update(mock_knowledge.tables(DOCUMENTS))
+        cls, action = method.rsplit(".", 1)
+        if cls in tables and action in ("get", "list", "count"):
+            rows = [r for r in tables[cls] if matches(r, flt)]
+            for key in reversed(kw.get("order_by", [])):
+                rows.sort(key=lambda r: str(r.get(key.lstrip("-"), "")), reverse=key.startswith("-"))
+            lo, hi = kw.get("slice", [0, 10000])
+            result = len(rows) if action == "count" else ((rows[0] if rows else None) if action == "get" else rows[lo:hi])
+            return self.reply(200, {"result": result})
+        if method in ("CmfTask.lists.append", "CmfTask.fix_versions.append"):
+            task = next(t for t in TASKS if t["id"] == req["args"][0])
+            values = task.setdefault(method.split(".")[1], [])
+            row = next(r for r in LISTS if r["id"] == req["args"][1])
+            if row not in values:
+                values.append(row)
+            return self.reply(200, {"result": True})
+        if method.startswith("CmfDocument."):
+            action = method.split(".")[1]
+            if action == "create":
+                n = len(DOCUMENTS) + 1
+                DOCUMENTS.append(dict(kw, id=f"CmfDocument:{n}", code=f"DOC-{n}", text=""))
+                result = f"CmfDocument:{n}"
+            elif action in ("update", "do_publish"):
+                row = next((r for r in DOCUMENTS if r["id"] == req["args"][0]), None)
+                if row is None:
+                    return self.reply(200, {"abort": "Объект не найден"})
+                row.update(kw)
+                if action == "do_publish":
+                    row["text"] = row.get("text_draft", "")
+                result = True
+            else:
+                rows = [r for r in DOCUMENTS if matches(r, flt)]
+                result = (rows[0] if rows else None) if action == "get" else (len(rows) if action == "count" else rows)
+            return self.reply(200, {"result": result})
+        found = [t for t in TASKS + TRASH if matches(t, flt)] if flt and flt[0] != "system" else TASKS
         if method == "CmfTask.list":
-            found = [t for t in TASKS[1:] if matches(t, [f for f in flt if f[0] != "system"])]
+            found = [t for t in TASKS[1:] + TRASH if matches(t, flt) and ("cmf_deleted" in json.dumps(flt) or not t.get("cmf_deleted"))]
             if "GHOST" in json.dumps(flt):
                 # A task in a project the user cannot read comes back bare.
                 found = [TASKS[2], {"id": "CmfTask:9", "class_name": "CmfTask", "cache_status_type": "OPEN"}]
             lo, hi = kw.get("slice", [0, 100])
             return self.reply(200, {"jsonrpc": "2.2", "result": found[lo:hi]})
         if method == "CmfTask.count":
-            found = [t for t in TASKS[1:] if matches(t, [f for f in flt if f[0] != "system"])]
+            found = [t for t in TASKS[1:] + TRASH if matches(t, flt) and ("cmf_deleted" in json.dumps(flt) or not t.get("cmf_deleted"))]
             return self.reply(200, {"jsonrpc": "2.2", "result": len(found)})
         if method == "CmfTask.get":
             if flt[0] == "id":
-                known = [t for t in TASKS if t["id"] == flt[2]]
+                known = [t for t in TASKS + TRASH if t["id"] == flt[2]]
                 return self.reply(200, {"jsonrpc": "2.2", "result": known[0] if known else CREATED})
             if matches(EPIC, flt):
                 found = [EPIC]
             res = found[0] if found else None
             return self.reply(200, {"jsonrpc": "2.2", "result": res})
+        if method in ("CmfTask.spectators.append", "CmfTask.spectators.remove"):
+            row = next(t for t in TASKS if t["id"] == req["args"][0])
+            values = row.setdefault("spectators", [])
+            id_ = req["args"][1]
+            if method.endswith("append"):
+                if not any(p["id"] == id_ for p in values):
+                    values.append({"id": id_, "login": "me@example.ru", "name": "Me"})
+            else:
+                values[:] = [p for p in values if p["id"] != id_]
+            return self.reply(200, {"result": True})
+        if method in ("CmfTag.list", "CmfTag.count"):
+            rows = [{"id": "CmfTag:backend", "name": "Backend"}]
+            return self.reply(200, {"result": len(rows) if method.endswith("count") else rows})
+        if method == "CmfPerson.get":
+            return self.reply(200, {"result": {"id": "CmfPerson:me", "login": "me@example.ru", "name": "Me"}})
         if method in ("CmfProject.get", "CmfPerson.get"):
             return self.reply(200, {"jsonrpc": "2.2", "result": {"id": method.split(".")[0] + ":42"}})
         if method == "CmfProject.list":
@@ -280,23 +393,43 @@ class Handler(BaseHTTPRequestHandler):
             if req["args"][1] == "CmfTrans:archive" and kw["changed_fields"].get("cf_reason") is None:
                 return self.reply(200, {"jsonrpc": "2.2", "abort": "Недостаточно прав для перехода"})
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
+        if method == "CmfComment.create":
+            parent = next((r["id"] for r in TASKS + DOCUMENTS if r["code"] == kw["parent"]), kw["parent"])
+            id_ = f"CmfComment:new{len(COMMENTS)}"
+            COMMENTS.append(dict(kw, id=id_, parent_id=parent, log_level=0,
+                                 cmf_created_at="2026-11-07T12:00:00+03:00", cmf_author={"name": "Me"}))
+            return self.reply(200, {"result": id_})
+        if method in ("CmfComment.get", "CmfComment.update"):
+            if method.endswith("get"):
+                rows = [c for c in COMMENTS if matches(c, flt)]
+                return self.reply(200, {"result": rows[0] if rows else None})
+            row = next((c for c in COMMENTS if c["id"] == req["args"][0]), None)
+            if row is None:
+                return self.reply(200, {"abort": "Объект не найден"})
+            row.update(kw)
+            return self.reply(200, {"result": True})
         if method == "CmfAttachment.create":
             CREATED_ATTACHMENTS.append(kw["name"])
             if "size" not in kw:
                 return self.reply(200, {"jsonrpc": "2.2", "abort": "Не удалось проверить допустимый размер файла, так как соответствующий параметр не был передан"})
             n = 3 + len(CREATED_ATTACHMENTS)
             ATTACHMENTS.append({"id": f"CmfAttachment:{n}", "code": f"ATT-{n}", "name": kw["name"], "file_name": kw["name"],
-                                "file_type": "", "st_size": 0, "embedded": False, "parent_id": "CmfTask:1",
+                                "file_type": "", "st_size": 0, "embedded": False, "parent_id": next((r["id"] for r in TASKS + DOCUMENTS if r["code"] == kw["parent"]), kw["parent"]),
                                 "cmf_created_at": "2026-11-06T12:00:00+03:00", "cmf_author": {"name": "Me"},
                                 "url": f"/files/obj/CmfTask/1/upload-{n}", "text": ""})
             return self.reply(200, {"jsonrpc": "2.2", "result": f"CmfAttachment:{n}"})
         if method == "CmfAttachment.delete":
+            ATTACHMENTS[:] = [a for a in ATTACHMENTS if a["id"] != req["args"][0]]
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method in ("CmfAttachment.list", "CmfAttachment.get"):
             rows = [a for a in ATTACHMENTS if matches(a, flt)]
             if method == "CmfAttachment.get":
                 return self.reply(200, {"jsonrpc": "2.2", "result": rows[0] if rows else None})
             return self.reply(200, {"jsonrpc": "2.2", "result": rows})
+        if method == "CmfTask.restore":
+            row = next(t for t in TRASH if t["id"] == req["args"][0])
+            row["cmf_deleted"] = False
+            return self.reply(200, {"result": True})
         if method == "CmfTask.delete":
             if not req.get("args"):
                 return self.reply(200, {"jsonrpc": "2.2", "error": {"code": 500, "message": "Необходимо указать id в args[0]"}})
@@ -360,16 +493,30 @@ class Handler(BaseHTTPRequestHandler):
                 {"id": "CmfLogicType:sub", "code": "task.sub:default", "name": "Подзадача"},
                 {"id": "CmfLogicType:doc", "code": "document.base:default", "name": "Документ"},
             ]})
+        if method == "CmfTask.update":
+            if DROP_UPDATES:
+                return self.reply(200, {"result": True})
+            if req["args"][0] == "CmfTask:2" and kw.get("cf_fail"):
+                return self.reply(200, {"abort": "Недостаточно прав"})
+            row = next((t for t in TASKS + TRASH if t["id"] == req["args"][0]), CREATED)
+            row.update(kw)
+            # The response expands foreign IDs into relation objects.
+            for name in ("responsible", "waiting_for", "parent_task", "epic", "logic_type"):
+                if isinstance(row.get(name), str):
+                    row[name] = {"id": row[name]}
+            for name in ("tags", "components", "executors"):
+                if isinstance(row.get(name), list):
+                    row[name] = [{"id": v} if isinstance(v, str) else v for v in row[name]]
         if method == "CmfTask.update" and req["args"] == ["CmfTask:3"]:
             # DEV-2 as a parent is dropped without an error, so the note shows.
             if kw.get("parent_task") != "CmfTask:2":
                 CREATED["parent_task_id"] = kw.get("parent_task", CREATED["parent_task_id"])
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method == "CmfTask.update" and "epic" in kw:
-            TASKS[1]["parent_task"] = {"code": "DEV-0", "name": "Epic"}
+            TASKS[1]["parent_task"] = {"id": "CmfTask:0", "code": "DEV-0", "name": "Epic"}
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method == "CmfTask.update" and "parent_task" in kw:
-            TASKS[1]["parent_task"] = {"code": "DEV-100", "name": "Storage rework"}
+            TASKS[1]["parent_task"] = {"id": "CmfTask:100", "code": "DEV-100", "name": "Storage rework"}
             return self.reply(200, {"jsonrpc": "2.2", "result": True})
         if method in ("CmfTask.update", "CmfComment.create", "CmfTask.timetracker_change_time"):
             return self.reply(200, {"jsonrpc": "2.2", "result": True})

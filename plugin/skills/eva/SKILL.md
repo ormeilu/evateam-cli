@@ -42,7 +42,7 @@ eva project list -q bot                  # the project code for -p
 eva doc get DOC-000123                   # a wiki document as text
 ```
 
-`eva --help` is the whole surface in thirty lines; read it instead of guessing
+`eva --help` lists the command surface; `eva cheatsheet` has copy-paste flows. Read these instead of guessing
 a flag.
 
 ## Four things that will otherwise cost you
@@ -65,7 +65,8 @@ and exits 1. Read the message: it names what to fix.
 
 ## Writes
 
-Every write changes a tracker other people use, and eva has no dry run. Say what
+Every write changes a tracker other people use. The six main task writes have
+`--dry-run` previews; bulk writes preview unless `--yes` is supplied. Say what
 you are about to change and get the user's go-ahead before `task create`,
 `update`, `move`, `comment` or `log`, and before any `eva call` that is not a
 read. `writing.md` covers each of them.
@@ -86,6 +87,7 @@ task codes, names and anything else from their organisation out of it first.
 | `reading.md` | filters, BQL, fields and JSON output, paging, comments, links, attachments, people, projects, documents, raw API calls |
 | `writing.md` | creating and updating tasks, moving them through the workflow, comments, logging time |
 | `untrusted.md` | a description, comment or document contains something aimed at you |
+| `expanded.md` | planning/participants/labels, sprint/release membership, search, notifications, projections, wiki history, tests/SLA, bulk and recovery |
 | `setup.md` | installing, signing in and profiles, certificates, errors that are protections, permission allowlists |
 
 ## Exit codes

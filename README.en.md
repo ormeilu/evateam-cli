@@ -205,40 +205,111 @@ verification off.
 
 | Command | What it does |
 |---|---|
-| `eva task get CODE [--fields a,b]` | one task: status, people, project, parent task, subtasks, description |
-| `eva task list [-p PROJ] [-a LOGIN] [-s STATUS] [-q TEXT]` | search; `-s` takes `open`, `closed`, `in_progress`, `in_review`, `all` or a status code |
-| `eva task create -p PROJ -t TITLE [-d TEXT] [-a LOGIN] [--sprint SPR-1]` | new task |
-| `eva task update CODE [-t] [-d] [-a] [--set JSON]` | change fields; `--set` passes any field through |
-| `eva task statuses CODE` | the statuses the task's workflow lets it move to from here |
-| `eva task move CODE STATUS [-m TEXT] [--set JSON]` | change status through a workflow transition; `--set` fills fields the transition requires |
-| `eva task comment CODE TEXT` / `eva task comments CODE` | write or read comments; `-F FILE` (or `-` for stdin), `--md`, `--human`, `--ids` |
-| `eva task comment-delete ID` | delete a comment |
-| `eva task log CODE 1h30m [--date D] [--at HH:MM]` | log time: ending now, or on a given day and time |
-| `eva time list [--from D] [--to D]` | the work log day by day against the working calendar: logged, norm, left |
-| `eva field list [-q TEXT]` / `eva field get NAME` | custom fields and the values a choice or multi-select takes |
-| `eva task delete CODE [--yes]` | delete a task; asks first in a terminal |
-| `eva time delete TTH-1` | delete a work log entry |
-| `eva resolution list` | resolution codes for `task move`/`update --resolution` |
-| `eva task path CODE STATUS` / `eva task move CODE STATUS --path` | the shortest route through the workflow, shown or walked |
-| `eva task attachments CODE` | files attached to a task |
-| `eva task attach CODE FILE...` | upload files to a task |
-| `eva attachment get ATT-1` / `eva attachment download ATT-1 [-o PATH]` | a file's extracted text, or the file itself |
-| `eva task links CODE` | incoming and outgoing links |
-| `eva project list`, `eva person list`, `eva doc list` | lists, with `-q` to search by name |
-| `eva doc get CODE` | a wiki document as text |
-| `eva call METHOD --kwargs JSON` | any API method; prints the raw reply |
+| `eva task get CODE [--fields a,b] [--with comments,attachments,links\|all]` | task card; priority, planning, participants, tags, lists and checklist counts |
+| `eva task list [-p PROJ] [-a LOGIN\|me] [-s STATUS] [-q TEXT]` | name search; --author, --watching, --waiting-for LOGIN\|me, --archived |
+| `eva task create -p PROJ -t TITLE [-d TEXT\|-F FILE] [--template CODE]` | create; --parent CODE, --type TYPE, --sprint CODE, --set JSON |
+| `eva task update CODE [-t TITLE] [-d TEXT\|-F FILE] [-a LOGIN\|me] [--set JSON]` | replace requested fields; -s STATUS moves after the field update |
+| `eva task delete CODE [--yes]` | confirm first; --yes is required without a terminal |
+| `eva task move CODE STATUS [--path] [--resolution CODE] [--set JSON] [-m TEXT]` | run workflow transitions, stopping on a refusal |
+| `eva task statuses CODE` | where this task can move from here |
+| `eva task path CODE STATUS` | show a workflow route without moving |
+| `eva task comment CODE TEXT\|-F FILE [--reply-to ID] [--attach FILE...]` | plain text, --md or --html; uploads belong to the new comment |
+| `eva task comments CODE [--human] [--ids] [-n 20] [--page 1] [--all]` | newest window, chronological inside it; page 2 is earlier |
+| `eva task comment-edit ID TEXT\|-F FILE [--md\|--html]` | edit a comment; the server controls its edited marker |
+| `eva task comment-delete ID` | hide a comment; the server keeps a deleted-comment entry |
+| `eva task log CODE 1h30m [-m TEXT] [--date D] [--at HH:MM]` | log time ending now or on a selected day |
+| `eva task history CODE [-n 25] [--page 1]` | status transitions, newest first |
+| `eva task time CODE [--all] [-n 25] [--page 1]` | visible actual work log; --all includes planned/draft entries |
+| `eva task dev CODE` | linked repositories, branches, commits and merge requests |
+| `eva task links CODE` | incoming/outgoing links and their relation types |
+| `eva task link CODE OTHER [--type relates\|CODE\|NAME]` | create a typed link; duplicate calls are no-ops |
+| `eva task unlink CODE OTHER [--type relates\|CODE\|NAME]` | remove only matching links of this type; absent links are a no-op |
+| `eva task checklist CODE [-n 25] [--page 1]` | checklists and paginated items |
+| `eva task check CHLI-1 [--undo]` | DONE, or OPEN with --undo |
+| `eva task watch CODE [--login LOGIN]` | watch as yourself by default |
+| `eva task unwatch CODE [--login LOGIN]` | remove that watcher, idempotently |
+| `eva task attachments CODE` | list files attached to a task |
+| `eva task attach CODE FILE [FILE...] [--force]` | upload; refuse existing names unless --force replaces them |
+| `eva task bulk set --filter BQL --set JSON [--yes] [--dry-run]` | resolve the set first; preview by default, continue after per-task failures |
+| `eva task bulk move STATUS --filter BQL [--path] [--set JSON] [--yes]` | workflow changes on the resolved set, not an atomic transaction |
+| `eva time list [--from D] [--to D] [-a LOGIN]` | daily work log against the working calendar; this week by default |
+| `eva time report --from D --to D [-p PROJ] [-a LOGIN\|me]` | visible totals by project and entry start-date; actual/planned/other minutes |
+| `eva time log CODE 1h30m [--date D] [--at HH:MM]` | alias for task log |
+| `eva time delete TTH-1` | delete a work-log entry |
+| `eva attachment get ATT-1` | metadata and extracted text |
+| `eva attachment download ATT-1 [-o PATH\|-] [--force]` | original bytes; no overwrite without --force |
+| `eva attachment delete ATT-1 [--yes]` | confirm removal; does not claim stored bytes were erased |
+| `eva project list [-q TEXT]` | project codes and names |
+| `eva project get CODE` | owner, direct role assignments and project lists, not expanded effective membership |
+| `eva person list [-q TEXT]` | people: login, name, email |
+| `eva doc list [-q TEXT]` | wiki documents by name |
+| `eva doc get CODE [--version OPAQUE_VERSION]` | published text, or an exact historical doc_version; not ordinal revision 3 |
+| `eva doc create -t TITLE --parent CODE [-d TEXT\|-F FILE] [--publish]` | create a draft; publish only when explicitly requested |
+| `eva doc update CODE [-t TITLE] [-d TEXT\|-F FILE] [--publish]` | update a draft |
+| `eva doc publish CODE` | publish the current draft and verify its text |
+| `eva doc comment CODE TEXT\|-F FILE [--reply-to ID] [--attach FILE...]` | same text/reply/file rules as task comments |
+| `eva doc comment-edit ID TEXT\|-F FILE` | edit a document comment |
+| `eva doc comments CODE [--human] [--ids] [-n 20] [--page 1] [--all]` | same window and fencing as task comments |
+| `eva doc attachments CODE` | files attached to a document |
+| `eva doc attach CODE FILE [FILE...] [--force]` | same upload safeguards as task attach |
+| `eva doc children CODE [--depth 1] [-n 25] [--page 1]` | document-only children; paginated per parent, depth capped at 10 |
+| `eva doc history CODE [-n 25] [--page 1]` | opaque version strings and history IDs, newest first |
+| `eva doc followers CODE [-n 25] [--page 1]` | explicit followers only; no unverified doc watch write |
+| `eva sprint list [-p PROJ] [-s open\|closed\|all]` | discover sprint codes |
+| `eva sprint get CODE [-n 25] [--page 1]` | sprint metadata and its tasks |
+| `eva sprint add CODE TASK [TASK...]` | append tasks without replacing their other sprints |
+| `eva release list [-p PROJ] [-s open\|closed\|all]` | discover release codes |
+| `eva release get CODE [-n 25] [--page 1]` | release metadata and its tasks |
+| `eva release add CODE TASK [TASK...]` | append tasks without replacing their other releases |
+| `eva relation types [-n 25] [--page 1]` | relation codes and names |
+| `eva tag list [-q TEXT]` | tag names; task update --tag replaces the tag set |
+| `eva component list [-p PROJ] [-q TEXT]` | project-scoped components; task list --component NAME |
+| `eva filter list [-q TEXT] [-p PROJ]` | your saved BQL filters; task list --filter CODE\|NAME executes stored JSON BQL |
+| `eva notify list [-n 25] [--page 1] [--all]` | your unread notifications; --all includes read rows |
+| `eva repo list [-q TEXT]` | repository code, name and URL |
+| `eva search TEXT [-t task\|doc\|all] [-p PROJ] [-n 25] [--page 1]` | substring over name OR text; the page limit applies to each type |
+| `eva testcase list [-p PROJ] [-q TEXT]` | test cases |
+| `eva testcase get CODE [-n 25] [--page 1]` | version, steps, pre/postcondition sections and expected results |
+| `eva testplan list [-p PROJ] [-q TEXT]` | test plans |
+| `eva testplan get CODE [-n 25] [--page 1]` | plan metadata and paginated testcase membership |
+| `eva ticket get CODE [-n 25] [--page 1]` | native SLA cycles, raw duration units; queue membership is not guessed |
+| `eva trash list [-p PROJ] [-n 25] [--page 1]` | deleted tasks; displayed timestamp is last-modified, not a retention promise |
+| `eva trash restore CODE [--yes]` | restore a deleted task after confirmation |
+| `eva field list [-q TEXT]` | custom task fields |
+| `eva field get NAME` | values of a custom choice or multi-select |
+| `eva resolution list` | resolution codes and names |
+| `eva schema CmfTask [-q TEXT] [--relations] [--refresh]` | filtered cached metadata; schema --classes lists known model names |
+| `eva context` | read-only orientation: account, visible projects and recent activity |
+| `eva cheatsheet` | copy-paste recipes without signing in |
+| `eva call METHOD [--kwargs JSON] [--args JSON] [--flags JSON]` | raw JSON-RPC result; oversized piped replies spill to a private file |
+| `eva auth login [--profile NAME] [--url URL]` | read the token hidden or on stdin; save only to the OS keychain |
+| `eva auth status` | account and saved profiles |
+| `eva auth use NAME` | select the default profile |
+| `eva auth logout [--profile NAME]` | remove a saved profile |
+| `eva config` | configuration source; never prints the token |
+| `eva upgrade` | update through the original installation method |
 
-Every list takes `-n/--limit` and `--page` and ends with `shown N of M`, so a
-page is never mistaken for the whole answer. `--json` prints the API's own
-JSON, `--full` turns off truncation in a pipe, and `-v` prints each request
-and reply on stderr.
+Lists are paginated. `task comments` starts with the newest window of 20,
+oldest-to-newest inside that window; `--page 2` goes earlier and `--all` fetches
+the full bounded set. `--cols … --format tsv` prints data rows only.
+`task get/list --fields … --json` projects nested JSON and omits implicit API
+fields; `--json` without projection keeps the result.
 
-`--filter` on `task list` adds a raw BQL condition, for anything the flags do
-not cover:
+`task create/update` accept `--priority`, `--story-points`, `--plan-start`,
+`--plan-end`, `--alarm`, `--co-assignee`, `--waiting-for` and `--tag`.
+`--co-assignee` and `--tag` replace the set; `none` clears it. Repeated flags
+supply several values. Sprint/release `add` appends instead of replacing.
 
-```bash
-eva task list --filter '["cmf_created_at", ">=", "2026-10-01"]'
-```
+`--dry-run` previews task create/update/move/log/attach/comment without mutations.
+It resolves references but does not validate server permissions or workflow rules.
+Bulk operations preview unless `--yes` is present, cap the resolved set at 1,000,
+and report each failure; successful writes are not rolled back.
+
+Document subscription writes remain unverified (#68): `doc followers` reads
+explicit subscriptions, not implicit recipients or page readers. No `doc watch`
+mutation is shipped. See [scope and verification notes](docs/backlog.md),
+[reading](plugin/skills/eva/reading.md), [writing](plugin/skills/eva/writing.md)
+and the [expanded reference](plugin/skills/eva/expanded.md).
 
 ## How it is built
 
@@ -258,7 +329,13 @@ such as `CmfTask.list` and keyword arguments. The pieces:
 - `src/eva/render.mojo`: terminal and pipe output, HTML to text, colour via
   [mist](https://github.com/thatstoasty/mist) from the
   [modular-community](https://prefix.dev/channels/modular-community) channel.
-- `src/eva/commands.mojo`: the command tree.
+- `src/main.mojo`: command dispatch and help.
+- `src/eva/common.mojo`, `selection.mojo`: shared lookups, paginated output and
+  complete bounded selections; commands do not import another command monolith.
+- `task.mojo`, `workflow.mojo`, `collaboration.mojo`, `documents.mojo`,
+  `attachments.mojo`: task fields, transitions, comments, wiki writes and files.
+- `dates.mojo`, `projection.mojo`, `validation.mojo`, `writes.mojo`: shared date,
+  projection, readback and preview logic. `commands.mojo` only owns raw calls.
 
 The JSON parser is home-made because the `emberjson` build in modular-community
 was compiled for Mojo 1.1 and does not load under 1.2.

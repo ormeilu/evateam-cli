@@ -2,33 +2,26 @@
 
 from std.testing import assert_equal, assert_true, assert_false, TestSuite
 
-from eva.fields import cache_file, from_meta, kind_of, parse_cache, value_names
+from eva.fields import from_meta, kind_of, value_names
+from eva.state import server_key
 from eva.json import JsonDoc
 
 
-def test_cache_fresh_stale_malformed() raises:
-    var text = "# 1000\ncf_a\tCmfM2M\tCmfTaskCfACh\tНаправление\ncf_b\tCmfChoice\t\tДругое\njunk line\nname\tCmfStr\t\tnot custom\ncf_old\tтолько два\n"
-    var fresh = parse_cache(text, 1000 + 3600)
-    assert_true(Bool(fresh))
-    assert_equal(len(fresh.value()), 2)
-    assert_equal(fresh.value()[0].caption, "Направление")
-    assert_false(Bool(parse_cache(text, 1000 + 86401)))  # older than a day
-    assert_false(Bool(parse_cache(text, 999)))  # from the future
-    assert_equal(fresh.value()[0].model, "CmfTaskCfACh")
-    assert_false(Bool(parse_cache("cf_a\tx\n", 1000)))  # no stamp
-    assert_false(Bool(parse_cache("# soon\n", 1000)))
-
-
-def test_cache_file_is_one_component() raises:
-    var p = cache_file("https://eva.example.ru:8443/../x")
-    assert_true(p.endswith("/eva-cli/task-fields-https___eva_example_ru_8443____x"), p)
+def test_cache_identity_is_stable_opaque_component() raises:
+    var key = server_key("https://eva.example.invalid:8443/../x")
+    assert_equal(key, server_key("https://eva.example.invalid:8443/../x"))
+    assert_false(key == server_key("https://other.example.invalid"))
+    assert_false(key.find("/") >= 0)
+    assert_false(key.find(":") >= 0)
+    assert_false(key.find("eva") >= 0)
 
 
 def test_from_meta_keeps_custom_fields() raises:
     var d = JsonDoc()
     var m = d.parse(
-        '{"fields": {"name": {"widget": "CmfM2M"}, "cf_a": {"widget": "CmfM2M", "caption": "A\\tB\\nC"},'
-        ' "cf_b": {"widget": "CmfChoice", "caption": "B"}, "cf_c": {"widget": "CmfM2M"}}}'
+        '{"fields": {"name": {"widget": "CmfM2M"}, "cf_a": {"widget": "CmfM2M",'
+        ' "caption": "A\\tB\\nC"}, "cf_b": {"widget": "CmfChoice", "caption":'
+        ' "B"}, "cf_c": {"widget": "CmfM2M"}}}'
     )
     var got = from_meta(d, m)
     assert_equal(len(got), 3)
@@ -41,7 +34,10 @@ def test_from_meta_keeps_custom_fields() raises:
 
 def test_value_names() raises:
     var d = JsonDoc()
-    var r = d.parse('{"a": [{"name": "iOS"}, {"name": "BE"}], "b": [], "c": "plain", "d": ["x", "y"]}')
+    var r = d.parse(
+        '{"a": [{"name": "iOS"}, {"name": "BE"}], "b": [], "c": "plain", "d":'
+        ' ["x", "y"]}'
+    )
     assert_equal(value_names(d, d.get(r, "a")), "iOS, BE")
     assert_equal(value_names(d, d.get(r, "b")), "")
     assert_equal(value_names(d, d.get(r, "c")), "plain")

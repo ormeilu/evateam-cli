@@ -204,40 +204,115 @@ eva auth logout --profile sandbox
 
 | Команда | Что делает |
 |---|---|
-| `eva task get CODE [--fields a,b]` | одна задача: статус, люди, проект, родительская задача, подзадачи, описание |
-| `eva task list [-p PROJ] [-a LOGIN] [-s STATUS] [-q TEXT]` | поиск; `-s` принимает `open`, `closed`, `in_progress`, `in_review`, `all` или код статуса |
-| `eva task create -p PROJ -t TITLE [-d TEXT] [-a LOGIN] [--sprint SPR-1]` | новая задача |
-| `eva task update CODE [-t] [-d] [-a] [--set JSON]` | изменить поля; `--set` передаёт любое поле как есть |
-| `eva task statuses CODE` | в какие статусы воркфлоу пускает задачу из текущего |
-| `eva task move CODE STATUS [-m TEXT] [--set JSON]` | сменить статус через переход воркфлоу; `--set` заполняет поля, которых требует переход |
-| `eva task comment CODE TEXT` / `eva task comments CODE` | написать или прочитать комментарии; `-F FILE` (или `-` для stdin), `--md`, `--human`, `--ids` |
-| `eva task comment-delete ID` | удалить комментарий |
-| `eva task log CODE 1h30m [--date D] [--at HH:MM]` | списать время: до текущего момента или на нужный день и час |
-| `eva time list [--from D] [--to D]` | журнал работ по дням против рабочего календаря: списано, норма, осталось |
-| `eva field list [-q TEXT]` / `eva field get NAME` | пользовательские поля и значения выбора или мультиселекта |
-| `eva task delete CODE [--yes]` | удалить задачу; в терминале сначала спрашивает |
-| `eva time delete TTH-1` | удалить запись журнала работ |
-| `eva resolution list` | коды резолюций для `task move`/`update --resolution` |
-| `eva task path CODE STATUS` / `eva task move CODE STATUS --path` | кратчайший путь по workflow: показать или пройти |
-| `eva task attachments CODE` | файлы, приложенные к задаче |
-| `eva task attach CODE FILE...` | приложить файлы к задаче |
-| `eva attachment get ATT-1` / `eva attachment download ATT-1 [-o PATH]` | текст, извлечённый из файла, или сам файл |
-| `eva task links CODE` | входящие и исходящие связи |
-| `eva project list`, `eva person list`, `eva doc list` | списки, `-q` ищет по названию |
-| `eva doc get CODE` | документ вики текстом |
-| `eva call METHOD --kwargs JSON` | любой метод API, ответ как есть |
+| `eva task get CODE [--fields a,b] [--with comments,attachments,links\|all]` | Карточка: статус, люди, планирование, теги, списки и описание |
+| `eva task list [-p PROJ] [-a LOGIN\|me] [-s STATUS] [-q TEXT]` | Поиск по названию; фильтры по участникам, архиву, тегам и компонентам |
+| `eva task create -p PROJ -t TITLE [-d TEXT\|-F FILE] [--template CODE]` | Создать задачу, в том числе из шаблона |
+| `eva task update CODE [-t TITLE] [-d TEXT\|-F FILE] [-a LOGIN\|me] [--set JSON]` | Изменить поля; -s выполняет переход после записи остальных полей |
+| `eva task delete CODE [--yes]` | Удалить после подтверждения; без терминала нужен --yes |
+| `eva task move CODE STATUS [--path] [--resolution CODE] [--set JSON] [-m TEXT]` | Пройти переходы workflow; при отказе остановиться |
+| `eva task statuses CODE` | Доступные переходы из текущего статуса |
+| `eva task path CODE STATUS` | Показать путь без смены статуса |
+| `eva task comment CODE TEXT\|-F FILE [--reply-to ID] [--attach FILE...]` | Комментарий, ответ в ветке и файлы к нему |
+| `eva task comments CODE [--human] [--ids] [-n 20] [--page 1] [--all]` | Последние 20 комментариев по времени; следующая страница содержит более ранние |
+| `eva task comment-edit ID TEXT\|-F FILE [--md\|--html]` | Изменить текст комментария |
+| `eva task comment-delete ID` | Скрыть комментарий; сервер сохраняет запись об удалении |
+| `eva task log CODE 1h30m [-m TEXT] [--date D] [--at HH:MM]` | Списать время сейчас или за выбранный день |
+| `eva task history CODE [-n 25] [--page 1]` | История переходов по статусам, начиная с последнего |
+| `eva task time CODE [--all] [-n 25] [--page 1]` | Доступные записи журнала задачи; --all добавляет планы и черновики |
+| `eva task dev CODE` | Связанные репозитории, ветки, коммиты и запросы на слияние |
+| `eva task links CODE` | Входящие и исходящие связи с типами |
+| `eva task link CODE OTHER [--type relates\|CODE\|NAME]` | Создать связь выбранного типа; повторный вызов ничего не меняет |
+| `eva task unlink CODE OTHER [--type relates\|CODE\|NAME]` | Удалить связи только выбранного типа |
+| `eva task checklist CODE [-n 25] [--page 1]` | Чек-листы и страницы их пунктов |
+| `eva task check CHLI-1 [--undo]` | Отметить пункт DONE; --undo возвращает OPEN |
+| `eva task watch CODE [--login LOGIN]` | Добавить наблюдателя; по умолчанию себя |
+| `eva task unwatch CODE [--login LOGIN]` | Убрать наблюдателя; повторный вызов безопасен |
+| `eva task attachments CODE` | Файлы задачи |
+| `eva task attach CODE FILE [FILE...] [--force]` | Приложить файлы; замена совпавшего имени требует --force |
+| `eva task bulk set --filter BQL --set JSON [--yes] [--dry-run]` | Массовое изменение полей; без --yes выводится только предпросмотр |
+| `eva task bulk move STATUS --filter BQL [--path] [--set JSON] [--yes]` | Массовые переходы; ошибки отдельных задач не останавливают остальные |
+| `eva time list [--from D] [--to D] [-a LOGIN]` | Журнал по дням и рабочая норма; по умолчанию текущая неделя |
+| `eva time report --from D --to D [-p PROJ] [-a LOGIN\|me]` | Доступные итоги по проекту и дню начала записи: факт, план и прочее |
+| `eva time log CODE 1h30m [--date D] [--at HH:MM]` | То же, что task log |
+| `eva time delete TTH-1` | Удалить запись журнала работ |
+| `eva attachment get ATT-1` | Сведения о файле и извлечённый текст |
+| `eva attachment download ATT-1 [-o PATH\|-] [--force]` | Скачать исходный файл; замена требует --force |
+| `eva attachment delete ATT-1 [--yes]` | Удалить после подтверждения; это не гарантия стирания байтов на сервере |
+| `eva project list [-q TEXT]` | Коды и названия проектов |
+| `eva project get CODE` | Владелец, прямые назначения ролей и списки; группы и наследование не раскрываются |
+| `eva person list [-q TEXT]` | Логин, имя и почта |
+| `eva doc list [-q TEXT]` | Поиск документов по названию |
+| `eva doc get CODE [--version OPAQUE_VERSION]` | Опубликованный текст или версия с точным значением doc_version |
+| `eva doc create -t TITLE --parent CODE [-d TEXT\|-F FILE] [--publish]` | Создать черновик; публикация только по явному --publish |
+| `eva doc update CODE [-t TITLE] [-d TEXT\|-F FILE] [--publish]` | Изменить черновик |
+| `eva doc publish CODE` | Опубликовать черновик и проверить текст |
+| `eva doc comment CODE TEXT\|-F FILE [--reply-to ID] [--attach FILE...]` | Комментарий к документу, ответ и файлы |
+| `eva doc comment-edit ID TEXT\|-F FILE` | Изменить комментарий к документу |
+| `eva doc comments CODE [--human] [--ids] [-n 20] [--page 1] [--all]` | Страницы комментариев по тем же правилам, что у задач |
+| `eva doc attachments CODE` | Файлы документа |
+| `eva doc attach CODE FILE [FILE...] [--force]` | Приложить файлы с теми же проверками, что у задачи |
+| `eva doc children CODE [--depth 1] [-n 25] [--page 1]` | Дочерние документы, со страницами для каждого родителя; глубина до 10 |
+| `eva doc history CODE [-n 25] [--page 1]` | Строки версий и идентификаторы истории, начиная с последней |
+| `eva doc followers CODE [-n 25] [--page 1]` | Явные подписчики; непроверенной команды doc watch нет |
+| `eva sprint list [-p PROJ] [-s open\|closed\|all]` | Найти спринты проекта |
+| `eva sprint get CODE [-n 25] [--page 1]` | Сведения о спринте и страница его задач |
+| `eva sprint add CODE TASK [TASK...]` | Добавить задачи, сохранив их остальные спринты |
+| `eva release list [-p PROJ] [-s open\|closed\|all]` | Найти релизы проекта |
+| `eva release get CODE [-n 25] [--page 1]` | Сведения о релизе и страница его задач |
+| `eva release add CODE TASK [TASK...]` | Добавить задачи, сохранив их остальные релизы |
+| `eva relation types [-n 25] [--page 1]` | Коды и названия типов связей |
+| `eva tag list [-q TEXT]` | Теги; --tag при изменении задачи заменяет весь набор |
+| `eva component list [-p PROJ] [-q TEXT]` | Компоненты проекта для фильтра --component |
+| `eva filter list [-q TEXT] [-p PROJ]` | Собственные сохранённые фильтры; --filter CODE или NAME выполняет сохранённый JSON BQL |
+| `eva notify list [-n 25] [--page 1] [--all]` | Свои непрочитанные уведомления; --all добавляет прочитанные |
+| `eva repo list [-q TEXT]` | Код, название и адрес репозитория |
+| `eva search TEXT [-t task\|doc\|all] [-p PROJ] [-n 25] [--page 1]` | Поиск подстроки в названии или тексте; лимит отдельный для каждого типа |
+| `eva testcase list [-p PROJ] [-q TEXT]` | Тест-кейсы |
+| `eva testcase get CODE [-n 25] [--page 1]` | Версия, шаги, секции предусловий и ожидаемые результаты |
+| `eva testplan list [-p PROJ] [-q TEXT]` | Тест-планы |
+| `eva testplan get CODE [-n 25] [--page 1]` | План и страница входящих в него тест-кейсов |
+| `eva ticket get CODE [-n 25] [--page 1]` | Циклы SLA в единицах сервера; принадлежность к очереди не угадывается |
+| `eva trash list [-p PROJ] [-n 25] [--page 1]` | Удалённые задачи; дата последнего изменения не обещает срок хранения |
+| `eva trash restore CODE [--yes]` | Восстановить задачу после подтверждения |
+| `eva field list [-q TEXT]` | Пользовательские поля задач |
+| `eva field get NAME` | Значения выбора и мультиселекта |
+| `eva resolution list` | Коды и названия резолюций |
+| `eva schema CmfTask [-q TEXT] [--relations] [--refresh]` | Схема с локальным фильтром и кешем; --classes перечисляет известные модели |
+| `eva context` | Кто вошёл, доступные проекты и недавняя работа |
+| `eva cheatsheet` | Короткие примеры без входа в систему |
+| `eva call METHOD [--kwargs JSON] [--args JSON] [--flags JSON]` | Любой метод API; слишком большой ответ через пайп сохраняется в закрытый файл |
+| `eva auth login [--profile NAME] [--url URL]` | Считать токен без эха или из stdin, сохранить в системную связку ключей |
+| `eva auth status` | Учётная запись и профили |
+| `eva auth use NAME` | Выбрать профиль по умолчанию |
+| `eva auth logout [--profile NAME]` | Удалить профиль |
+| `eva config` | Источник настроек, без вывода токена |
+| `eva upgrade` | Обновиться тем же способом, каким установлен клиент |
 
-Все списки понимают `-n/--limit` и `--page` и заканчиваются строкой
-`shown N of M`, чтобы страницу не приняли за весь ответ. `--json` печатает
-JSON самого API, `--full` отключает обрезку в пайпе, `-v` выводит каждый запрос
-и ответ в stderr.
+Списки разбиты на страницы. `task comments` сначала показывает последние 20
+комментариев, внутри страницы от старого к новому. `--page 2` ведёт к более
+ранним, `--all` запрашивает весь набор с проверкой ограничения по размеру.
+`--cols … --format tsv` печатает только строки данных.
+`task get/list --fields … --json` оставляет в JSON выбранные поля и вложенные
+объекты. Без выбора полей `--json` сохраняет ответ API.
 
-`--filter` у `task list` добавляет условие на BQL как есть, для всего, чего нет
-среди флагов:
+`task create/update` принимают `--priority`, `--story-points`, `--plan-start`,
+`--plan-end`, `--alarm`, `--co-assignee`, `--waiting-for` и `--tag`.
+`--co-assignee` и `--tag` заменяют набор, `none` его очищает. Повторение флага
+задаёт несколько значений. Команды `sprint/release add` добавляют задачи,
+не заменяя остальные списки.
 
-```bash
-eva task list --filter '["cmf_created_at", ">=", "2026-10-01"]'
-```
+`--dry-run` у task create/update/move/log/attach/comment показывает запросы
+без записи. Идентификаторы проверяются чтением, но права и правила workflow
+сервер при этом не проверяет. Массовые операции без `--yes` показывают только
+предпросмотр. В одном наборе допускается до 1 000 задач; ошибки перечисляются
+отдельно, успешные изменения не откатываются.
+
+Запись подписки на документ пока не проверена (#68). `doc followers` читает
+явных подписчиков, а не всех получателей уведомлений или читателей страницы.
+Команды `doc watch` нет. Ограничения и проверки описаны в
+[заметках к задачам](docs/backlog.md), [чтении](plugin/skills/eva/reading.md),
+[записи](plugin/skills/eva/writing.md) и
+[расширенном справочнике](plugin/skills/eva/expanded.md).
 
 ## Как устроено
 
@@ -257,7 +332,14 @@ EvaTeam работает по JSON-RPC 2.2: каждый вызов — это `
 - `src/eva/render.mojo`: вывод в терминал и в пайп, HTML в текст, цвета через
   [mist](https://github.com/thatstoasty/mist) из канала
   [modular-community](https://prefix.dev/channels/modular-community).
-- `src/eva/commands.mojo`: дерево команд.
+- `src/main.mojo`: выбор команды и справка.
+- `src/eva/common.mojo`, `selection.mojo`: поиск объектов, страницы вывода и
+  полные выборки с ограничением размера.
+- `task.mojo`, `workflow.mojo`, `collaboration.mojo`, `documents.mojo`,
+  `attachments.mojo`: поля задач, переходы, комментарии, документы и файлы.
+- `dates.mojo`, `projection.mojo`, `validation.mojo`, `writes.mojo`: общие
+  проверки дат, выбор полей, сверка записанных значений и предпросмотр.
+  В `commands.mojo` остался только произвольный вызов API.
 
 JSON-парсер свой: сборка `emberjson` в modular-community скомпилирована под
 Mojo 1.1 и под 1.2 не загружается.
