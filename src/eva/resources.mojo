@@ -13,7 +13,7 @@ from eva.common import (
     print_json,
     want_json,
 )
-from eva.json import JsonDoc, J_OBJ
+from eva.json import JsonDoc
 from eva.render import Out
 from eva.task_options import person_id
 from eva.dates import fmt_minutes

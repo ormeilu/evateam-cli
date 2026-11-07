@@ -2,12 +2,11 @@
 from eva.args import Args
 from eva.writes import preview_write
 from eva.client import Client, Reply
-from eva.json import JsonDoc, NO_NODE, J_ARR, J_OBJ
-from eva.render import Out, pad, clip, text_to_html, markdown_to_html
+from eva.json import JsonDoc, J_OBJ
+from eva.render import Out, pad, clip
 from eva.common import (
     split_csv,
     fields_from,
-    code_kwargs,
     get_by_code,
     id_of,
     text_from,
@@ -18,8 +17,6 @@ from eva.common import (
     page_slice,
     footer,
     quote_str,
-    simple_list,
-    like_filter,
 )
 from eva.workflow import find_resolution, move_task
 from eva.fields import MultiSelect, multiselect_fields, resolve_set, value_names
@@ -685,17 +682,14 @@ def task_delete(client: Client, args: Args, ui: Out) raises:
 def build_update(
     client: Client, args: Args, mut d: JsonDoc, kw: Int
 ) raises -> List[String]:
-    var changed = List[String]()
     var name = args.get("title", "t")
     if name == "":
         name = args.get("name")
     if name != "":
         d.set_str(kw, "name", name)
-        changed.append("name")
     var desc = text_from(args, args.get("description", "d"), "the description")
     if desc != "":
         d.set_str(kw, "text", body_html(args, desc))
-        changed.append("text")
     # Status changes go through a workflow transition, after the other fields.
     var status = args.get("status", "s")
     var assignee = args.get("assignee", "a")
@@ -703,13 +697,11 @@ def build_update(
         var ref_obj = d.object()
         d.set_str(ref_obj, "id", person_id(client, assignee))
         d.set(kw, "responsible", ref_obj)
-        changed.append("responsible")
     # With -s the resolution goes with the move: a transition into a closed
     # status would set its own default over one set here.
     var resolution = args.get("resolution", "r")
     if resolution != "" and status == "":
         d.set_str(kw, "resolution", find_resolution(client, resolution).id)
-        changed.append("resolution")
     var raw = args.get("set")
     if raw != "":
         # --set '{"deadline": "2026-12-01"}' merges raw fields.
@@ -719,9 +711,8 @@ def build_update(
         resolve_set(client, d, extra)
         for i in range(d.len(extra)):
             d.set(kw, d.key_at(extra, i), d.at(extra, i))
-            changed.append(d.key_at(extra, i))
     task_options(client, args, d, kw)
-    changed = List[String]()
+    var changed = List[String]()
     for i in range(d.len(kw)):
         changed.append(d.key_at(kw, i))
     return changed^

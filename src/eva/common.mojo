@@ -1,7 +1,7 @@
 """Shared lookups, input and paginated output; no command dependencies."""
 from eva.args import Args
 from eva.client import Client, Reply
-from eva.json import JsonDoc, NO_NODE, J_ARR, J_OBJ
+from eva.json import JsonDoc, J_OBJ
 from eva.render import Out, pad, clip, text_to_html, markdown_to_html
 from eva.term import read_all
 

@@ -7,8 +7,6 @@ person's own calendar where it has the day, else the production calendar it
 inherits from.
 """
 
-from std.ffi import external_call, c_int
-from std.memory.alloc import unsafe_alloc
 
 from eva.args import Args
 from eva.task_options import person_id
@@ -22,7 +20,6 @@ from eva.dates import (
     epoch_of,
     two,
     date_text,
-    hm_text,
     stamp,
     parse_day,
     local_day,
