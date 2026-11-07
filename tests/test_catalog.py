@@ -22,7 +22,7 @@ class Catalog(unittest.TestCase):
         rows = re.findall(r"^\| #(\d+) \| (implemented|partial) \|", ledger, re.M)
         ids = [int(number) for number, _ in rows]
         self.assertEqual(ids, list(range(36, 81)))
-        self.assertEqual([int(n) for n, state in rows if state == "partial"], [38, 44, 68])
+        self.assertEqual([int(n) for n, state in rows if state == "partial"], [])
         definitions = set()
         for source in (ROOT / "tests").iterdir():
             if source.suffix in (".py", ".mojo"):
@@ -68,8 +68,11 @@ class Catalog(unittest.TestCase):
             self.assertTrue(any(command == p or command.startswith(p + " ") for p in classified), command)
             for name in ("README.md", "README.en.md"):
                 self.assertIn("eva " + command, (ROOT / name).read_text(), (name, command))
-        for mutation in ["task bulk", "task create", "task update", "task move", "task comment",
-                         "task attach", "task watch", "task check", "doc publish", "attachment delete", "trash restore", "call"]:
+        for mutation in ["task bulk", "task create", "task update", "task delete", "task move", "task comment",
+                         "task comment-edit", "task comment-delete", "task log", "task attach", "task watch",
+                         "task unwatch", "task link", "task unlink", "task check", "time log", "time delete",
+                         "doc create", "doc update", "doc publish", "doc comment", "doc comment-edit", "doc attach",
+                         "doc watch", "sprint add", "release add", "attachment delete", "trash restore", "call"]:
             self.assertEqual(classified[mutation], "ask", mutation)
 
 

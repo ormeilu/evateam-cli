@@ -11,7 +11,6 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRATCH = Path.home() / ".hermes/cache/scratch"
 DRIVER = '''from std.sys import argv, stderr, exit
 from eva.diagnostics import error_hint, print_raw_reply, schema, schema_classes, context, cheatsheet, public_address
 from std.os import getenv
@@ -75,8 +74,7 @@ def fixture_env(**overrides):
 class DiagnosticsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        SCRATCH.mkdir(parents=True, exist_ok=True)
-        cls.tmp = tempfile.TemporaryDirectory(prefix="eva-diagnostics-", dir=SCRATCH)
+        cls.tmp = tempfile.TemporaryDirectory(prefix="eva-diagnostics-")
         cls.work = Path(cls.tmp.name)
         cls.bin = cls.work / "diagnostics"
         source = cls.work / "driver.mojo"
@@ -366,6 +364,14 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertEqual(len(list(cache.rglob("raw-*.json"))), 2)
         small = self.run_driver("raw", '{"ok":true}', env=env)
         self.assertEqual(json.loads(small.stdout), {"ok": True})
+        # A regular file wants the whole reply; only pipes get the preview.
+        out = self.work / "raw-out.json"
+        with open(out, "w") as f:
+            redirected = subprocess.run([str(self.bin), "raw"], input=json.dumps(payload), cwd=self.work,
+                                        env=env, text=True, stdout=f, stderr=subprocess.PIPE, timeout=30)
+        self.assertEqual(redirected.returncode, 0, redirected.stderr)
+        self.assertEqual(json.loads(out.read_text()), payload)
+        self.assertEqual(len(list(cache.rglob("raw-*.json"))), 2)
 
     def test_raw_rejects_symlink_cache_directory(self):
         import json
@@ -375,7 +381,11 @@ class DiagnosticsTests(unittest.TestCase):
         target.mkdir()
         (cache / "eva-diagnostics").symlink_to(target, target_is_directory=True)
         result = self.run_driver("raw", json.dumps(["x" * 70000]), env=fixture_env(XDG_CACHE_HOME=str(cache)))
-        self.assertNotEqual(result.returncode, 0)
+        # Nothing goes through the symlink; the reply is printed whole instead
+        # of lost, since the call behind it may have been a write.
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("cannot spill", result.stderr)
+        self.assertEqual(json.loads(result.stdout), ["x" * 70000])
         self.assertEqual(list(target.iterdir()), [])
 
     def test_error_hint_is_separate_and_actionable(self):

@@ -1,6 +1,6 @@
 ---
 name: eva
-description: Read and change EvaTeam (evateam.ru) tasks from the command line — get, search, comment, create, update, move through the workflow, log time, links, attachments — plus projects, people and wiki documents, and any other API method raw. Use whenever a task mentions EvaTeam, Eva, an EvaTeam address or a task or document code from it (BOT-7035, DOC-000123, ATT-190580), and when a change to an EvaTeam task is being asked for.
+description: Read and change EvaTeam (evateam.ru) tasks from the command line — get, search, comment, create, update, move through the workflow, log time, links, attachments — plus projects, people and wiki documents, and any other API method raw. Use whenever a task mentions EvaTeam, Eva, an EvaTeam address or a task or document code from it (PROJ-123, DOC-000123, ATT-1234), and when a change to an EvaTeam task is being asked for.
 ---
 
 # eva
@@ -31,14 +31,14 @@ the account it signs in as. Three outcomes:
 ## The commands that cover most work
 
 ```bash
-eva task get BOT-7035                    # status, people, parent task, subtasks, description
-eva task get BOT-7035 --fields name,status.name   # just those fields
+eva task get PROJ-123                    # status, people, parent task, subtasks, description
+eva task get PROJ-123 --fields name,status.name   # just those fields
 eva task list -a login@company.ru -s open        # a page of rows and a tally
-eva task list -p dcc_bot -q "langfuse" -n 10
-eva task comments BOT-7035
-eva task statuses BOT-7035               # where the workflow lets it go from here
+eva task list -p proj -q "upload" -n 10
+eva task comments PROJ-123
+eva task statuses PROJ-123               # where the workflow lets it go from here
 eva person list -q Иванов                # the login to assign work to
-eva project list -q bot                  # the project code for -p
+eva project list -q dev                  # the project code for -p
 eva doc get DOC-000123                   # a wiki document as text
 ```
 

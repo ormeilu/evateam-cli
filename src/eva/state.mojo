@@ -10,9 +10,15 @@ from eva.client import new_callid
 from requests._dns import _cstr
 
 comptime AT_FDCWD = -2 if CompilationTarget.is_macos() else -100
-comptime NOFOLLOW = 0x100 if CompilationTarget.is_macos() else 0x20000
+# Linux arm64 numbers O_DIRECTORY/O_NOFOLLOW differently from x86-64; its
+# 0x10000/0x20000 are O_DIRECT/O_LARGEFILE.
+comptime NOFOLLOW = 0x100 if CompilationTarget.is_macos() else (
+    0x20000 if CompilationTarget.is_x86() else 0x8000
+)
 comptime NONBLOCK = 0x4 if CompilationTarget.is_macos() else 0x800
-comptime DIRECTORY = 0x100000 if CompilationTarget.is_macos() else 0x10000
+comptime DIRECTORY = 0x100000 if CompilationTarget.is_macos() else (
+    0x10000 if CompilationTarget.is_x86() else 0x4000
+)
 comptime CREATE_EXCLUSIVE = (
     0x200 | 0x800
 ) if CompilationTarget.is_macos() else (0x40 | 0x80)
@@ -25,6 +31,21 @@ def server_key(url: String) -> String:
     for b in url.as_bytes():
         h = (h ^ UInt64(b)) * UInt64(1099511628211)
     return String(h)
+
+
+def stdout_is_file() -> Bool:
+    """Whether stdout is redirected to a regular file, which wants the whole
+    reply rather than the bounded preview a pipe gets."""
+    var buf = unsafe_alloc[UInt8](512)
+    var rc = external_call["fstat", c_int](Int32(1), buf)
+    comptime MODE_OFFSET = 4 if CompilationTarget.is_macos() else (
+        24 if CompilationTarget.is_x86() else 16
+    )
+    var mode = Int(buf[unsafe_offset=MODE_OFFSET]) | (
+        Int(buf[unsafe_offset=MODE_OFFSET + 1]) << 8
+    )
+    buf.unsafe_free()
+    return rc == 0 and (mode & 0o170000) == 0o100000
 
 
 def _private_fd(fd: Int32, directory: Bool) -> Bool:

@@ -2,6 +2,7 @@
 one, or download the original bytes."""
 
 from std.ffi import external_call, c_int
+from std.os import makedirs
 from std.os.path import exists
 
 from eva.args import Args
@@ -123,9 +124,7 @@ def task_attachments(client: Client, args: Args, ui: Out) raises:
 
 def attachment_get(client: Client, args: Args, ui: Out) raises:
     args.check_known(["json", "format", "full", "verbose", "v"])
-    var ref_ = args.need(
-        2, "attachment code, e.g. eva attachment get ATT-190580"
-    )
+    var ref_ = args.need(2, "attachment code, e.g. eva attachment get ATT-1234")
     var r = get_attachment(client, ref_, ATTACHMENT_FIELDS + ",text")
     if want_json(args):
         print_json(r)
@@ -179,29 +178,11 @@ def _write_stdout(data: List[UInt8]) raises:
         done += n
 
 
-def attachment_download(client: Client, args: Args, ui: Out) raises:
-    args.check_known(["output", "o", "force", "verbose", "v"])
-    var ref_ = args.need(
-        2, "attachment code, e.g. eva attachment download ATT-190580"
-    )
-    var r = get_attachment(client, ref_, ATTACHMENT_FIELDS)
-    ref d = r.doc
-    var a = r.result
-    var code = d.text_at(a, "code")
+def _fetch(client: Client, d: JsonDoc, a: Int) raises -> List[UInt8]:
+    """The bytes of attachment row `a`, refusing a short read or a refusal."""
     var expected = (
         Int(d.text_at(a, "st_size")) if d.text_at(a, "st_size") != "" else -1
     )
-    var out = args.get("output", "o")
-    if out == "":
-        out = safe_file_name(
-            d.text_at(a, "file_name"), code + d.text_at(a, "file_type")
-        )
-    if out != "-" and exists(out) and not args.has("force"):
-        raise Error(
-            out
-            + " already exists; pass --force to overwrite it, or -o another"
-            " path"
-        )
     var data = client.download(d.text_at(a, "url"))
     # A refusal comes back as a short JSON reply with HTTP 200. Files uploaded
     # through the API keep st_size 0, so a size of 0 says nothing.
@@ -221,6 +202,30 @@ def attachment_download(client: Client, args: Args, ui: Out) raises:
         and not d.text_at(a, "file_type").lower().endswith("json")
     ):
         raise Error("the server refused the download: " + clean(head))
+    return data^
+
+
+def attachment_download(client: Client, args: Args, ui: Out) raises:
+    args.check_known(["output", "o", "force", "verbose", "v"])
+    var ref_ = args.need(
+        2, "attachment code, e.g. eva attachment download ATT-1234"
+    )
+    var r = get_attachment(client, ref_, ATTACHMENT_FIELDS)
+    ref d = r.doc
+    var a = r.result
+    var code = d.text_at(a, "code")
+    var out = args.get("output", "o")
+    if out == "":
+        out = safe_file_name(
+            d.text_at(a, "file_name"), code + d.text_at(a, "file_type")
+        )
+    if out != "-" and exists(out) and not args.has("force"):
+        raise Error(
+            out
+            + " already exists; pass --force to overwrite it, or -o another"
+            " path"
+        )
+    var data = _fetch(client, d, a)
     if out == "-":
         _write_stdout(data)
         return
@@ -229,18 +234,126 @@ def attachment_download(client: Client, args: Args, ui: Out) raises:
     print("saved " + ui.bold(out) + " (" + human_size(len(data)) + ")")
 
 
+def doc_download_all(client: Client, args: Args, ui: Out) raises:
+    """Every attachment of a document, downloaded one by one into a directory.
+
+    CmfDocument.download_all_attachment is not used: the archive it builds is
+    stored on the document as a new attachment, so it is a write.
+    """
+    args.check_known(["output", "o", "force", "verbose", "v"])
+    var code = args.need(2, "document code")
+    var id = id_of(client, "CmfDocument", "code", code)
+    var rows = collect_rows(
+        client,
+        "CmfAttachment",
+        '["parent_id","==",' + quote_str(id) + "]",
+        "code,file_name,file_type,st_size,url",
+        1000,
+        "cmf_created_at",
+    )
+    ref d = rows.doc
+    var n = d.len(rows.result)
+    if n == 0:
+        print(code + " has no attachments")
+        return
+    var dir = args.get("output", "o")
+    if dir == "":
+        dir = code
+    # Name every file first: nothing is written when one of them would clash.
+    var names = List[String]()
+    var taken = Dict[String, Bool]()
+    for i in range(n):
+        var a = d.at(rows.result, i)
+        var att = d.text_at(a, "code")
+        var name = safe_file_name(
+            d.text_at(a, "file_name"), att + d.text_at(a, "file_type")
+        )
+        if name in taken:
+            name = att + "-" + name
+        taken[name] = True
+        if exists(dir + "/" + name) and not args.has("force"):
+            raise Error(
+                dir
+                + "/"
+                + name
+                + " already exists; pass --force to overwrite it, or -o"
+                " another directory"
+            )
+        names.append(name)
+    makedirs(dir, exist_ok=True)
+    var total = 0
+    for i in range(n):
+        var a = d.at(rows.result, i)
+        var path = dir + "/" + names[i]
+        var data: List[UInt8]
+        try:
+            data = _fetch(client, d, a)
+        except e:
+            raise Error(
+                d.text_at(a, "code")
+                + " ("
+                + names[i]
+                + "): "
+                + String(e)
+                + "; "
+                + String(i)
+                + " of "
+                + String(n)
+                + " files saved in "
+                + dir
+            )
+        with open(path, "w") as f:
+            f.write_bytes(Span(data))
+        total += len(data)
+        print("saved " + ui.bold(path) + " (" + human_size(len(data)) + ")")
+    print(
+        ui.dim(
+            String(n)
+            + (" file, " if n == 1 else " files, ")
+            + human_size(total)
+            + " in "
+            + dir
+        )
+    )
+
+
 def attachment_delete(client: Client, args: Args, ui: Out) raises:
-    args.check_known(["yes", "y", "verbose", "v"])
+    args.check_known(["yes", "y", "force", "verbose", "v"])
     var code = args.need(2, "attachment code")
     var r = get_attachment(client, code, ATTACHMENT_FIELDS)
     var id = r.doc.text_at(r.result, "id")
+    var file_name = r.doc.text_at(r.result, "file_name")
     var what = (
-        code
-        + "  "
-        + r.doc.text_at(r.result, "file_name")
-        + " on "
-        + r.doc.text_at(r.result, "parent_id")
+        code + "  " + file_name + " on " + r.doc.text_at(r.result, "parent_id")
     )
+    # EvaTeam keeps files by name per parent: deleting one attachment removes
+    # the bytes of every other attachment there with the same name.
+    var siblings = collect_rows(
+        client,
+        "CmfAttachment",
+        '[["parent_id","==",'
+        + quote_str(r.doc.text_at(r.result, "parent_id"))
+        + '],["file_name","==",'
+        + quote_str(file_name)
+        + '],["id","!=",'
+        + quote_str(id)
+        + "]]",
+        "code",
+        1000,
+    )
+    var shared = List[String]()
+    for i in range(siblings.doc.len(siblings.result)):
+        shared.append(
+            siblings.doc.text_at(siblings.doc.at(siblings.result, i), "code")
+        )
+    if len(shared) > 0:
+        what += " (shares its file with " + ", ".join(shared) + ")"
+        if not args.has("force"):
+            raise Error(
+                what
+                + "; removing it would remove their bytes too. Pass --force"
+                " to remove it anyway"
+            )
     if not args.has("yes", "y"):
         if not stdin_is_tty():
             raise Error(

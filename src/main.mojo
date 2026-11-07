@@ -26,6 +26,7 @@ from eva.timelog import task_log, time_delete, time_list
 from eva.attachments import (
     attachment_download,
     attachment_get,
+    doc_download_all,
     task_attach,
     task_attachments,
 )
@@ -47,7 +48,7 @@ from eva.resources import (
     repo_list,
     search,
 )
-from eva.subscriptions import doc_followers
+from eva.subscriptions import doc_followers, doc_watch
 from eva.task_card import task_card
 from eva.reports import time_report
 from eva.filters import filter_list
@@ -170,12 +171,16 @@ usage: eva <command> [options]
       files attached to a document
   doc attach CODE FILE [FILE...] [--force]
       same upload safeguards as task attach
+  doc download-all CODE [-o DIR] [--force]
+      every attachment into DIR (default CODE/), one download each
   doc children CODE [--depth 1] [-n 25] [--page 1]
       document-only children; paginated per parent, depth capped at 10
   doc history CODE [-n 25] [--page 1]
       opaque version strings and history IDs, newest first
   doc followers CODE [-n 25] [--page 1]
-      explicit followers only; no unverified doc watch write
+      explicit followers only, not viewers or implicit recipients
+  doc watch CODE [--children] [--off] [--dry-run]
+      follow a document as yourself; --children adds pages under it
   sprint list [-p PROJ] [-s open|closed|all]
       discover sprint codes
   sprint get CODE [-n 25] [--page 1]
@@ -508,6 +513,8 @@ def run(var raw: List[String]) raises:
             doc_publish(client, args, ui)
         elif sub == "followers":
             doc_followers(client, args, ui)
+        elif sub == "watch":
+            doc_watch(client, args, ui)
         elif sub == "children":
             doc_children(client, args, ui)
         elif sub == "history":
@@ -527,6 +534,8 @@ def run(var raw: List[String]) raises:
             task_attach(client, args, ui)
         elif sub == "attachments":
             task_attachments(client, args, ui)
+        elif sub == "download-all":
+            doc_download_all(client, args, ui)
         elif sub == "list" or sub == "ls" or sub == "":
             doc_list(client, args, ui)
         else:

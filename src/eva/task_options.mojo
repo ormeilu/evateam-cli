@@ -126,12 +126,17 @@ def task_options(client: Client, args: Args, mut d: JsonDoc, kw: Int) raises:
         else:
             valid_datetime(value)
             d.set_str(kw, fields[i], value)
-    if (
-        d.text_at(kw, "plan_start_date") != ""
-        and d.text_at(kw, "plan_end_date") != ""
-        and d.text_at(kw, "plan_start_date") > d.text_at(kw, "plan_end_date")
-    ):
-        raise Error("--plan-start is after --plan-end")
+    var start = d.text_at(kw, "plan_start_date")
+    var end = d.text_at(kw, "plan_end_date")
+    if start != "" and end != "":
+        # A date without a time stands for the whole day.
+        if start.byte_length() == 10 or end.byte_length() == 10:
+            var start_day = String(start[byte=0:10])
+            var end_day = String(end[byte=0:10])
+            start = start_day^
+            end = end_day^
+        if start > end:
+            raise Error("--plan-start is after --plan-end")
     value = args.get("waiting-for")
     if value != "":
         if value == "none":

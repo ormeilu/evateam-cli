@@ -13,7 +13,7 @@ and the unverified document-subscription write.
 ## Creating a task
 
 ```bash
-eva task create -p dcc_bot -t "Retry uploads on 5xx" -d "Steps:
+eva task create -p proj -t "Retry uploads on 5xx" -d "Steps:
 
 1. Upload a file
 2. Get a 503" -a login@company.ru --sprint SPR-000006
@@ -22,14 +22,14 @@ eva task create -p dcc_bot -t "Retry uploads on 5xx" -d "Steps:
 `-p` is the project code, `-t` the title. `-d` is plain text: blank lines become
 paragraphs, HTML in it is escaped, not rendered. See "Formatting and long text"
 below for Markdown and for text from a file. `-a` takes a login. eva prints
-the new code (`created BOT-7044 …`); use that code from then on.
+the new code (`created PROJ-124 …`); use that code from then on.
 
 A subtask names its parent task. eva takes the epic from the parent, sets the
 type by name or code, and `--set` adds any other fields:
 
 ```bash
-eva task create -p dcc_bot -t "Retry uploads" --parent BOT-7035 --type Подзадача
-eva task create -p dcc_bot -t "Crash on upload" --type bug --set '{"deadline": "2026-12-01"}'
+eva task create -p proj -t "Retry uploads" --parent PROJ-123 --type Подзадача
+eva task create -p proj -t "Crash on upload" --type bug --set '{"deadline": "2026-12-01"}'
 ```
 
 When a task gets an epic, EvaTeam makes the epic its parent task too. So eva
@@ -40,7 +40,7 @@ request. If EvaTeam still ends up with a different parent, eva prints
 ## Attaching files
 
 ```bash
-eva task attach BOT-7044 report.html screenshot.png   # prints the new ATT codes
+eva task attach PROJ-124 report.html screenshot.png   # prints the new ATT codes
 ```
 
 eva creates the attachment, uploads the file to EvaTeam's own /files/ address
@@ -56,7 +56,7 @@ is given. Rename the file instead unless the user wants it replaced.
 ## Deleting a task
 
 ```bash
-eva task delete BOT-7044 --yes
+eva task delete PROJ-124 --yes
 ```
 
 In a terminal eva asks first and names the task and how many subtasks it has;
@@ -66,8 +66,8 @@ user asked for that task by code, and name it in the confirmation you ask for.
 ## Changing fields
 
 ```bash
-eva task update BOT-7044 -t "New title" -d "New description" -a login@company.ru
-eva task update BOT-7044 --set '{"deadline": "2026-12-01"}'
+eva task update PROJ-124 -t "New title" -d "New description" -a login@company.ru
+eva task update PROJ-124 --set '{"deadline": "2026-12-01"}'
 ```
 
 `--set` sends any fields as JSON, under EvaTeam's names; `eva task get CODE
@@ -76,8 +76,8 @@ multi-select takes value names, which eva turns into ids, and a choice takes a
 key from `eva field get NAME`:
 
 ```bash
-eva task update BOT-7044 --set '{"cf_napravleniedev": ["iOS", "BE"]}'
-eva task update BOT-7044 --set '{"cf_102_1ind": "k8s"}'
+eva task update PROJ-124 --set '{"cf_direction": ["iOS", "BE"]}'
+eva task update PROJ-124 --set '{"cf_102_1ind": "k8s"}'
 ```
 
  `-d` replaces the whole description. A
@@ -95,8 +95,8 @@ last, in two updates.
 ## Moving through the workflow
 
 ```bash
-eva task statuses BOT-7044          # where it can go from its current status
-eva task move BOT-7044 "In Development" -m "Picked up"
+eva task statuses PROJ-124          # where it can go from its current status
+eva task move PROJ-124 "In Development" -m "Picked up"
 ```
 
 The target is a status code or name from `statuses`, any case. If the workflow
@@ -108,8 +108,8 @@ A workflow often allows one step at a time. `--path` walks the shortest
 route, stopping at the first step EvaTeam refuses and naming it:
 
 ```bash
-eva task path BOT-7044 closed          # see the route first
-eva task move BOT-7044 closed --path -m "Released" --resolution done
+eva task path PROJ-124 closed          # see the route first
+eva task move PROJ-124 closed --path -m "Released" --resolution done
 ```
 
 The route avoids side statuses such as On Hold. `--set` goes with every step,
@@ -130,8 +130,8 @@ Find the field's internal name and an allowed value on a task that already
 passed this transition, then send it with the move:
 
 ```bash
-eva call CmfTask.get --kwargs '{"filter": ["code", "==", "BOT-6796"], "fields": ["**"]}' | grep cf_
-eva task move BOT-7044 Done --set '{"cf_vid_uslugi": "razvitie"}'
+eva call CmfTask.get --kwargs '{"filter": ["code", "==", "PROJ-126"], "fields": ["**"]}' | grep cf_
+eva task move PROJ-124 Done --set '{"cf_vid_uslugi": "razvitie"}'
 ```
 
 Ask the user which value applies when more than one fits; the value means
@@ -142,8 +142,8 @@ default one (`done`) unless told otherwise:
 
 ```bash
 eva resolution list                                   # codes and names
-eva task move BOT-7044 Done --resolution wont_do -m "Not needed after the redesign"
-eva task update BOT-7044 --resolution dublicate       # on a task already closed
+eva task move PROJ-124 Done --resolution wont_do -m "Not needed after the redesign"
+eva task update PROJ-124 --resolution dublicate       # on a task already closed
 ```
 
 `--resolution` takes a code or a name, any case (EvaTeam spells the duplicate
@@ -156,11 +156,11 @@ ignored: always change status through `move`.
 ## Comments and time
 
 ```bash
-eva task comment BOT-7044 "Reproduced on staging"
-eva task log BOT-7044 1h30m -m "Investigation"     # 90, 90m, 2h, 1h30m; ends now
-eva task log BOT-7044 2h --date yesterday          # after yesterday's last entry
-eva task log BOT-7044 45m --date 2026-11-05 --at 14:15
-eva task log BOT-7044 30m --remaining 2h           # also reset the estimate
+eva task comment PROJ-124 "Reproduced on staging"
+eva task log PROJ-124 1h30m -m "Investigation"     # 90, 90m, 2h, 1h30m; ends now
+eva task log PROJ-124 2h --date yesterday          # after yesterday's last entry
+eva task log PROJ-124 45m --date 2026-11-05 --at 14:15
+eva task log PROJ-124 30m --remaining 2h           # also reset the estimate
 ```
 
 A comment, like a description, is plain text unless `--md` or `--html` says
@@ -184,21 +184,31 @@ that still has time left, confirm the plan, then log it with `--date`. Write
 nothing for a day the user did not describe.
 
 ```bash
-eva task comments BOT-7044 --ids                 # find the comment's id
+eva task comments PROJ-124 --ids                 # find the comment's id
 eva task comment-delete CmfComment:5c91…         # the bare uuid works too
 ```
 
 EvaTeam keeps a "comment deleted" entry with the old text, so deleting hides a
 comment rather than erasing it.
 
+## Following a document
+
+```bash
+eva doc watch DOC-000123             # follow it yourself; a repeat is a no-op
+eva doc watch DOC-000123 --children  # also the pages under it
+eva doc watch DOC-000123 --off       # stop following
+```
+
+Only you can be subscribed this way; task watchers are `task watch`.
+
 ## Formatting and long text
 
 ```bash
-eva task comment BOT-7044 --md "## Done
+eva task comment PROJ-124 --md "## Done
 - **fixed** in \`upload.py\`, see [PR](https://git.example/pr/1)"
-eva task comment BOT-7044 -F note.md --md        # text from a file
-some-command | eva task comment BOT-7044 -F -    # or from stdin
-eva task update BOT-7044 -F spec.md --md         # same for descriptions
+eva task comment PROJ-124 -F note.md --md        # text from a file
+some-command | eva task comment PROJ-124 -F -    # or from stdin
+eva task update PROJ-124 -F spec.md --md         # same for descriptions
 ```
 
 EvaTeam renders HTML, not Markdown. `--md` converts headings, bold, italic,

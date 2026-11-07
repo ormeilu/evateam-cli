@@ -240,9 +240,7 @@ def field_get(client: Client, args: Args, ui: Out) raises:
     args.check_known(["verbose", "v"])
     var f = find_field(
         client,
-        args.need(
-            2, "field name or caption, e.g. eva field get cf_napravleniedev"
-        ),
+        args.need(2, "field name or caption, e.g. eva field get cf_direction"),
     )
     print(ui.bold(f.name) + "  " + f.caption + "  " + ui.dim(kind_of(f.widget)))
     if f.widget == "CmfM2M":

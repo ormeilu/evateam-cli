@@ -11,7 +11,8 @@ def validate_bql(d: JsonDoc, node: Int, depth: Int = 0) raises:
         raise Error("BQL must be an array with nesting at most 32")
     var n = d.len(node)
     if n == 0:
-        return
+        # [] matches everything, which a bulk change must never inherit.
+        raise Error("empty BQL expression; it would match every task")
     var first = d.at(node, 0)
     if d.kind(first) == J_ARR:
         for i in range(n):

@@ -26,7 +26,7 @@ class Features(unittest.TestCase):
         cls.env.update(EVA_URL=f"http://127.0.0.1:{cls.server.server_port}",
                        EVA_API_KEY="test-token", XDG_CACHE_HOME=cls.tmp.name)
         cls.binary = os.environ.get("EVA_BIN", str(Path("build/eva").resolve()))
-        cls.initial = copy.deepcopy({key: getattr(mock_server, key) for key in ["TASKS", "COMMENTS", "ATTACHMENTS", "CREATED", "CREATED_ATTACHMENTS", "DOCUMENTS", "LISTS", "RELATIONS", "CHECK_ITEMS", "CHECKLISTS", "TRASH", "WORKLOG"]})
+        cls.initial = copy.deepcopy({key: getattr(mock_server, key) for key in ["TASKS", "COMMENTS", "ATTACHMENTS", "CREATED", "CREATED_ATTACHMENTS", "DOCUMENTS", "LISTS", "RELATIONS", "CHECK_ITEMS", "CHECKLISTS", "TRASH", "WORKLOG", "FOLLOWERS"]})
 
     def setUp(self):
         for key, value in copy.deepcopy(self.initial).items():
@@ -158,11 +158,13 @@ class Features(unittest.TestCase):
 
     def test_links_types_and_noops(self):
         self.assertIn("system.link", self.run_cli("relation", "types"))
-        for _ in range(2):
-            self.assertIn("linked", self.run_cli("task", "link", "DEV-1", "DEV-2"))
+        self.assertIn("linked", self.run_cli("task", "link", "DEV-1", "DEV-2"))
+        self.assertIn("already linked", self.run_cli("task", "link", "DEV-1", "DEV-2"))
+        self.assertEqual(len(self.requests("CmfRelationOption.create")), 1)
         self.assertIn("system.link", self.run_cli("task", "links", "DEV-1"))
-        for _ in range(2):
-            self.assertIn("unlinked", self.run_cli("task", "unlink", "DEV-1", "DEV-2"))
+        self.assertIn("unlinked", self.run_cli("task", "unlink", "DEV-1", "DEV-2"))
+        self.assertIn("nothing to remove", self.run_cli("task", "unlink", "DEV-1", "DEV-2"))
+        self.assertEqual(len(self.requests("CmfRelationOption.delete")), 1)
         self.assertIn("unknown relation", self.run_cli("task", "link", "DEV-1", "DEV-2", "--type", "bogus", ok=False))
         self.assertIn("not found", self.run_cli("task", "link", "DEV-1", "DEV-404", ok=False))
 
@@ -326,6 +328,92 @@ class Features(unittest.TestCase):
         self.assertFalse(self.requests("CmfTask.task_transition_run"))
         self.assertIn("0 steps", self.run_cli("task", "path", "DEV-1", "closed"))
         self.assertIn("would not apply", self.run_cli("task", "move", "DEV-1", "closed", "--resolution", "done", ok=False))
+        # task update refuses before writing its other fields, not after.
+        self.assertIn("would not apply", self.run_cli("task", "update", "DEV-1", "-t", "New", "-s", "closed", "-m", "closing", ok=False))
+        self.assertFalse(self.requests("CmfTask.update"))
+        self.assertIn("needs -s", self.run_cli("task", "update", "DEV-1", "-t", "New", "-m", "lost", ok=False))
+        self.assertFalse(self.requests("CmfTask.update"))
+
+    def test_readback_accepts_server_datetime_form(self):
+        out = self.run_cli("task", "update", "DEV-1", "--plan-start", "2026-11-10", "--plan-end", "2026-11-14 18:00",
+                           "--set", '{"deadline": "2026-12-01"}')
+        self.assertIn("updated DEV-1", out)
+        self.assertNotIn("not confirmed", out)
+        self.run_cli("task", "update", "DEV-1", "--plan-start", "2026-11-10 18:00", "--plan-end", "2026-11-10", "--dry-run")
+        self.assertIn("after --plan-end", self.run_cli("task", "update", "DEV-1", "--plan-start", "2026-11-11", "--plan-end", "2026-11-10 09:00", ok=False))
+        self.assertIn("gantt schedule: 2026-11-11T09:00:00+03:00", self.run_cli("task", "get", "DEV-1"))
+
+    def test_document_download_all_is_one_download_per_file(self):
+        for name in ["a.txt", "b.txt"]:
+            path = Path(self.tmp.name) / name
+            path.write_text(name)
+            self.run_cli("doc", "attach", "DOC-1", str(path))
+        out_dir = Path(self.tmp.name) / "dl"
+        self.log.write_text("")
+        self.assertIn("2 files", self.run_cli("doc", "download-all", "DOC-1", "-o", str(out_dir)))
+        self.assertEqual(sorted(p.name for p in out_dir.iterdir()), ["a.txt", "b.txt"])
+        self.assertEqual((out_dir / "a.txt").read_bytes(), mock_server.FILE_BYTES)
+        # The server's download_all_attachment stores its archive as a new attachment.
+        self.assertFalse(self.requests("CmfDocument.download_all_attachment"))
+        self.assertFalse(self.requests("CmfAttachment.create"))
+        self.assertIn("already exists", self.run_cli("doc", "download-all", "DOC-1", "-o", str(out_dir), ok=False))
+        self.assertIn("2 files", self.run_cli("doc", "download-all", "DOC-1", "-o", str(out_dir), "--force"))
+        self.assertIn("has no attachments", self.run_cli("doc", "download-all", "DOC-10", "-o", str(out_dir)))
+
+    def test_doc_watch_is_self_service_and_idempotent(self):
+        self.run_cli("doc", "watch", "DOC-1", "--dry-run")
+        self.assertFalse(self.requests("CmfFollower.create"))
+        self.assertIn("following DOC-1", self.run_cli("doc", "watch", "DOC-1"))
+        kw = self.requests("CmfFollower.create")[-1]["kwargs"]
+        self.assertEqual(kw, {"follow_children": False, "parent": "CmfDocument:1", "person": "CmfPerson:me"})
+        self.assertIn("already following", self.run_cli("doc", "watch", "DOC-1"))
+        self.assertEqual(len(self.requests("CmfFollower.create")), 1)
+        self.assertIn("me@example.ru", self.run_cli("doc", "followers", "DOC-1"))
+        self.assertIn("and the pages under it", self.run_cli("doc", "watch", "DOC-1", "--children"))
+        self.assertEqual(self.requests("CmfFollower.update")[-1]["kwargs"], {"follow_children": True})
+        self.assertEqual(len(self.requests("CmfFollower.create")), 1)
+        self.assertIn("drop --children", self.run_cli("doc", "watch", "DOC-1", "--off", "--children", ok=False))
+        self.assertIn("stopped following", self.run_cli("doc", "watch", "DOC-1", "--off"))
+        self.assertIn("do not follow", self.run_cli("doc", "watch", "DOC-1", "--off"))
+        self.assertEqual(len(self.requests("CmfFollower.delete")), 1)
+
+    def test_comment_files_and_deletes_refuse_before_writing(self):
+        first, second = Path(self.tmp.name) / "a", Path(self.tmp.name) / "b"
+        for folder in (first, second):
+            folder.mkdir(exist_ok=True)
+            (folder / "log.txt").write_text("x")
+        self.assertIn("same name", self.run_cli("task", "comment", "DEV-1", "Logs", "--attach", str(first / "log.txt"),
+                                                "--attach", str(second / "log.txt"), ok=False))
+        self.assertFalse(self.requests("CmfComment.create"))
+        # Control characters read back stripped; the comment still counts as written.
+        out = self.run_cli("task", "comment", "DEV-1", "line one\r\nline two")
+        self.assertIn("commented on DEV-1", out)
+        self.assertEqual(len(self.requests("CmfComment.create")), 1)
+        # Two attachments sharing a name share one stored file.
+        self.run_cli("task", "attach", "DEV-1", str(first / "log.txt"))
+        self.run_cli("task", "attach", "DEV-1", str(second / "log.txt"), "--force")
+        code = json.loads(self.run_cli("task", "attachments", "DEV-1", "--json"))[-1]["code"]
+        self.assertIn("shares its file", self.run_cli("attachment", "delete", code, "--yes", ok=False))
+        self.assertFalse(self.requests("CmfAttachment.delete"))
+        self.assertIn("removed", self.run_cli("attachment", "delete", code, "--yes", "--force"))
+
+    def test_switches_and_values_do_not_swallow_each_other(self):
+        self.assertIn("needs a value", self.run_cli("task", "log", "DEV-1", "1h", "-m", "--dry-run", ok=False))
+        self.assertIn("is a switch", self.run_cli("trash", "restore", "DEV-9", "--yes=false", ok=False))
+        self.assertFalse(self.requests("CmfTask.restore"))
+        self.assertIn("empty BQL", self.run_cli("task", "bulk", "set", "--filter", "[]", "--set", '{"x": 1}', ok=False))
+        self.assertIn("go with bulk move", self.run_cli("task", "bulk", "set", "-p", "DEV", "--set", '{"x": 1}', "-m", "x", ok=False))
+        self.assertIn("nothing to remove", self.run_cli("task", "unlink", "DEV-1", "DEV-2"))
+        self.assertFalse(self.requests("CmfRelationOption.delete"))
+        json.loads(self.run_cli("trash", "list", "--format", "json"))
+
+    def test_publish_refuses_an_empty_draft(self):
+        doc = mock_server.DOCUMENTS[0]
+        doc["text_draft"] = doc["text"]
+        self.assertIn("already the published text", self.run_cli("doc", "publish", "DOC-1"))
+        doc["text_draft"] = ""
+        self.assertIn("no draft", self.run_cli("doc", "publish", "DOC-1", ok=False))
+        self.assertFalse(self.requests("CmfDocument.do_publish"))
 
 
 if __name__ == "__main__":

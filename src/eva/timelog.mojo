@@ -370,7 +370,7 @@ def time_list(client: Client, args: Args, ui: Out) raises:
 def time_delete(client: Client, args: Args, ui: Out) raises:
     args.check_known(["verbose", "v"])
     var ref_ = args.need(
-        2, "work log entry, e.g. TTH-1193314 (eva time list shows them)"
+        2, "work log entry, e.g. TTH-1234 (eva time list shows them)"
     )
     var id = ref_
     if not ref_.startswith("CmfTimeTrackerHistory:"):

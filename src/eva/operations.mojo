@@ -1,13 +1,13 @@
 """Confirmation-gated trash recovery and bounded bulk task operations."""
 from eva.args import Args
 from eva.client import Client
-from eva.common import get_by_code, quote_str, split_csv, simple_list
+from eva.common import get_by_code, quote_str, split_csv, simple_list, want_json
 from eva.resources import filter_eq
 from eva.selection import collect_rows
 from eva.task import task_filter, task_update
 from eva.workflow import move_task
 from eva.writes import preview_write
-from eva.json import JsonDoc
+from eva.json import JsonDoc, J_OBJ
 from eva.render import Out
 from eva.term import stdin_is_tty, prompt_line
 
@@ -47,7 +47,7 @@ def trash_command(client: Client, args: Args, ui: Out) raises:
             "code",
             split_csv("name,cmf_modified_at"),
         )
-        if not args.has("json"):
+        if not want_json(args):
             print(
                 "timestamp is last modified, not a promised deletion date;"
                 " retention is server-configured"
@@ -134,6 +134,12 @@ def task_bulk(client: Client, args: Args, ui: Out) raises:
         raise Error("bulk needs an explicit --filter or --project selector")
     if action == "set" and args.get("set") == "":
         raise Error("bulk set requires --set JSON")
+    if action == "set" and (
+        args.has("resolution", "r")
+        or args.has("comment", "m")
+        or args.has("path")
+    ):
+        raise Error("--resolution, -m and --path go with bulk move, not set")
     var target = args.need(3, "target status") if action == "move" else String(
         ""
     )
@@ -141,7 +147,7 @@ def task_bulk(client: Client, args: Args, ui: Out) raises:
     var check = JsonDoc()
     if args.get("set") != "":
         var values = check.parse(args.get("set"))
-        if check.kind(values) != 5:
+        if check.kind(values) != J_OBJ:
             raise Error("--set expects a JSON object")
         if action == "set" and check.len(values) == 0:
             raise Error("nothing to change: --set is empty")

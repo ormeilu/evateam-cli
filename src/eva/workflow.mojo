@@ -313,6 +313,23 @@ def path_text(tr: Transitions, steps: List[Int]) -> String:
     return out
 
 
+def refuse_noop_move(client: Client, code: String, target: String) raises:
+    """Raise when `code` is already in `target`: no transition would run, so a
+    comment or resolution meant for it would be lost."""
+    var tr = transitions_for(client, code)
+    var want = String(target.strip()).lower()
+    if want == tr.current.lower() or (
+        tr.current_code != "" and want == tr.current_code.lower()
+    ):
+        raise Error(
+            code
+            + " is already in "
+            + tr.current
+            + "; no transition would run, so -m/--resolution would not apply."
+            " Drop -s to set --resolution, or use eva task comment"
+        )
+
+
 def move_task(
     client: Client,
     code: String,

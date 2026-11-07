@@ -81,6 +81,7 @@ TASKS = [
         "in_tasks": [],
         "git_commits": [{"hash": "f540fec", "message": "retry uploads"}],
         "priority": 1, "agile_story_points": 3, "plan_start_date": "2026-11-10", "plan_end_date": "2026-11-14", "alarm_date": "2026-11-09 09:00",
+        "op_gantt_task": {"id": "CmfGanttTask:1", "sched_start_date": "2026-11-11T09:00:00+03:00", "sched_finish_date": "2026-11-13T18:00:00+03:00"},
         "spectators": [{"id": "CmfPerson:me", "login": "me@example.ru", "name": "Me"}],
         "executors": [{"id": "CmfPerson:me", "login": "me@example.ru", "name": "Me"}],
         "waiting_for": {"id": "CmfPerson:me", "login": "me@example.ru", "name": "Me"},
@@ -172,6 +173,7 @@ CREATED_ATTACHMENTS = []
 LISTS = [{"id": "CmfList:1", "code": "SPR-1", "name": "Sprint 1", "logic_type": {"code": "list.agile_sprint:default"}, "project": {"code": "DEV"}, "cache_status_type": "OPEN"}, {"id": "CmfList:2", "code": "REL-1", "name": "Release 1", "logic_type": {"code": "list.release:default"}, "project": {"code": "DEV"}, "cache_status_type": "OPEN"}]
 TASKS[1]["lists"] = [LISTS[0]]
 TASKS[1]["is_template"] = True
+FOLLOWERS = []
 TRASH = [{"id": "CmfTask:9", "code": "DEV-9", "name": "Removed task", "cmf_deleted": True, "project": {"code": "DEV"}, "system": False}]
 for task in TASKS:
     task["system"] = False
@@ -298,7 +300,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, {"result": True})
         tables = {
             "CmfAttachment": ATTACHMENTS,
-            "CmfFollower": [],
+            "CmfFollower": FOLLOWERS,
             "CmfBqlFilter": [{"id": "CmfBqlFilter:1", "code": "RFBF-1", "name": "My view", "cmf_owner": "CmfPerson:me", "bql": '["code","==","DEV-1"]', "cmf_model_name": "CmfTask"}],
             "CmfComponent": [{"id": "CmfComponent:1", "code": "PCOM-1", "name": "Platform", "project": {"code": "DEV"}}],
             "CmfRelationType": [{"id": "CmfRelationType:1", "code": "system.link", "name": "Related"}],
@@ -408,6 +410,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, {"abort": "Объект не найден"})
             row.update(kw)
             return self.reply(200, {"result": True})
+        if method == "CmfFollower.create":
+            n = len(FOLLOWERS) + 1
+            FOLLOWERS.append({"id": f"CmfFollower:{n}", "code": f"FOL-{n}", "parent_id": kw["parent"],
+                              "person_id": kw["person"], "follow_children": kw.get("follow_children", False),
+                              "cmf_deleted": False, "notify_volume": None,
+                              "person": {"id": kw["person"], "login": "me@example.ru", "name": "Me"}})
+            return self.reply(200, {"result": f"CmfFollower:{n}"})
+        if method == "CmfFollower.update":
+            next(f for f in FOLLOWERS if f["id"] == req["args"][0]).update(kw)
+            return self.reply(200, {"result": True})
+        if method == "CmfFollower.delete":
+            FOLLOWERS[:] = [f for f in FOLLOWERS if f["id"] != req["args"][0]]
+            return self.reply(200, {"result": True})
         if method == "CmfAttachment.create":
             CREATED_ATTACHMENTS.append(kw["name"])
             if "size" not in kw:
@@ -500,6 +515,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, {"abort": "Недостаточно прав"})
             row = next((t for t in TASKS + TRASH if t["id"] == req["args"][0]), CREATED)
             row.update(kw)
+            # Like EvaTeam, datetimes read back in ISO form with an offset.
+            for name in ("plan_start_date", "plan_end_date", "deadline", "alarm_date"):
+                value = row.get(name)
+                if isinstance(value, str) and len(value) in (10, 16):
+                    row[name] = (value + " 00:00")[:16].replace(" ", "T") + ":00+03:00"
             # The response expands foreign IDs into relation objects.
             for name in ("responsible", "waiting_for", "parent_task", "epic", "logic_type"):
                 if isinstance(row.get(name), str):

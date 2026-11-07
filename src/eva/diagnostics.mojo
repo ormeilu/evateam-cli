@@ -4,7 +4,7 @@ from std.sys import stderr
 from eva.args import Args
 from eva.client import Client, Reply, new_callid
 from eva.render import Out, clip
-from eva.state import PrivateCache, server_key
+from eva.state import PrivateCache, server_key, stdout_is_file
 from eva.json import JsonDoc, J_OBJ, J_ARR, J_STR, J_BOOL, clean
 from eva.dates import now_epoch, local_time, epoch_of, date_text
 
@@ -501,11 +501,29 @@ def print_raw_reply(r: Reply, args: Args, ui: Out) raises:
     """Only oversized piped raw results are spilled; --full retains exact JSON.
     """
     var text = r.doc.dump_pretty(r.result)
-    if ui.tty or ui.full or args.has("full") or text.byte_length() <= 65536:
+    if (
+        ui.tty
+        or ui.full
+        or args.has("full")
+        or text.byte_length() <= 65536
+        or stdout_is_file()
+    ):
         print(text)
         return
-    var cache = PrivateCache()
-    var path = cache.write("raw-" + new_callid() + ".json", text)
+    var path: String
+    try:
+        var cache = PrivateCache()
+        path = cache.write("raw-" + new_callid() + ".json", text)
+    except e:
+        # The call has already run, maybe as a write: do not lose its reply.
+        print(
+            "note: cannot spill the reply ("
+            + String(e)
+            + "); printing all of it",
+            file=stderr,
+        )
+        print(text)
+        return
     var lines = text.split("\n")
     for i in range(min(40, len(lines))):
         # A single enormous JSON string must not defeat the line bound.

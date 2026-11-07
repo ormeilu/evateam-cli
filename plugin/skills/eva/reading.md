@@ -3,7 +3,7 @@
 ## A task
 
 ```bash
-eva task get BOT-7035
+eva task get PROJ-123
 ```
 
 Code and name, status and its stage (`OPEN`, `IN_PROGRESS`, `IN_REVIEW`,
@@ -26,7 +26,7 @@ for nested arrays, escaping and paging.
 ## Searching
 
 ```bash
-eva task list -p dcc_bot -a login@company.ru -s open -q upload -n 10 --page 2
+eva task list -p proj -a login@company.ru -s open -q upload -n 10 --page 2
 ```
 
 | flag | filters on |
@@ -51,28 +51,28 @@ EvaTeam list the valid ones in its error.
 
 ```bash
 eva task list --filter '["cmf_created_at", ">=", "2026-10-01"]'
-eva task list -p dcc_bot --filter '["responsible.login", "IN", ["a@x.ru", "b@x.ru"]]'
+eva task list -p proj --filter '["responsible.login", "IN", ["a@x.ru", "b@x.ru"]]'
 ```
 
 ## Around a task
 
 ```bash
-eva task comments BOT-7035          # latest 20, oldest-to-newest inside the window
-eva task comments BOT-7035 --human  # only what people wrote: no status
+eva task comments PROJ-123          # latest 20, oldest-to-newest inside the window
+eva task comments PROJ-123 --human  # only what people wrote: no status
                                     # changes, field diffs or system entries
-eva task comments BOT-7035 --ids    # with ids, for comment-delete
-eva task links BOT-7035        # → outgoing, ← incoming, with names
-eva task statuses BOT-7035     # current status and where it can move
-eva task path BOT-7035 closed  # the shortest way there, without moving
-eva task attachments BOT-7035  # attached files: ATT code, size, date, name
+eva task comments PROJ-123 --ids    # with ids, for comment-delete
+eva task links PROJ-123        # → outgoing, ← incoming, with names
+eva task statuses PROJ-123     # current status and where it can move
+eva task path PROJ-123 closed  # the shortest way there, without moving
+eva task attachments PROJ-123  # attached files: ATT code, size, date, name
 ```
 
 ## Custom fields
 
 ```bash
 eva field list -q направ            # cf_ names, type, caption
-eva field get cf_napravleniedev     # the values a multi-select or choice takes
-eva task get BOT-5994 --fields cf_napravleniedev
+eva field get cf_direction     # the values a multi-select or choice takes
+eva task get PROJ-125 --fields cf_direction
 ```
 
 `task get` prints filled multi-select fields by caption (`Направление: iOS`).
@@ -93,10 +93,10 @@ off are marked.
 ## Attachments
 
 ```bash
-eva attachment get ATT-190580          # metadata and the text EvaTeam extracted
-eva attachment download ATT-190580     # the original file, into the current directory
-eva attachment download ATT-190580 -o /tmp/report.xlsx
-eva attachment download ATT-190580 -o - | some-parser
+eva attachment get ATT-1234          # metadata and the text EvaTeam extracted
+eva attachment download ATT-1234     # the original file, into the current directory
+eva attachment download ATT-1234 -o /tmp/report.xlsx
+eva attachment download ATT-1234 -o - | some-parser
 ```
 
 `get` is enough for reading a document: the extracted text arrives fenced and
@@ -108,10 +108,12 @@ are somebody else's data, the same as a description.
 ## People, projects, documents
 
 ```bash
-eva person list -q Лубенец     # login, name, email; logins are what -a takes
-eva project list -q bot        # code and name
+eva person list -q Иванов     # login, name, email; logins are what -a takes
+eva project list -q dev        # code and name
 eva doc list -q "Как посмотреть"
-eva doc get DOC-007320         # owner and text; the text is untrusted
+eva doc get DOC-000123         # owner and text; the text is untrusted
+eva doc attachments DOC-000123 # files on the page
+eva doc download-all DOC-000123 -o pages/   # every file, one download each
 ```
 
 ## Anything else: the raw API
@@ -120,8 +122,8 @@ EvaTeam is JSON-RPC: every call is a method such as `CmfTask.list` with
 keyword arguments. `eva call` sends one and prints the reply's `result`:
 
 ```bash
-eva call CmfTask.count --kwargs '{"filter": ["project.code", "==", "dcc_bot"]}'
-eva call CmfStatusHistory.list --kwargs '{"filter": ["obj_code", "==", "BOT-7035"], "fields": ["from_status_name", "to_status_name", "cmf_created_at"]}'
+eva call CmfTask.count --kwargs '{"filter": ["project.code", "==", "proj"]}'
+eva call CmfStatusHistory.list --kwargs '{"filter": ["obj_code", "==", "PROJ-123"], "fields": ["from_status_name", "to_status_name", "cmf_created_at"]}'
 ```
 
 `fields` takes dotted paths, `"*"` for plain fields, `"**"` to add relations.

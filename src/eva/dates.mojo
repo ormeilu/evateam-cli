@@ -141,6 +141,16 @@ def parse_hm(s: String) raises -> Tuple[Int, Int]:
     return (h, m)
 
 
+def minutes_of(text: String) raises -> Int:
+    """A work-log time_spent in minutes; a null reads as 0."""
+    if text == "":
+        return 0
+    try:
+        return Int(text)
+    except:
+        return Int(Float64(text))
+
+
 def fmt_minutes(n: Int) -> String:
     """90 → 1h30, 45 → 45m, 0 → 0h00."""
     var sign = "-" if n < 0 else ""
