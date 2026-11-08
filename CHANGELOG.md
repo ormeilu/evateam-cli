@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.3](https://github.com/ormeilu/evateam-cli/compare/v0.10.2...v0.10.3) (2026-11-08)
+
+
+### Bug Fixes
+
+* conda package tests run eva without the background update check ([cb0d668](https://github.com/ormeilu/evateam-cli/commit/cb0d668c31acb86d0beb2e03e5fc7754d311436b))
+
 ## [0.10.2](https://github.com/ormeilu/evateam-cli/compare/v0.10.1...v0.10.2) (2026-11-08)
 
 
