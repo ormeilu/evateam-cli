@@ -32,9 +32,15 @@ requirements:
     - if: linux
       then: libstdcxx >=12
 tests:
+  # The test environment has no CI variable, so eva would start its detached
+  # update check, which writes into the test directory while rattler-build
+  # removes it ("Directory not empty").
   - script:
-      - eva --version
-      - eva --help
+      env:
+        EVA_NO_UPDATE_CHECK: "1"
+      content:
+        - eva --version
+        - eva --help
 about:
   homepage: https://github.com/ormeilu/evateam-cli
   repository: https://github.com/ormeilu/evateam-cli
