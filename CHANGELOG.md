@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2](https://github.com/ormeilu/evateam-cli/compare/v0.10.1...v0.10.2) (2026-11-08)
+
+
+### Bug Fixes
+
+* workflow transitions with an empty status_from run from any status ([6946d39](https://github.com/ormeilu/evateam-cli/commit/6946d39c83cb0104dbd7d82007161e674b20a126))
+
 ## [0.10.1](https://github.com/ormeilu/evateam-cli/compare/v0.10.0...v0.10.1) (2026-11-07)
 
 
