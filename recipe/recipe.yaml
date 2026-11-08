@@ -1,5 +1,5 @@
 context:
-  version: 0.10.2
+  version: 0.10.3
   mojo_version: '=1.2.0'
 package:
   name: evateam-cli
@@ -32,12 +32,9 @@ requirements:
     - if: linux
       then: libstdcxx >=12
 tests:
-  # The test environment has no CI variable, so eva would start its detached
-  # update check, which writes into the test directory while rattler-build
-  # removes it ("Directory not empty").
   - script:
       env:
-        EVA_NO_UPDATE_CHECK: "1"
+        EVA_NO_UPDATE_CHECK: '1'
       content:
         - eva --version
         - eva --help
