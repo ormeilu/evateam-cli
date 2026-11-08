@@ -29,8 +29,11 @@ TRANS = [
      "status_to": {"code": "archived", "name": "Archived"}, "status_from": [{"id": "CmfStatus:6"}]},
     {"id": "CmfTrans:auto", "name": "Escalate", "status_to_id": "CmfStatus:7", "restrict_manual_trans": True,
      "status_to": {"code": "escalated", "name": "Escalated"}, "status_from": [{"id": "CmfStatus:2"}]},
-    {"id": "CmfTrans:create", "name": "Создание", "status_to_id": "CmfStatus:1",
+    # An empty status_from runs from any status, except on the creation one.
+    {"id": "CmfTrans:create", "name": "Создание", "status_to_id": "CmfStatus:1", "is_create_transition": True,
      "status_to": {"code": "backlog", "name": "Backlog"}, "status_from": []},
+    {"id": "CmfTrans:any-done", "name": "From any status to Done (system)", "status_to_id": "CmfStatus:3",
+     "is_create_transition": False, "status_to": {"code": "closed", "name": "Done"}, "status_from": []},
 ]
 
 TASKS = [
@@ -92,7 +95,10 @@ TASKS = [
         "code": "DEV-2",
         "name": "Retry uploads on 5xx",
         "cache_status_type": "OPEN",
-        "status": {"name": "Открыто", "code": "STC-1"},
+        # Only the system transition from any status leads from Review to Done.
+        "status": {"name": "Review", "code": "review"},
+        "status_id": "CmfStatus:4",
+        "workflow_id": "CmfWorkflow:1",
         "responsible": None,
         "project": {"code": "OPS"},
         "resolution": {"code": "wont_do", "name": "Не будет выполняться"},

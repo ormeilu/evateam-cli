@@ -17,7 +17,7 @@ from eva.common import (
 from eva.collaboration import comments_kwargs
 from eva.dates import local_now, parse_minutes
 from eva.task import status_condition
-from eva.workflow import Transitions, shell_word
+from eva.workflow import FROM_ANY, Transitions, shell_word
 from eva.json import JsonDoc
 from eva.upgrade import dirname, shell_quote
 
@@ -239,6 +239,48 @@ def test_path_skips_automatic_and_unknown() raises:
     assert_equal(len(tr.path_to("A")), 0)
     var here = tr.from_here()
     assert_equal(len(here), 2)  # B and Hold, not the automatic X
+
+
+def test_from_any_status_runs_from_every_status() raises:
+    """EvaTeam reads an empty status_from as any status, so a system
+    transition to Done gives a way out of a status the workflow has none from.
+    """
+    var tr = workflow()
+    add(tr, "Done", FROM_ANY)
+    tr.current_id = "D"
+    tr.current = "D"
+    assert_equal(names(tr, tr.from_here()), "Done")
+    assert_equal(names(tr, tr.path_to("done")), "Done")
+    tr.current_id = "B"
+    assert_equal(names(tr, tr.from_here()), "C,Hold,Done")
+    # Not from Done to itself.
+    tr.current_id = "Done"
+    assert_equal(len(tr.from_here()), 0)
+
+
+def test_status_own_transition_wins_over_from_any() raises:
+    var tr = Transitions()
+    tr.current_id = "A"
+    tr.current = "A"
+    add(tr, "B", FROM_ANY)  # listed first, as the server may
+    add(tr, "B", "A")
+    var here = tr.from_here()
+    assert_equal(len(here), 1)
+    assert_equal(tr.froms[here[0]], "A")
+    var steps = tr.path_to("B")
+    assert_equal(len(steps), 1)
+    assert_equal(tr.froms[steps[0]], "A")
+
+
+def test_from_any_target_counts_as_side_status() raises:
+    var tr = workflow()
+    add(tr, "A", FROM_ANY)  # reset to the start from anywhere
+    assert_true(tr.is_hub("A"))
+    assert_true(not tr.is_hub("C"))
+    # Out of the dead end D, the reset is the only way back.
+    tr.current_id = "D"
+    tr.current = "D"
+    assert_equal(names(tr, tr.path_to("C")), "A,B,C")
 
 
 def test_shell_word() raises:
