@@ -72,7 +72,7 @@ from eva.task_relations import (
 from eva.collaboration import comment_write, comment_edit, task_watch
 from eva.attachments import attachment_delete
 
-comptime VERSION = "0.10.1"  # x-release-please-version
+comptime VERSION = "0.10.2"  # x-release-please-version
 
 comptime USAGE = """eva — EvaTeam from the command line
 
