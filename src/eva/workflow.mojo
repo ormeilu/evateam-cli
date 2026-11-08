@@ -12,6 +12,10 @@ from eva.common import (
     quote_str,
 )
 
+# `froms` of a transition whose status_from is empty: EvaTeam runs it from any
+# status, like a system "from all statuses to Done".
+comptime FROM_ANY = "*"
+
 
 struct Transitions(Movable):
     """A task's workflow: every transition, and where the task is now."""
@@ -25,7 +29,7 @@ struct Transitions(Movable):
     var to_ids: List[String]
     var to_codes: List[String]
     var to_names: List[String]
-    # Comma-separated status ids each transition starts from.
+    # Comma-separated status ids each transition starts from, or FROM_ANY.
     var froms: List[String]
     # "" for a plain transition; "conditional" when the workflow attaches a
     # condition the server checks when it runs (roles, fields); "automatic"
@@ -46,6 +50,8 @@ struct Transitions(Movable):
         self.limits = List[String]()
 
     def starts_from(self, i: Int, status_id: String) -> Bool:
+        if self.froms[i] == FROM_ANY:
+            return True
         for f in self.froms[i].split(","):
             if String(f) == status_id:
                 return True
@@ -66,11 +72,33 @@ struct Transitions(Movable):
             self.to_codes[i].lower() == want or self.to_names[i].lower() == want
         )
 
-    def from_here(self) -> List[Int]:
+    def by_preference(self) -> List[Int]:
+        """Transition indexes, those from named statuses before those from any
+        status, so the status's own transition wins where both lead somewhere.
+        """
         var out = List[Int]()
         for i in range(len(self.trans_ids)):
-            if self.runnable(i, self.current_id):
+            if self.froms[i] != FROM_ANY:
                 out.append(i)
+        for i in range(len(self.trans_ids)):
+            if self.froms[i] == FROM_ANY:
+                out.append(i)
+        return out^
+
+    def from_here(self) -> List[Int]:
+        var out = List[Int]()
+        for i in self.by_preference():
+            if not self.runnable(i, self.current_id):
+                continue
+            if self.froms[i] == FROM_ANY:
+                var covered = False
+                for j in out:
+                    if self.to_ids[j] == self.to_ids[i]:
+                        covered = True
+                        break
+                if covered:
+                    continue
+            out.append(i)
         return out^
 
     def is_hub(self, status_id: String) -> Bool:
@@ -78,8 +106,9 @@ struct Transitions(Movable):
         and Done itself. A walk does not pass through one on its way elsewhere.
         """
         var statuses = List[String]()
-        var into = 0
         for i in range(len(self.trans_ids)):
+            if self.froms[i] == FROM_ANY:
+                continue
             for f in self.froms[i].split(","):
                 var s = String(f)
                 var known = False
@@ -89,7 +118,17 @@ struct Transitions(Movable):
                         break
                 if not known:
                     statuses.append(s)
-                if self.to_ids[i] == status_id and s != status_id:
+        var into = 0
+        for i in range(len(self.trans_ids)):
+            if self.to_ids[i] != status_id:
+                continue
+            if self.froms[i] == FROM_ANY:
+                for s in statuses:
+                    if s != status_id:
+                        into += 1
+                continue
+            for f in self.froms[i].split(","):
+                if String(f) != status_id:
                     into += 1
         return into * 2 > len(statuses)
 
@@ -112,11 +151,12 @@ struct Transitions(Movable):
         var via = List[Int]()
         var prev = List[String]()
         var reached = List[String]()
+        var order = self.by_preference()
         var head = 0
         while head < len(queue):
             var at = queue[head]
             head += 1
-            for i in range(len(self.trans_ids)):
+            for i in order:
                 if not self.runnable(i, at):
                     continue
                 var to = self.to_ids[i]
@@ -186,7 +226,7 @@ def transitions_for(client: Client, code: String) raises -> Transitions:
     var fl = d.str_array(
         split_csv(
             "name,status_to_id,status_to.code,status_to.name,status_from.id,"
-            "do_filter_by_id,restrict_manual_trans"
+            "do_filter_by_id,restrict_manual_trans,is_create_transition"
         )
     )
     d.set(kw, "fields", fl)
@@ -204,13 +244,16 @@ def transitions_for(client: Client, code: String) raises -> Transitions:
         )
     for i in range(r.doc.len(r.result)):
         var tr = r.doc.at(r.result, i)
-        # An empty status_from is a system transition (creation, reset); skip it.
         var from_list = r.doc.get(tr, "status_from")
         var ids = List[String]()
         for j in range(r.doc.len(from_list)):
             ids.append(r.doc.text_at(r.doc.at(from_list, j), "id"))
         if len(ids) == 0:
-            continue
+            # Empty status_from: the creation transition, which a move never
+            # runs, or one EvaTeam runs from any status.
+            if r.doc.text_at(tr, "is_create_transition") == "true":
+                continue
+            ids.append(FROM_ANY)
         out.trans_ids.append(r.doc.text_at(tr, "id"))
         out.trans_names.append(r.doc.text_at(tr, "name"))
         out.to_ids.append(r.doc.text_at(tr, "status_to_id"))
@@ -510,6 +553,8 @@ def task_statuses(client: Client, args: Args, ui: Out) raises:
         var line = (
             "  " + ui.accent(pad(tr.to_codes[i], 26)) + " " + tr.to_names[i]
         )
+        if tr.froms[i] == FROM_ANY:
+            line += ui.dim("  (from any status)")
         if tr.limits[i] == "conditional":
             line += ui.dim(
                 "  (conditional: the server may refuse it for your role)"

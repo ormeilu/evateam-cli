@@ -112,6 +112,10 @@ eva task path PROJ-124 closed          # see the route first
 eva task move PROJ-124 closed --path -m "Released" --resolution done
 ```
 
+A transition marked "from any status" in `statuses` is one the workflow allows
+from every status, often a system one straight to Done or back to Backlog. A
+status's own transition to the same place is used before it.
+
 The route avoids side statuses such as On Hold. `--set` goes with every step,
 and `-m` and `--resolution` go with the last one. A transition the workflow
 attaches a condition to is marked "conditional" in `statuses`. Such a

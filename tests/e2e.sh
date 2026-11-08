@@ -129,6 +129,13 @@ check "no path"                "has no path to nowhere"        -- $eva task path
 check "walk stops on refusal"  "stopped in Review after 1 of 2 steps, moving to Archived: CmfTask.task_transition_run refused: Недостаточно прав" -- $eva task move DEV-1 archived --path --set '{"cf_kind":"dev"}'
 check "walk all steps"         "moved DEV-1: Review → Archived" -- $eva task move DEV-1 archived --path --set '{"cf_kind":"dev","cf_reason":"x"}'
 sent  "walk sends --set each step" '"cf_reason":"x"'
+check "statuses from any"      "closed                     Done  (from any status)" -- $eva task statuses DEV-2
+no    "statuses skip creation" "backlog"                       -- $eva task statuses DEV-2
+no    "own transition first"   "from any status"               -- $eva task statuses DEV-1
+check "path from any"          "Review → Done  (1 step)"       -- $eva task path DEV-2 closed
+check "move from any"          "moved DEV-2: Review → Done"    -- $eva task move DEV-2 Done --path --set '{"cf_kind":"dev"}'
+sent  "move from any args"     '"args":["CmfTask:2","CmfTrans:any-done"]'
+sent  "move from any status"   '"changed_fields":{"cf_kind":"dev","status":"CmfStatus:3"}'
 check "attachments line"       "attachments: 1 (report.xlsx): eva task attachments DEV-1" -- $eva task get DEV-1
 check "attachments list"       "ATT-1        17 B     2026-11-02  ../../report.xlsx" -- $eva task attachments DEV-1
 check "attachments embedded"   "x.png  (image in the text)"    -- $eva task attachments DEV-1
