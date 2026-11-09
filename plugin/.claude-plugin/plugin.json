@@ -1,6 +1,6 @@
 {
   "name": "eva",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "EvaTeam from the command line, sized for agents: read, search and change tasks without spending a context window on it. Ships the skill; the eva binary is installed separately.",
   "author": {
     "name": "Ilya Lubenets",
