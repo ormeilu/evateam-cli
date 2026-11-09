@@ -92,55 +92,20 @@ jobs:
         if: needs.plan.outputs.tag != ''
         env:
           TAG: ${{ needs.plan.outputs.tag }}
-        run: |
-          v=$(sed -n 's/^version = "\([^"]*\)".*/\1/p' pixi.toml | head -1)
-          [ "$TAG" = "v$v" ] || { echo "tag $TAG != pixi.toml $v"; exit 1; }
-          grep -q "comptime VERSION = \"$v\"" src/main.mojo || { echo "src/main.mojo VERSION != $v"; exit 1; }
-          grep -qE "^  version: \"?$v\"?\$" recipe/recipe.yaml || { echo "recipe/recipe.yaml version != $v"; exit 1; }
+        run: pixi run check-version "$TAG"
       - run: pixi run wheel ${{ matrix.wheel }}
       - run: pixi run archive ${{ matrix.target }}
       - name: Check glibc symbols fit the manylinux tag
         if: runner.os == 'Linux'
-        run: |
-          max=$(objdump -T build/eva | grep -o 'GLIBC_[0-9.]*' | sort -V | tail -1)
-          echo "highest: $max"
-          [ "$(printf '%s\nGLIBC_2.34\n' "$max" | sort -V | tail -1)" = "GLIBC_2.34" ]
+        run: pixi run check-glibc
       - uses: astral-sh/setup-uv@v10.3.3
       - name: End-to-end test of the installed wheel
-        run: |
-          uv venv -q --python 3.12 /tmp/eva-venv
-          uv pip install -q --python /tmp/eva-venv/bin/python dist/*.whl
-          # Outside the pixi environment, as a user would run it.
-          env -i HOME="$HOME" PATH=/tmp/eva-venv/bin:/usr/bin:/bin EVA_BIN=/tmp/eva-venv/bin/eva \
-            bash tests/e2e.sh
+        run: pixi run check-wheel
       - name: Install the archive with install.sh and run the suite
-        run: |
-          # The archive brings its own Mojo runtime and OpenSSL; the venv on PATH
-          # only runs the mock server.
-          env -i HOME=/tmp/eva-home PATH=/tmp/eva-venv/bin:/usr/bin:/bin \
-            EVA_ARCHIVE="$(ls dist/eva-*.tar.gz)" sh install.sh
-          env -i HOME=/tmp/eva-home PATH=/tmp/eva-venv/bin:/usr/bin:/bin \
-            EVA_BIN=/tmp/eva-home/.local/bin/eva bash tests/e2e.sh
+        run: pixi run check-archive
       - name: Run the archive on the oldest distros it claims
         if: runner.os == 'Linux'
-        run: |
-          # A real HTTPS round trip: the bundled libstdc++ and OpenSSL must load
-          # and the distro's CA bundle must be found. example.com answers the
-          # JSON-RPC POST with something that is not JSON, which is the point.
-          for img in rockylinux:9 ubuntu:22.04 debian:12; do
-            echo "== $img"
-            docker run --rm -v "$PWD/dist:/dist:ro" "$img" sh -ec '
-              if command -v apt-get >/dev/null; then
-                apt-get -qq update >/dev/null && apt-get -qq install -y ca-certificates >/dev/null
-              fi
-              mkdir /t && tar xzf /dist/eva-*.tar.gz -C /t
-              eva=$(ls -d /t/eva-*/bin/eva)
-              "$eva" --version
-              out=$(EVA_URL=https://example.com EVA_API_KEY=x "$eva" call Ping.ping 2>&1 || true)
-              echo "$out"
-              case "$out" in *"cannot reach"*|*"could not find libssl"*) exit 1 ;; esac
-            '
-          done
+        run: pixi run check-distros
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: dist-${{ matrix.target }}
@@ -164,19 +129,11 @@ jobs:
       - uses: prefix-dev/setup-pixi@v0.11.3
         with:
           pixi-version: v0.84.1
-          run-install: false
+          environments: package
       # The recipe's own test runs `eva --version` and `eva --help`.
-      - run: >-
-          pixi exec rattler-build build --recipe recipe/recipe.yaml --output-dir output
-          -c https://conda.modular.com/max -c https://prefix.dev/modular-community -c conda-forge
+      - run: pixi run -e package conda-package
       - name: Install with pixi global from the built package and run the suite
-        run: |
-          export PIXI_HOME=/tmp/pixihome
-          pixi global install -c "file://$PWD/output" -c https://conda.modular.com/max \
-            -c conda-forge evateam-cli
-          python3 -m venv /tmp/mock-venv
-          env -i HOME="$HOME" PATH=/tmp/pixihome/bin:/tmp/mock-venv/bin:/usr/bin:/bin \
-            EVA_BIN=/tmp/pixihome/bin/eva bash tests/e2e.sh
+        run: pixi run -e package check-conda
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: conda-${{ matrix.os }}
