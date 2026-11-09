@@ -75,13 +75,19 @@ TASKS = [
         "comments": [
             {"cmf_created_at": "2026-11-02T11:00:00+03:00", "text": "<p>Воспроизвёл</p>", "cmf_author": {"name": "QA"}}
         ],
-        "out_tasks": [{"out_link": {"code": "DEV-2", "name": "Retry uploads"}}],
+        # EvaTeam stores a link A → B as CmfRelationOption(out_link=A, in_link=B)
+        # and lists it in A's in_tasks and in B's out_tasks.
+        "in_tasks": [{"out_link": {"code": "DEV-1", "name": "Renamed"},
+                      "in_link": {"code": "DEV-2", "name": "Retry uploads"},
+                      "relation_type": {"code": "system.link"}}],
+        "out_tasks": [{"out_link": {"code": "DEV-7", "name": "Release checklist"},
+                       "in_link": {"code": "DEV-1", "name": "Renamed"},
+                       "relation_type": {"code": "system.link"}}],
         "attachments": [{"code": "ATT-1", "file_name": "report.xlsx"}],
         # Multi-select custom fields: one filled, one empty.
         "cf_dir": [{"id": "CmfTaskCfDirCh:1", "class_name": "CmfTaskCfDirCh", "name": "iOS"},
                    {"id": "CmfTaskCfDirCh:2", "class_name": "CmfTaskCfDirCh", "name": "BE"}],
         "cf_unused": [],
-        "in_tasks": [],
         "git_commits": [{"hash": "f540fec", "message": "retry uploads"}],
         "priority": 1, "agile_story_points": 3, "plan_start_date": "2026-11-10", "plan_end_date": "2026-11-14", "alarm_date": "2026-11-09 09:00",
         "op_gantt_task": {"id": "CmfGanttTask:1", "sched_start_date": "2026-11-11T09:00:00+03:00", "sched_finish_date": "2026-11-13T18:00:00+03:00"},
@@ -299,7 +305,11 @@ class Handler(BaseHTTPRequestHandler):
             dst = next(t for t in TASKS if t["code"] == kw["in_link"])
             row = {"id": f"CmfRelationOption:{len(RELATIONS)}", "out_link": src, "in_link": dst, "relation_type": {"code": kw["relation_type"]}}
             RELATIONS.append(row)
-            src.setdefault("out_tasks", []).append({"out_link": {"code": dst["code"], "name": dst["name"]}, "relation_type": row["relation_type"]})
+            link = {"out_link": {"code": src["code"], "name": src["name"]},
+                    "in_link": {"code": dst["code"], "name": dst["name"]},
+                    "relation_type": row["relation_type"]}
+            src.setdefault("in_tasks", []).append(link)
+            dst.setdefault("out_tasks", []).append(link)
             return self.reply(200, {"result": row["id"]})
         if method == "CmfRelationOption.delete":
             RELATIONS[:] = [r for r in RELATIONS if r["id"] != req["args"][0]]

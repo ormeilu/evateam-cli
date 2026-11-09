@@ -875,27 +875,29 @@ def task_links(client: Client, args: Args, ui: Out) raises:
     if want_json(args):
         print_json(r)
         return
+    # EvaTeam stores `eva task link A B` as out_link=A, in_link=B and lists it
+    # in A's in_tasks and B's out_tasks. Each line names the other task.
     var n = 0
-    var outs = r.doc.get(r.result, "out_tasks")
-    for i in range(r.doc.len(outs)):
-        var l = r.doc.at(outs, i)
+    var outgoing = r.doc.get(r.result, "in_tasks")
+    for i in range(r.doc.len(outgoing)):
+        var l = r.doc.at(outgoing, i)
         print(
             "→ "
-            + ui.accent(r.doc.text_at(l, "out_link.code"))
+            + ui.accent(r.doc.text_at(l, "in_link.code"))
             + "  "
-            + r.doc.text_at(l, "out_link.name")
+            + r.doc.text_at(l, "in_link.name")
             + "  "
             + r.doc.text_at(l, "relation_type.code")
         )
         n += 1
-    var ins = r.doc.get(r.result, "in_tasks")
-    for i in range(r.doc.len(ins)):
-        var l = r.doc.at(ins, i)
+    var incoming = r.doc.get(r.result, "out_tasks")
+    for i in range(r.doc.len(incoming)):
+        var l = r.doc.at(incoming, i)
         print(
             "← "
-            + ui.accent(r.doc.text_at(l, "in_link.code"))
+            + ui.accent(r.doc.text_at(l, "out_link.code"))
             + "  "
-            + r.doc.text_at(l, "in_link.name")
+            + r.doc.text_at(l, "out_link.name")
             + "  "
             + r.doc.text_at(l, "relation_type.code")
         )

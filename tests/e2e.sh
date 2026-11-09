@@ -218,6 +218,7 @@ check "time delete"            "deleted TTH-1"                 -- $eva time dele
 sent  "time delete args"       '"args":["CmfTimeTrackerHistory:1"]'
 check "time delete wrong"      "is not a work log entry"       -- $eva time delete DEV-1
 check "links"                  "→ DEV-2  Retry uploads"        -- $eva task links DEV-1
+check "links incoming"         "← DEV-7  Release checklist"    -- $eva task links DEV-1
 check "projects"               "DEV"                           -- $eva project list
 check "raw call error"         "Method not found: Nope.x"      -- $eva call Nope.x --kwargs '{}'
 check "raw call bad json"      "json:"                         -- $eva call CmfTask.count --kwargs '{oops'
