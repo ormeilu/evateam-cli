@@ -46,8 +46,28 @@ run = { cmd = "mojo run -I src src/main.mojo", description = "Run without buildi
 test = { cmd = "bash tests/run_unit.sh", description = "Run the unit tests (zero warnings allowed)" }
 e2e = { cmd = "bash tests/e2e.sh", depends-on = ["build"], description = "Run the binary against a mock server" }
 wheel = { cmd = "python scripts/build_wheel.py", depends-on = ["build"], description = "Pack build/eva into a wheel: pixi run wheel PLATFORM_TAG" }
-conda-package = { cmd = "rattler-build build --recipe recipe/recipe.yaml --output-dir output -c https://conda.modular.com/max -c https://prefix.dev/modular-community -c conda-forge", description = "Build the conda package into output/" }
 archive = { cmd = "python scripts/build_archive.py", depends-on = ["build"], description = "Pack a release archive: pixi run archive TARGET" }
 coverage = { cmd = "bash scripts/coverage.sh", description = "Line coverage of src/ by unit and e2e tests (coverage/index.html)" }
 asan = { cmd = "bash scripts/asan.sh", description = "Unit and e2e tests under AddressSanitizer" }
 fmt = { cmd = "mojo format src tests", description = "Format sources" }
+fmt-check = { cmd = "bash scripts/fmt_check.sh", description = "Fail if mojo format would change anything (touches no files)" }
+ci = { depends-on = ["test", "e2e", "asan"], description = "What the CI test job runs" }
+
+# Release checks: the release workflow runs these, and they work locally too.
+check-version = { cmd = "bash scripts/check_version.sh", description = "Check a tag matches the version everywhere: pixi run check-version vX.Y.Z" }
+check-glibc = { cmd = "bash scripts/check_glibc.sh", description = "Check build/eva fits the manylinux_2_34 glibc floor (Linux)" }
+check-wheel = { cmd = "bash scripts/check_wheel.sh", description = "Install dist/*.whl in a fresh venv and run e2e against it (needs uv)" }
+check-archive = { cmd = "bash scripts/check_archive.sh", description = "Install dist/eva-*.tar.gz with install.sh and run e2e against it (needs uv)" }
+check-distros = { cmd = "bash scripts/check_distros.sh", description = "Run the archive on the oldest Linux distros it claims (needs docker)" }
+
+# Conda packaging gets its own environment with rattler-build only, so the
+# conda job does not install Mojo and the rest of the dev environment.
+[feature.package.dependencies]
+rattler-build = ">=0.80,<1"
+
+[feature.package.tasks]
+conda-package = { cmd = "rattler-build build --recipe recipe/recipe.yaml --output-dir output -c https://conda.modular.com/max -c https://prefix.dev/modular-community -c conda-forge", description = "Build the conda package into output/: pixi run -e package conda-package" }
+check-conda = { cmd = "bash scripts/check_conda.sh", description = "Install output/ with pixi global and run e2e against it: pixi run -e package check-conda" }
+
+[environments]
+package = { features = ["package"], no-default-feature = true }

@@ -375,7 +375,12 @@ pixi run test       # юнит-тесты: 9 наборов, предупреж�
 pixi run e2e        # собирает eva и гоняет её против tests/mock_server.py
 pixi run asan       # то же под AddressSanitizer
 pixi run coverage   # покрытие строк src/ юнит-тестами и e2e
+pixi run ci         # test, e2e и asan: то же, что гоняет CI
+pixi run fmt-check  # падает, если mojo format что-то поменяет; файлы не трогает
 ```
+
+Все команды CI и релиза описаны задачами в `pixi.toml`, `pixi task list`
+показывает их с описаниями.
 
 `tests/mock_server.py` — небольшой JSON-RPC сервер с заготовленными задачами,
 в том числе с «враждебной»: escape-коды в названии и попытка закрыть
@@ -397,8 +402,12 @@ pixi run coverage   # покрытие строк src/ юнит-тестами �
 - `pixi run wheel macosx_13_0_arm64` упаковывает `build/eva` в wheel в `dist/`:
   бинарник в `.data/scripts`, библиотеки в `.data/data/lib/evateam-cli`;
 - `pixi run archive aarch64-apple-darwin` собирает архив релиза;
-- `pixi run conda-package` собирает conda-пакет по `recipe/recipe.yaml` в
-  `output/`.
+- `pixi run -e package conda-package` собирает conda-пакет по
+  `recipe/recipe.yaml` в `output/` (окружение `package` содержит только
+  rattler-build);
+- `check-wheel`, `check-archive` и `pixi run -e package check-conda` ставят
+  собранное так же, как пользователь, и гоняют против него сквозной тест;
+  релизный workflow вызывает эти же задачи.
 
 Версии выпускает [release-please](https://github.com/googleapis/release-please)
 по [conventional commits](https://www.conventionalcommits.org/): `fix:`

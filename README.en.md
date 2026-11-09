@@ -371,7 +371,12 @@ pixi run test       # unit tests: 9 suites, a compiler warning fails the run
 pixi run e2e        # builds eva and runs it against tests/mock_server.py
 pixi run asan       # the same under AddressSanitizer
 pixi run coverage   # line coverage of src/ by the unit and e2e tests
+pixi run ci         # test, e2e and asan: what CI runs
+pixi run fmt-check  # fails if mojo format would change anything; touches no files
 ```
+
+Every CI and release command is a task in `pixi.toml`; `pixi task list` shows
+them with descriptions.
 
 `tests/mock_server.py` is a small JSON-RPC server with canned tasks, a hostile
 one among them: escape codes in its name and an attempt to close `<untrusted>`
@@ -388,8 +393,11 @@ build, and the counters of every binary merged into `coverage/summary.txt` and
 `coverage/missed-lines.txt`. The number runs high: gcov can count a line as run
 when Mojo lowers it without a branch of its own.
 
-`pixi run conda-package` builds the conda package from `recipe/recipe.yaml`
-into `output/`. `pixi run wheel macosx_13_0_arm64` packs `build/eva` into a wheel in `dist/`:
+`pixi run -e package conda-package` builds the conda package from
+`recipe/recipe.yaml` into `output/` (the `package` environment holds only
+rattler-build). `check-wheel`, `check-archive` and
+`pixi run -e package check-conda` install a build the way a user would and run
+the end-to-end suite against it; the release workflow calls the same tasks. `pixi run wheel macosx_13_0_arm64` packs `build/eva` into a wheel in `dist/`:
 the binary in `.data/scripts`, the libraries in `.data/data/lib/evateam-cli`. A tag `vX.Y.Z` matching `pixi.toml` runs
 `.github/workflows/release.yml`: wheels and conda packages for three
 platforms, the end-to-end suite against each one installed the way a user
