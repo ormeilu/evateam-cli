@@ -169,6 +169,19 @@ class Features(unittest.TestCase):
         self.assertIn("unknown relation", self.run_cli("task", "link", "DEV-1", "DEV-2", "--type", "bogus", ok=False))
         self.assertIn("not found", self.run_cli("task", "link", "DEV-1", "DEV-404", ok=False))
 
+    def test_links_direction(self):
+        # A → B lives in A's in_tasks and B's out_tasks (out_link=A, in_link=B).
+        out = self.run_cli("task", "links", "DEV-1")
+        self.assertIn("→ DEV-2  Retry uploads  system.link", out)
+        self.assertIn("← DEV-7  Release checklist  system.link", out)
+        self.assertNotIn("DEV-1  Renamed", out)
+        self.assertIn("linked DEV-2 → DEV-6", self.run_cli("task", "link", "DEV-2", "DEV-6"))
+        self.assertIn("→ DEV-6", self.run_cli("task", "links", "DEV-2"))
+        self.assertIn("← DEV-2", self.run_cli("task", "links", "DEV-6"))
+        raw = json.loads(self.run_cli("task", "links", "DEV-1", "--json"))
+        self.assertEqual(raw["in_tasks"][0]["in_link"]["code"], "DEV-2")
+        self.assertEqual(raw["out_tasks"][0]["out_link"]["code"], "DEV-7")
+
     def test_checklists_and_template(self):
         self.assertIn("CHLI-1", self.run_cli("task", "checklist", "DEV-1"))
         for _ in range(2):

@@ -89,7 +89,8 @@ field overrides are validated before creation and applied in a second update.
 If that update fails, the created task is kept and its code is reported.
 
 `relation types` discovers relation codes/names. `task link/unlink A B --type X`
-uses an exact code/name; omitted type or `relates` means `system.link`. Unlink
+uses an exact code/name; omitted type or `relates` means `system.link`. `task links A`
+shows that link as `→ B`, and `task links B` as `← A`. Unlink
 removes only that direction/type, not every relation between the pair.
 
 ## Search, notifications, development and time

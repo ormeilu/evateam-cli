@@ -61,7 +61,7 @@ eva task comments PROJ-123          # latest 20, oldest-to-newest inside the win
 eva task comments PROJ-123 --human  # only what people wrote: no status
                                     # changes, field diffs or system entries
 eva task comments PROJ-123 --ids    # with ids, for comment-delete
-eva task links PROJ-123        # → outgoing, ← incoming, with names
+eva task links PROJ-123        # → B: made by `task link PROJ-123 B`, ← A: by `task link A PROJ-123`
 eva task statuses PROJ-123     # current status and where it can move
 eva task path PROJ-123 closed  # the shortest way there, without moving
 eva task attachments PROJ-123  # attached files: ATT code, size, date, name
