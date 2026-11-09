@@ -11,7 +11,7 @@ from eva.update_check import FETCH_ARG, check_for_update, fetch_latest
 from eva.auth import auth_login, auth_logout, auth_status, auth_use
 from eva.diagnostics import schema_classes, context, cheatsheet, error_hint
 
-comptime VERSION = "0.11.0"  # x-release-please-version
+comptime VERSION = "0.11.1"  # x-release-please-version
 
 comptime USAGE = """eva — EvaTeam from the command line
 

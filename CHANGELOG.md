@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/ormeilu/evateam-cli/compare/v0.11.0...v0.11.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* show task links in the right direction ([1b3103b](https://github.com/ormeilu/evateam-cli/commit/1b3103bd24b3c258cd20a252130ea47084b74c3f))
+
 ## [0.11.0](https://github.com/ormeilu/evateam-cli/compare/v0.10.3...v0.11.0) (2026-11-09)
 
 
