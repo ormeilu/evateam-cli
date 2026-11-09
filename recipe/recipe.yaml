@@ -1,5 +1,5 @@
 context:
-  version: 0.10.3
+  version: 0.11.0
   mojo_version: '=1.2.0'
 package:
   name: evateam-cli

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/ormeilu/evateam-cli/compare/v0.10.3...v0.11.0) (2026-11-09)
+
+
+### Features
+
+* command table with per-command help, typo suggestions and shell completion ([b9ef259](https://github.com/ormeilu/evateam-cli/commit/b9ef25949797d23cb7bb049897b9086dcaa71366))
+
 ## [0.10.3](https://github.com/ormeilu/evateam-cli/compare/v0.10.2...v0.10.3) (2026-11-08)
 
 
