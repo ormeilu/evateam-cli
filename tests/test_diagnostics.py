@@ -227,12 +227,13 @@ class DiagnosticsTests(unittest.TestCase):
         commands = [shlex.split(line.strip()) for line in result.stdout.splitlines() if line.strip().startswith("eva ")]
         self.assertGreaterEqual(len(commands), 10)
         main = (ROOT / "src/main.mojo").read_text()
+        table = (ROOT / "src/eva/cli.mojo").read_text()
         for command in commands:
             group = command[1]
             if group in ("schema", "context"):
                 self.assertIn(f'def {group}(', (ROOT / "src/eva/diagnostics.mojo").read_text())
             else:
-                self.assertIn(f'group == "{group}"', main)
+                self.assertIn(f'Command("{group}"', table)
             if group in ("task", "time", "project", "attachment"):
                 self.assertRegex(main, rf'\b{group} {re.escape(command[2])}\b')
         self.assertIn("DEMO-1", result.stdout)

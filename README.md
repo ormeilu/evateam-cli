@@ -303,6 +303,8 @@ eva auth logout --profile sandbox
 | `eva auth logout [--profile NAME]` | Удалить профиль |
 | `eva config` | Источник настроек, без вывода токена |
 | `eva upgrade` | Обновиться тем же способом, каким установлен клиент |
+| `eva help [COMMAND [SUB]]` | То же, что `eva COMMAND --help`: справка только по этой команде |
+| `eva completion fish\|bash\|zsh` | Скрипт автодополнения команд и подкоманд, например `eva completion fish \| source` |
 
 Списки разбиты на страницы. `task comments` сначала показывает последние 20
 комментариев, внутри страницы от старого к новому. `--page 2` ведёт к более

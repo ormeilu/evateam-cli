@@ -3,74 +3,13 @@
 from std.sys import argv, exit, stderr
 
 from eva.args import Args
+from eva.cli import completion, help_text, resolve
 from eva.client import Client, load_config
-from eva.task import (
-    task_get,
-    task_list,
-    task_create,
-    task_update,
-    task_delete,
-    task_links,
-)
-from eva.workflow import task_move, task_statuses, task_path, resolution_list
-from eva.resources import project_list, person_list
-from eva.documents import doc_get, doc_list
-from eva.collaboration import task_comments, task_comment_delete
-from eva.commands import raw_call
-from eva.common import simple_list, like_filter
-from eva.resources import filter_eq
 from eva.render import Out
 from eva.upgrade import upgrade
 from eva.update_check import FETCH_ARG, check_for_update, fetch_latest
-from eva.fields import field_get, field_list
-from eva.timelog import task_log, time_delete, time_list
-from eva.attachments import (
-    attachment_download,
-    attachment_get,
-    doc_download_all,
-    task_attach,
-    task_attachments,
-)
 from eva.auth import auth_login, auth_logout, auth_status, auth_use
-from eva.diagnostics import (
-    schema,
-    schema_classes,
-    context,
-    cheatsheet,
-    error_hint,
-)
-from eva.documents import doc_write, doc_publish
-from eva.resources import (
-    list_command,
-    task_history,
-    task_time,
-    task_dev,
-    notify_list,
-    repo_list,
-    search,
-)
-from eva.subscriptions import doc_followers, doc_watch
-from eva.task_card import task_card
-from eva.reports import time_report
-from eva.filters import filter_list
-from eva.operations import trash_command, task_bulk
-from eva.knowledge import (
-    doc_children,
-    doc_history,
-    doc_version,
-    project_get,
-    test_command,
-    ticket_get,
-)
-from eva.task_relations import (
-    task_link,
-    relation_types,
-    task_checklist,
-    task_check,
-    task_template,
-)
-from eva.collaboration import comment_write, comment_edit, task_watch
-from eva.attachments import attachment_delete
+from eva.diagnostics import schema_classes, context, cheatsheet, error_hint
 
 comptime VERSION = "0.10.3"  # x-release-please-version
 
@@ -248,6 +187,10 @@ usage: eva <command> [options]
       configuration source; never prints the token
   upgrade
       update through the original installation method
+  help [COMMAND [SUB]]
+      the same as eva COMMAND [SUB] --help: only that command's entries
+  completion fish|bash|zsh
+      completion script for commands and subcommands, e.g. eva completion fish | source
 
 shared task create/update flags
   --priority -2..3|lowest|low|normal|high|critical|blocker (or Russian caption)
@@ -292,8 +235,21 @@ def run(var raw: List[String], update: String) raises:
             print(update, file=stderr)
         return
     var group = args.pos(0)
-    if group == "" or group == "help" or args.has("help", "h"):
+    if group == "" or (group == "help" and args.pos(1) == ""):
         print(USAGE)
+        return
+    if group == "help":
+        # eva help task get: the same as eva task get --help.
+        var rest = List[String]()
+        for i in range(1, len(args.positionals)):
+            rest.append(args.positionals[i])
+        args.positionals = rest^
+        args.keys.append("help")
+        args.values.append("true")
+    var cmd = resolve(args)
+    group = cmd.group
+    if args.has("help", "h"):
+        print(help_text(USAGE, group, args.pos(1)))
         return
     # Global: which keychain profile to use, for every command but auth's own.
     var profile = args.take("profile") if group != "auth" else String("")
@@ -303,6 +259,10 @@ def run(var raw: List[String], update: String) raises:
     if group == "cheatsheet":
         args.check_known(["full", "verbose", "v"])
         cheatsheet()
+        return
+    if group == "completion":
+        args.check_known([])
+        print(completion(args.need(1, "shell: fish, bash or zsh")), end="")
         return
     if group == "schema" and args.has("classes"):
         args.check_known(
@@ -315,30 +275,22 @@ def run(var raw: List[String], update: String) raises:
             args.has("json") or args.get("format") == "json",
         )
         return
-    if group == "upgrade" or group == "self-update":
+    if group == "upgrade":
         var code = upgrade()
         if code != 0:
             exit(code)
         return
-
     if group == "auth":
-        var sub_cmd = args.pos(1)
-        if sub_cmd == "login":
+        var sub = args.pos(1)
+        if sub == "login":
             auth_login(args, ui)
-        elif sub_cmd == "status":
+        elif sub == "status":
             auth_status(args, ui)
-        elif sub_cmd == "use":
+        elif sub == "use":
             auth_use(args, ui)
-        elif sub_cmd == "logout":
-            auth_logout(args, ui)
         else:
-            raise Error(
-                "unknown auth command '"
-                + sub_cmd
-                + "': login, status, use or logout"
-            )
+            auth_logout(args, ui)
         return
-
     if group == "config":
         var cfg = load_config(profile)
         print("url:      " + (cfg.url if cfg.url != "" else "(not set)"))
@@ -348,206 +300,10 @@ def run(var raw: List[String], update: String) raises:
         return
 
     var client = Client(load_config(profile), verbose)
-    var sub = args.pos(1)
-    if group == "call":
-        raw_call(client, args, ui)
-    elif group == "task" or group == "tasks" or group == "t":
-        if sub == "get" or sub == "show":
-            if args.has("with"):
-                task_card(client, args, ui)
-            else:
-                task_get(client, args, ui)
-        elif sub == "list" or sub == "ls" or sub == "find":
-            task_list(client, args, ui)
-        elif sub == "create" or sub == "new":
-            if args.has("template"):
-                task_template(client, args, ui)
-            else:
-                task_create(client, args, ui)
-        elif sub == "bulk":
-            task_bulk(client, args, ui)
-        elif sub == "update" or sub == "edit":
-            task_update(client, args, ui)
-        elif sub == "delete" or sub == "rm":
-            task_delete(client, args, ui)
-        elif sub == "comment":
-            comment_write(client, args, ui)
-        elif sub == "comment-edit":
-            comment_edit(client, args, ui)
-        elif sub == "comments":
-            task_comments(client, args, ui)
-        elif sub == "comment-delete" or sub == "uncomment":
-            task_comment_delete(client, args, ui)
-        elif sub == "history":
-            task_history(client, args, ui)
-        elif sub == "time":
-            task_time(client, args, ui)
-        elif sub == "dev":
-            task_dev(client, args, ui)
-        elif sub == "log":
-            task_log(client, args, ui)
-        elif sub == "watch" or sub == "unwatch":
-            task_watch(client, args, ui)
-        elif sub == "link" or sub == "unlink":
-            task_link(client, args, ui)
-        elif sub == "checklist":
-            task_checklist(client, args, ui)
-        elif sub == "check":
-            task_check(client, args, ui)
-        elif sub == "links":
-            task_links(client, args, ui)
-        elif sub == "move":
-            task_move(client, args, ui)
-        elif sub == "statuses":
-            task_statuses(client, args, ui)
-        elif sub == "path":
-            task_path(client, args, ui)
-        elif sub == "attachments" or sub == "files":
-            task_attachments(client, args, ui)
-        elif sub == "attach":
-            task_attach(client, args, ui)
-        else:
-            raise Error("unknown task command '" + sub + "', see eva --help")
-    elif group == "field" or group == "fields":
-        if sub == "get" or sub == "show":
-            field_get(client, args, ui)
-        else:
-            field_list(client, args, ui)
-    elif group == "time" or group == "worklog":
-        if sub == "list" or sub == "ls" or sub == "":
-            time_list(client, args, ui)
-        elif sub == "report":
-            time_report(client, args, ui)
-        elif sub == "delete" or sub == "rm":
-            time_delete(client, args, ui)
-        elif sub == "log":
-            # eva time log CODE 1h30m: the same as eva task log.
-            task_log(client, args, ui)
-        else:
-            raise Error(
-                "unknown time command '" + sub + "': list, log or delete"
-            )
-    elif group == "attachment" or group == "attachments" or group == "file":
-        if sub == "get" or sub == "show":
-            attachment_get(client, args, ui)
-        elif sub == "delete" or sub == "rm":
-            attachment_delete(client, args, ui)
-        elif sub == "download" or sub == "dl":
-            attachment_download(client, args, ui)
-        else:
-            raise Error(
-                "unknown attachment command '" + sub + "': get or download"
-            )
-    elif group == "schema":
-        schema(client, args, ui)
-    elif group == "context":
+    if group == "context":
         context(client, args, ui, update)
-    elif group == "trash":
-        trash_command(client, args, ui)
-    elif group == "search":
-        search(client, args, ui)
-    elif group == "relation":
-        relation_types(client, args, ui)
-    elif group == "sprint" or group == "release":
-        list_command(client, args, ui)
-    elif group == "notify":
-        notify_list(client, args, ui)
-    elif group == "repo":
-        repo_list(client, args, ui)
-    elif group == "filter":
-        filter_list(client, args, ui)
-    elif group == "component":
-        args.check_known(
-            [
-                "project",
-                "p",
-                "query",
-                "q",
-                "limit",
-                "n",
-                "page",
-                "json",
-                "format",
-                "verbose",
-                "v",
-            ]
-        )
-        var base = String("")
-        if args.get("project", "p") != "":
-            base = filter_eq("project.code", args.get("project", "p"))
-        simple_list(
-            client,
-            args,
-            ui,
-            "CmfComponent",
-            [String("code"), String("name"), String("project.code")],
-            like_filter("name", args.get("query", "q"), base),
-            "code",
-            [String("name"), String("project.code")],
-        )
-    elif group == "tag":
-        args.check_known(
-            ["query", "q", "limit", "n", "page", "json", "verbose", "v"]
-        )
-        simple_list(
-            client,
-            args,
-            ui,
-            "CmfTag",
-            [String("id"), String("name")],
-            like_filter("name", args.get("query", "q"), ""),
-            "id",
-            [String("name")],
-        )
-    elif group == "resolution" or group == "resolutions":
-        resolution_list(client, args, ui)
-    elif group == "project" or group == "projects":
-        if sub == "get":
-            project_get(client, args, ui)
-        else:
-            project_list(client, args, ui)
-    elif group == "testcase" or group == "testplan":
-        test_command(client, args, ui)
-    elif group == "ticket":
-        ticket_get(client, args, ui)
-    elif group == "person" or group == "people" or group == "user":
-        person_list(client, args, ui)
-    elif group == "doc" or group == "docs":
-        if sub == "create" or sub == "update":
-            doc_write(client, args, ui)
-        elif sub == "publish":
-            doc_publish(client, args, ui)
-        elif sub == "followers":
-            doc_followers(client, args, ui)
-        elif sub == "watch":
-            doc_watch(client, args, ui)
-        elif sub == "children":
-            doc_children(client, args, ui)
-        elif sub == "history":
-            doc_history(client, args, ui)
-        elif sub == "get" or sub == "show":
-            if args.has("version"):
-                doc_version(client, args, ui)
-            else:
-                doc_get(client, args, ui)
-        elif sub == "comment":
-            comment_write(client, args, ui)
-        elif sub == "comment-edit":
-            comment_edit(client, args, ui)
-        elif sub == "comments":
-            task_comments(client, args, ui)
-        elif sub == "attach":
-            task_attach(client, args, ui)
-        elif sub == "attachments":
-            task_attachments(client, args, ui)
-        elif sub == "download-all":
-            doc_download_all(client, args, ui)
-        elif sub == "list" or sub == "ls" or sub == "":
-            doc_list(client, args, ui)
-        else:
-            raise Error("unknown doc command " + sub)
     else:
-        raise Error("unknown command '" + group + "', see eva --help")
+        cmd.run(client, args, ui)
 
 
 def main():
