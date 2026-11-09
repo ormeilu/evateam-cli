@@ -40,20 +40,10 @@ class Catalog(unittest.TestCase):
         # description line beginning with six spaces.
         commands = {command_key(m.group(1)) for m in
                     re.finditer(r"^  ([a-z][^\n]+)\n      ", help_text, re.M)}
-        group = None
-        dispatched = set()
-        groups_with_subcommands = set()
-        for line in main.splitlines():
-            match = re.match(r'^    (?:if|elif) group == "([^"]+)"', line)
-            if match:
-                group = match.group(1)
-                if group:
-                    dispatched.add(group)
-            match = re.match(r'^        (?:if|elif) (?:sub|sub_cmd) == "([^"]+)"', line)
-            if match and group:
-                groups_with_subcommands.add(group)
-                dispatched.add(group + " " + match.group(1))
-        dispatched -= groups_with_subcommands
+        table = (ROOT / "src/eva/cli.mojo").read_text()
+        dispatched = {group if sub == "ANY" else group + " " + sub.strip('"') for group, sub in
+                      re.findall(r'Command\("([a-z-]+)", (ANY|"[a-z-]+")', table)}
+        self.assertGreater(len(dispatched), 80)
         for command in dispatched:
             self.assertTrue(any(c == command or c.startswith(command + " ") for c in commands), command)
         setup = (ROOT / "plugin/skills/eva/setup.md").read_text()

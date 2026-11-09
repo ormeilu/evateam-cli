@@ -304,6 +304,8 @@ verification off.
 | `eva auth logout [--profile NAME]` | remove a saved profile |
 | `eva config` | configuration source; never prints the token |
 | `eva upgrade` | update through the original installation method |
+| `eva help [COMMAND [SUB]]` | the same as `eva COMMAND --help`: only that command's entries |
+| `eva completion fish\|bash\|zsh` | completion script for commands and subcommands, e.g. `eva completion fish \| source` |
 
 Lists are paginated. `task comments` starts with the newest window of 20,
 oldest-to-newest inside that window; `--page 2` goes earlier and `--all` fetches

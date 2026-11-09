@@ -140,6 +140,8 @@ static allowlist is safe. For Claude Code, in `.claude/settings.json`:
       "Bash(eva context:*)",
       "Bash(eva cheatsheet:*)",
       "Bash(eva config:*)",
+      "Bash(eva help:*)",
+      "Bash(eva completion:*)",
       "Bash(eva auth status:*)",
       "Bash(eva --help:*)",
       "Bash(eva --version:*)"
