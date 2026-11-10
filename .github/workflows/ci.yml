@@ -18,6 +18,7 @@ jobs:
         with:
           pixi-version: v0.84.1
           cache: true
+      - run: pixi run fmt-check
       - run: pixi run test
       - run: pixi run e2e
       - name: Unit and e2e tests under AddressSanitizer
