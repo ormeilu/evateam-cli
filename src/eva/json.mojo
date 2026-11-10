@@ -220,12 +220,7 @@ def clean(s: String) -> String:
         if (c < 0x20 and c != 0x09 and c != 0x0A) or c == 0x7F:
             dirty = True
             break
-        if (
-            c == 0xC2
-            and i + 1 < len(b)
-            and Int(b[i + 1]) >= 0x80
-            and Int(b[i + 1]) <= 0x9F
-        ):
+        if c == 0xC2 and i + 1 < len(b) and Int(b[i + 1]) >= 0x80 and Int(b[i + 1]) <= 0x9F:
             dirty = True
             break
     if not dirty:
@@ -237,12 +232,7 @@ def clean(s: String) -> String:
         if (c < 0x20 and c != 0x09 and c != 0x0A) or c == 0x7F:
             i += 1
             continue
-        if (
-            c == 0xC2
-            and i + 1 < len(b)
-            and Int(b[i + 1]) >= 0x80
-            and Int(b[i + 1]) <= 0x9F
-        ):
+        if c == 0xC2 and i + 1 < len(b) and Int(b[i + 1]) >= 0x80 and Int(b[i + 1]) <= 0x9F:
             i += 2
             continue
         out.append(b[i])
@@ -330,10 +320,7 @@ struct Parser:
     def expect_word(mut self, word: String) raises:
         var w = word.as_bytes()
         for i in range(len(w)):
-            if (
-                self.pos + i >= len(self.data)
-                or self.data[self.pos + i] != w[i]
-            ):
+            if self.pos + i >= len(self.data) or self.data[self.pos + i] != w[i]:
                 self.fail("expected " + word)
         self.pos += len(w)
 
@@ -415,14 +402,7 @@ struct Parser:
         var start = self.pos
         while self.pos < len(self.data):
             var c = Int(self.data[self.pos])
-            if (
-                (c >= 0x30 and c <= 0x39)
-                or c == 0x2D
-                or c == 0x2B
-                or c == 0x2E
-                or c == 0x65
-                or c == 0x45
-            ):
+            if (c >= 0x30 and c <= 0x39) or c == 0x2D or c == 0x2B or c == 0x2E or c == 0x65 or c == 0x45:
                 self.pos += 1
             else:
                 break

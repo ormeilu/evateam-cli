@@ -20,9 +20,7 @@ from ._net import TCPSocket
 from .exceptions import ProxyError
 
 
-def select_proxy(
-    proxies: Dict[String, String], scheme: String
-) raises -> Optional[URL]:
+def select_proxy(proxies: Dict[String, String], scheme: String) raises -> Optional[URL]:
     """Pick and parse the proxy URL for a target ``scheme`` (``http``/``https``).
 
     Lookup order: an exact ``scheme`` key, then an ``all`` catch-all key. Returns None when no
@@ -40,12 +38,7 @@ def select_proxy(
         return None
     var pu = parse_url(val)
     if pu.scheme != "http":
-        raise ProxyError(
-            String(
-                t"unsupported proxy scheme '{pu.scheme}' (only http proxies are"
-                t" supported)"
-            )
-        )
+        raise ProxyError(String(t"unsupported proxy scheme '{pu.scheme}' (only http proxies are supported)"))
     return pu^
 
 
@@ -70,9 +63,7 @@ def tunnel_connect(
         authority = "[" + target_host + "]:" + String(target_port)
     else:
         authority = target_host + ":" + String(target_port)
-    var req = (
-        "CONNECT " + authority + " HTTP/1.1\r\nHost: " + authority + "\r\n\r\n"
-    )
+    var req = "CONNECT " + authority + " HTTP/1.1\r\nHost: " + authority + "\r\n\r\n"
     sock.send_all(req)
 
     var buf = unsafe_alloc[UInt8](1)
@@ -81,9 +72,7 @@ def tunnel_connect(
         var n = sock._recv_raw(buf, 1)
         if n <= c_int(0):
             buf.unsafe_free()
-            raise ProxyError(
-                "proxy closed connection during CONNECT", host=target_host
-            )
+            raise ProxyError("proxy closed connection during CONNECT", host=target_host)
         data.append(buf[unsafe_offset=0])
         if _ends_crlf_crlf(data):
             break
@@ -106,12 +95,7 @@ def _ends_crlf_crlf(data: List[UInt8]) -> Bool:
     var n = len(data)
     if n < 4:
         return False
-    return (
-        data[n - 4] == 0x0D
-        and data[n - 3] == 0x0A
-        and data[n - 2] == 0x0D
-        and data[n - 1] == 0x0A
-    )
+    return data[n - 4] == 0x0D and data[n - 3] == 0x0A and data[n - 2] == 0x0D and data[n - 1] == 0x0A
 
 
 def _bytes_to_string(bs: List[UInt8]) -> String:
@@ -121,8 +105,7 @@ def _bytes_to_string(bs: List[UInt8]) -> String:
 
 
 def _parse_status(head: String) -> Int:
-    """Extract the numeric status code from a status line (``HTTP/1.1 200 ...`` -> 200).
-    """
+    """Extract the numeric status code from a status line (``HTTP/1.1 200 ...`` -> 200)."""
     var lines = head.split("\r\n")
     if len(lines) == 0:
         return 0

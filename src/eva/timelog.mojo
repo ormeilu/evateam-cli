@@ -53,9 +53,7 @@ struct DayNorm(Copyable, Movable):
         self.minutes = minutes
 
 
-def calendar_days(
-    client: Client, person: String, first: String, last: String
-) raises -> List[DayNorm]:
+def calendar_days(client: Client, person: String, first: String, last: String) raises -> List[DayNorm]:
     """The days from first to last in this person's calendar; a day of their
     own calendar wins over the production calendar's."""
     var out = List[DayNorm]()
@@ -127,9 +125,7 @@ def calendar_days(
 # ---- commands ----
 
 
-def log_kwargs(
-    minutes: Int, start: String, text: String, remaining: String
-) raises -> String:
+def log_kwargs(minutes: Int, start: String, text: String, remaining: String) raises -> String:
     var d = JsonDoc()
     var kw = d.object()
     var ts = d.number(minutes)
@@ -144,11 +140,8 @@ def log_kwargs(
     return d.dump(kw)
 
 
-def day_logs(
-    client: Client, person: String, first: String, last: String
-) raises -> Reply:
-    """Work log entries by `person` starting from first to last (dates), oldest first.
-    """
+def day_logs(client: Client, person: String, first: String, last: String) raises -> Reply:
+    """Work log entries by `person` starting from first to last (dates), oldest first."""
     var d = JsonDoc()
     var kw = d.object()
     var flt = d.array()
@@ -196,9 +189,7 @@ def start_for(client: Client, args: Args, minutes: Int) raises -> String:
     if at != "":
         var hm = parse_hm(at)
         return date_text(day) + " " + two(hm[0]) + ":" + two(hm[1]) + ":00"
-    var r = day_logs(
-        client, person_id(client, ""), date_text(day), date_text(day)
-    )
+    var r = day_logs(client, person_id(client, ""), date_text(day), date_text(day))
     var last = String(DAY_START)
     for i in range(r.doc.len(r.result)):
         var end = _iso_hm(r.doc.text_at(r.doc.at(r.result, i), "end_date"))
@@ -223,35 +214,22 @@ def task_log(client: Client, args: Args, ui: Out) raises:
         ]
     )
     var code = args.need(2, "task code")
-    var minutes = parse_minutes(
-        args.need(3, "time spent, e.g. 90, 45m or 1h30m")
-    )
+    var minutes = parse_minutes(args.need(3, "time spent, e.g. 90, 45m or 1h30m"))
     var id = id_of(client, "CmfTask", "code", code)
     var start = start_for(client, args, minutes)
     if preview_write(
         args.has("dry-run"),
         "CmfTask.timetracker_change_time",
-        log_kwargs(
-            minutes, start, args.get("message", "m"), args.get("remaining")
-        ),
+        log_kwargs(minutes, start, args.get("message", "m"), args.get("remaining")),
         "[" + quote_str(id) + "]",
     ):
         return
     _ = client.call(
         "CmfTask.timetracker_change_time",
-        log_kwargs(
-            minutes, start, args.get("message", "m"), args.get("remaining")
-        ),
+        log_kwargs(minutes, start, args.get("message", "m"), args.get("remaining")),
         "[" + quote_str(id) + "]",
     )
-    print(
-        "logged "
-        + fmt_minutes(minutes)
-        + " on "
-        + ui.bold(code)
-        + " from "
-        + String(start[byte=0:16])
-    )
+    print("logged " + fmt_minutes(minutes) + " on " + ui.bold(code) + " from " + String(start[byte=0:16]))
 
 
 def time_list(client: Client, args: Args, ui: Out) raises:
@@ -274,18 +252,11 @@ def time_list(client: Client, args: Args, ui: Out) raises:
     if args.has("week") or (args.get("from") == "" and args.get("to") == ""):
         # Monday of this week through today.
         var back = (today.wday + 6) % 7
-        first = local_time(
-            epoch_of(today.year, today.month, today.day - back, 12, 0)
-        )
+        first = local_time(epoch_of(today.year, today.month, today.day - back, 12, 0))
         last = today.copy()
     else:
-        first = (
-            parse_day(args.get("from")) if args.get("from")
-            != "" else today.copy()
-        )
-        last = (
-            parse_day(args.get("to")) if args.get("to") != "" else today.copy()
-        )
+        first = parse_day(args.get("from")) if args.get("from") != "" else today.copy()
+        last = parse_day(args.get("to")) if args.get("to") != "" else today.copy()
     var lo = date_text(first)
     var hi = date_text(last)
     if lo > hi:
@@ -351,15 +322,7 @@ def time_list(client: Client, args: Args, ui: Out) raises:
             for l in lines:
                 print(l)
         else:
-            print(
-                ui.dim(
-                    day_name(at.wday)
-                    + " "
-                    + date
-                    + "  "
-                    + (kind if kind != "" else "day off")
-                )
-            )
+            print(ui.dim(day_name(at.wday) + " " + date + "  " + (kind if kind != "" else "day off")))
         at = local_time(epoch_of(at.year, at.month, at.day + 1, 12, 0))
     var tail = "total " + fmt_minutes(total) + " of " + fmt_minutes(norm_total)
     if norm_total > total:
@@ -369,17 +332,13 @@ def time_list(client: Client, args: Args, ui: Out) raises:
 
 def time_delete(client: Client, args: Args, ui: Out) raises:
     args.check_known(["verbose", "v"])
-    var ref_ = args.need(
-        2, "work log entry, e.g. TTH-1234 (eva time list shows them)"
-    )
+    var ref_ = args.need(2, "work log entry, e.g. TTH-1234 (eva time list shows them)")
     var id = ref_
     if not ref_.startswith("CmfTimeTrackerHistory:"):
         if not ref_.upper().startswith("TTH-"):
             raise Error(ref_ + " is not a work log entry (TTH-…)")
         id = id_of(client, "CmfTimeTrackerHistory", "code", ref_.upper())
-    _ = client.call(
-        "CmfTimeTrackerHistory.delete", "", "[" + quote_str(id) + "]"
-    )
+    _ = client.call("CmfTimeTrackerHistory.delete", "", "[" + quote_str(id) + "]")
     print(
         "deleted "
         + ui.bold(ref_.upper() if ref_.upper().startswith("TTH-") else ref_)

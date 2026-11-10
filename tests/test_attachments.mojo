@@ -29,7 +29,8 @@ def test_safe_file_name_hidden_and_control() raises:
 def test_attachment_kwargs_by_code_or_id() raises:
     assert_equal(attachment_kwargs("ATT-1", "code"), '{"filter":["code","==","ATT-1"],"fields":["code"]}')
     assert_equal(
-        attachment_kwargs("CmfAttachment:9", "code,url"), '{"filter":["id","==","CmfAttachment:9"],"fields":["code","url"]}'
+        attachment_kwargs("CmfAttachment:9", "code,url"),
+        '{"filter":["id","==","CmfAttachment:9"],"fields":["code","url"]}',
     )
 
 

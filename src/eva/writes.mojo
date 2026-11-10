@@ -2,9 +2,7 @@
 from eva.json import JsonDoc
 
 
-def preview_write(
-    enabled: Bool, method: String, kwargs: String = "", args: String = ""
-) raises -> Bool:
+def preview_write(enabled: Bool, method: String, kwargs: String = "", args: String = "") raises -> Bool:
     if not enabled:
         return False
     var d = JsonDoc()

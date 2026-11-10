@@ -13,7 +13,7 @@ def test_roundtrip_compact() raises:
 def test_string_escapes() raises:
     var d = JsonDoc()
     var r = d.parse('"\\b\\f\\n\\r\\t\\/\\\\\\""')
-    assert_equal(d.nodes[r].text, String(chr(8)) + chr(12) + "\n\r\t/\\\"")
+    assert_equal(d.nodes[r].text, String(chr(8)) + chr(12) + '\n\r\t/\\"')
 
 
 def test_numbers_keep_their_text() raises:
@@ -105,8 +105,18 @@ def test_parse_into_same_doc() raises:
 
 def test_errors() raises:
     var bad = [
-        '{"a": }', "[1, 2", '"abc', "{1: 2}", "tru", "nul", "[1,]x", '{"a" 1}',
-        '"\\x"', '"\\u12"', "", "[1] [2]",
+        '{"a": }',
+        "[1, 2",
+        '"abc',
+        "{1: 2}",
+        "tru",
+        "nul",
+        "[1,]x",
+        '{"a" 1}',
+        '"\\x"',
+        '"\\u12"',
+        "",
+        "[1] [2]",
     ]
     for s in bad:
         var d = JsonDoc()

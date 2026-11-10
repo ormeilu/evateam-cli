@@ -36,9 +36,7 @@ def valid_profile_name(name: String) -> Bool:
 
 def check_profile_name(name: String) raises:
     if not valid_profile_name(name):
-        raise Error(
-            "profile name '" + name + "' is not allowed: use 1-64 letters, digits, '.', '_' or '-'"
-        )
+        raise Error("profile name '" + name + "' is not allowed: use 1-64 letters, digits, '.', '_' or '-'")
 
 
 struct Profiles(Movable):

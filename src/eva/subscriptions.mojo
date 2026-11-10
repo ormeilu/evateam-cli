@@ -19,22 +19,15 @@ def doc_followers(client: Client, args: Args, ui: Out) raises:
     args.check_known(["limit", "n", "page", "json", "format", "verbose", "v"])
     var code = args.need(2, "document code")
     var id = id_of(client, "CmfDocument", "code", code)
-    var filter = (
-        "[" + filter_eq("parent_id", id) + ',["cmf_deleted","!=",true]]'
-    )
+    var filter = "[" + filter_eq("parent_id", id) + ',["cmf_deleted","!=",true]]'
     if not args.has("json") and args.get("format") != "json":
-        print(
-            "explicit followers visible to this account (not viewers or"
-            " implicit notification recipients):"
-        )
+        print("explicit followers visible to this account (not viewers or implicit notification recipients):")
     simple_list(
         client,
         args,
         ui,
         "CmfFollower",
-        split_csv(
-            "code,person.login,person.name,follow_children,notify_volume"
-        ),
+        split_csv("code,person.login,person.name,follow_children,notify_volume"),
         filter,
         "code",
         split_csv("person.login,person.name,follow_children,notify_volume"),
@@ -45,11 +38,7 @@ def _mine(client: Client, doc_id: String, me: String) raises -> Reply:
     return collect_rows(
         client,
         "CmfFollower",
-        "["
-        + filter_eq("parent_id", doc_id)
-        + ","
-        + filter_eq("person_id", me)
-        + ',["cmf_deleted","!=",true]]',
+        "[" + filter_eq("parent_id", doc_id) + "," + filter_eq("person_id", me) + ',["cmf_deleted","!=",true]]',
         "code,follow_children",
         100,
     )
@@ -75,9 +64,7 @@ def doc_watch(client: Client, args: Args, ui: Out) raises:
         # The web UI can leave more than one record for the same person.
         for i in range(n):
             var id = d.text_at(d.at(rows.result, i), "id")
-            if preview_write(
-                dry, "CmfFollower.delete", "", "[" + quote_str(id) + "]"
-            ):
+            if preview_write(dry, "CmfFollower.delete", "", "[" + quote_str(id) + "]"):
                 continue
             _ = client.call("CmfFollower.delete", "", "[" + quote_str(id) + "]")
         if dry:
@@ -107,9 +94,7 @@ def doc_watch(client: Client, args: Args, ui: Out) raises:
             "[" + quote_str(id) + "]",
         ):
             return
-        _ = client.call(
-            "CmfFollower.update", kw.dump(fields), "[" + quote_str(id) + "]"
-        )
+        _ = client.call("CmfFollower.update", kw.dump(fields), "[" + quote_str(id) + "]")
     else:
         kw.set_str(fields, "parent", doc_id)
         kw.set_str(fields, "person", me)
@@ -119,10 +104,7 @@ def doc_watch(client: Client, args: Args, ui: Out) raises:
     var after = _mine(client, doc_id, me)
     var confirmed = False
     for i in range(after.doc.len(after.result)):
-        if (
-            after.doc.text_at(after.doc.at(after.result, i), "follow_children")
-            == "true"
-        ) == children:
+        if (after.doc.text_at(after.doc.at(after.result, i), "follow_children") == "true") == children:
             confirmed = True
     if not confirmed:
         raise Error(code + ": follow returned, but readback did not confirm it")

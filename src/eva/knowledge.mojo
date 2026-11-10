@@ -21,9 +21,7 @@ from eva.render import Out
 
 
 def doc_children(client: Client, args: Args, ui: Out) raises:
-    args.check_known(
-        ["depth", "limit", "n", "page", "json", "format", "verbose", "v"]
-    )
+    args.check_known(["depth", "limit", "n", "page", "json", "format", "verbose", "v"])
     var code = args.need(2, "document code")
     var depth = args.int_or("depth", "", 1)
     if depth < 1 or depth > 10:
@@ -34,9 +32,7 @@ def doc_children(client: Client, args: Args, ui: Out) raises:
         var tree = child_nodes(client, args, id, depth, d, List[String]())
         print(d.dump_pretty(tree))
     else:
-        print(
-            "document-only children; mixed folder/object nodes are not included"
-        )
+        print("document-only children; mixed folder/object nodes are not included")
         print_children(client, args, ui, id, depth, "", List[String]())
 
 
@@ -61,9 +57,7 @@ def child_nodes(
         var row = rows.doc.at(rows.result, i)
         var n = d.parse(rows.doc.dump(row))
         if depth > 1:
-            var sub = child_nodes(
-                client, args, rows.doc.text_at(row, "id"), depth - 1, d, next
-            )
+            var sub = child_nodes(client, args, rows.doc.text_at(row, "id"), depth - 1, d, next)
             d.set(n, "children_page", sub)
         d.push(children, n)
     d.set(tree, "nodes", children)
@@ -91,12 +85,7 @@ def print_children(
     var rows = page_rows(client, args, "CmfDocument", f, "id,code,name", "code")
     for i in range(rows.doc.len(rows.result)):
         var row = rows.doc.at(rows.result, i)
-        print(
-            indent
-            + rows.doc.text_at(row, "code")
-            + "  "
-            + rows.doc.text_at(row, "name")
-        )
+        print(indent + rows.doc.text_at(row, "code") + "  " + rows.doc.text_at(row, "name"))
         if depth > 1:
             print_children(
                 client,
@@ -137,10 +126,7 @@ def doc_history(client: Client, args: Args, ui: Out) raises:
         )
         if r.doc.text_at(row, "reason") != "":
             ui.untrusted("revision/reason", r.doc.text_at(row, "reason"))
-    print(
-        "--version takes the exact opaque doc_version string, not an ordinal"
-        " number"
-    )
+    print("--version takes the exact opaque doc_version string, not an ordinal number")
     page_footer(client, args, ui, "CmfDocumentHistory", f, r.doc.len(r.result))
 
 
@@ -158,12 +144,7 @@ def doc_version(client: Client, args: Args, ui: Out) raises:
     )
     var r = client.call("CmfDocumentHistory.list", kw)
     if r.doc.len(r.result) != 1:
-        raise Error(
-            code
-            + ": revision "
-            + version
-            + " not found or not unique; see doc history"
-        )
+        raise Error(code + ": revision " + version + " not found or not unique; see doc history")
     var row = r.doc.at(r.result, 0)
     if want_json(args):
         print(r.doc.dump_pretty(row))
@@ -207,10 +188,7 @@ def project_get(client: Client, args: Args, ui: Out) raises:
         + project.doc.text_at(project.result, "cache_status_type")
     )
     print("owner: " + project.doc.text_at(project.result, "cmf_owner.login"))
-    print(
-        "direct role assignments; groups, defaults and inherited permissions"
-        " are not expanded:"
-    )
+    print("direct role assignments; groups, defaults and inherited permissions are not expanded:")
     for i in range(roles.doc.len(roles.result)):
         var row = roles.doc.at(roles.result, i)
         print("  " + roles.doc.text_at(row, "project_role.name"))
@@ -225,9 +203,7 @@ def project_get(client: Client, args: Args, ui: Out) raises:
                 + "  "
                 + roles.doc.text_at(member, "name")
             )
-    page_footer(
-        client, args, ui, "CmfProjectRoleAssign", f, roles.doc.len(roles.result)
-    )
+    page_footer(client, args, ui, "CmfProjectRoleAssign", f, roles.doc.len(roles.result))
     print("project lists (sprints, releases and other kinds):")
     simple_list(
         client,
@@ -261,9 +237,7 @@ def test_command(client: Client, args: Args, ui: Out) raises:
     var cls = "CmfTestcase" if args.pos(0) == "testcase" else "CmfTestplan"
     var sub = args.pos(1)
     if sub == "list" or sub == "":
-        var base = filter_eq(
-            "project.code", args.get("project", "p")
-        ) if args.get("project", "p") != "" else String("")
+        var base = filter_eq("project.code", args.get("project", "p")) if args.get("project", "p") != "" else String("")
         simple_list(
             client,
             args,
@@ -293,9 +267,7 @@ def test_command(client: Client, args: Args, ui: Out) raises:
         "id,step_number,step_section,text,expected_result,test_data" if is_case else "id,testcase_id,testcase.code,testcase.name,testplan_testcase_folder_id"
     )
     var f = filter_eq("parent_id", id)
-    var children = page_rows(
-        client, args, child_cls, f, fields, "step_number" if is_case else "id"
-    )
+    var children = page_rows(client, args, child_cls, f, fields, "step_number" if is_case else "id")
     if want_json(args):
         var d = JsonDoc()
         var obj = d.parse(r.doc.dump(r.result))
@@ -303,44 +275,24 @@ def test_command(client: Client, args: Args, ui: Out) raises:
         d.set(obj, "steps_page" if is_case else "testcases_page", c)
         print(d.dump_pretty(obj))
         return
-    print(
-        code
-        + "  "
-        + r.doc.text_at(r.result, "name")
-        + "  "
-        + r.doc.text_at(r.result, "cache_status_type")
-    )
+    print(code + "  " + r.doc.text_at(r.result, "name") + "  " + r.doc.text_at(r.result, "cache_status_type"))
     if is_case:
         print("version: " + r.doc.text_at(r.result, "cmf_ver_number"))
     ui.untrusted(code + "/text", r.doc.text_at(r.result, "text"))
     for i in range(children.doc.len(children.result)):
         var row = children.doc.at(children.result, i)
         if is_case:
-            print(
-                children.doc.text_at(row, "step_number")
-                + "  "
-                + children.doc.text_at(row, "step_section")
-            )
+            print(children.doc.text_at(row, "step_number") + "  " + children.doc.text_at(row, "step_section"))
             ui.untrusted(code + "/step", children.doc.text_at(row, "text"))
             print("Expected result:")
-            ui.untrusted(
-                code + "/expected", children.doc.text_at(row, "expected_result")
-            )
+            ui.untrusted(code + "/expected", children.doc.text_at(row, "expected_result"))
         else:
-            print(
-                children.doc.text_at(row, "testcase.code")
-                + "  "
-                + children.doc.text_at(row, "testcase.name")
-            )
-    page_footer(
-        client, args, ui, child_cls, f, children.doc.len(children.result)
-    )
+            print(children.doc.text_at(row, "testcase.code") + "  " + children.doc.text_at(row, "testcase.name"))
+    page_footer(client, args, ui, child_cls, f, children.doc.len(children.result))
 
 
 def ticket_get(client: Client, args: Args, ui: Out) raises:
-    args.check_known(
-        ["limit", "n", "page", "json", "format", "full", "verbose", "v"]
-    )
+    args.check_known(["limit", "n", "page", "json", "format", "full", "verbose", "v"])
     if args.pos(1) != "get":
         raise Error("usage: eva ticket get CODE")
     var code = args.need(2, "ticket code")
@@ -348,9 +300,7 @@ def ticket_get(client: Client, args: Args, ui: Out) raises:
         client,
         "CmfTask",
         code,
-        split_csv(
-            "id,code,name,project_id,project.id,project.code,project.name,company.name"
-        ),
+        split_csv("id,code,name,project_id,project.id,project.code,project.name,company.name"),
     )
     var id = r.doc.text_at(r.result, "id")
     var f = filter_eq("parent_id", id)
@@ -368,13 +318,10 @@ def ticket_get(client: Client, args: Args, ui: Out) raises:
     var cycles = d.parse(sla.doc.dump(sla.result))
     d.set(result, "ticket", t)
     d.set(result, "sla_cycles", cycles)
-    d.set_str(
-        result, "sla_duration_units", "server-native; not converted to hours"
-    )
+    d.set_str(result, "sla_duration_units", "server-native; not converted to hours")
     var queues = d.array()
     var queue_status = String(
-        "visible project queue definitions on this page; matches are query"
-        " membership, not a unique assignment"
+        "visible project queue definitions on this page; matches are query membership, not a unique assignment"
     )
     try:
         var project = r.doc.text_at(r.result, "project_id")
@@ -405,10 +352,7 @@ def ticket_get(client: Client, args: Args, ui: Out) raises:
             try:
                 var bql = definitions.doc.text_at(row, "bql_filter.bql")
                 if bql == "" or bql.byte_length() > 262144:
-                    raise Error(
-                        "missing/oversized computed JSON BQL; legacy"
-                        " Python/UBQL is not executed"
-                    )
+                    raise Error("missing/oversized computed JSON BQL; legacy Python/UBQL is not executed")
                 var query = d.parse(bql)
                 validate_bql(d, query)
                 var filter = d.array()
@@ -418,9 +362,7 @@ def ticket_get(client: Client, args: Args, ui: Out) raises:
                 var value = d.string(id)
                 var by_task = d.triple("id", "==", value)
                 d.push(filter, by_task)
-                var count = client.call(
-                    "CmfTask.count", '{"filter":' + d.dump(filter) + "}"
-                )
+                var count = client.call("CmfTask.count", '{"filter":' + d.dump(filter) + "}")
                 var matches = d.boolean(Int(count.doc.text(count.result)) > 0)
                 d.set(item, "matches", matches)
             except e:
@@ -438,10 +380,7 @@ def ticket_get(client: Client, args: Args, ui: Out) raises:
     print(code + "  " + r.doc.text_at(r.result, "name"))
     print("project: " + r.doc.text_at(r.result, "project.code"))
     var company = r.doc.text_at(r.result, "company.name")
-    print(
-        "company/client: "
-        + (company if company != "" else String("not exposed to this account"))
-    )
+    print("company/client: " + (company if company != "" else String("not exposed to this account")))
     print("queue membership: " + queue_status)
     for i in range(d.len(queues)):
         var row = d.at(queues, i)
@@ -452,10 +391,7 @@ def ticket_get(client: Client, args: Args, ui: Out) raises:
             + "  "
             + d.text_at(row, "name")
             + "  "
-            + (
-                matched if matched
-                != "" else String("unknown: ") + d.text_at(row, "unavailable")
-            )
+            + (matched if matched != "" else String("unknown: ") + d.text_at(row, "unavailable"))
         )
     for i in range(sla.doc.len(sla.result)):
         var row = sla.doc.at(sla.result, i)
@@ -463,10 +399,5 @@ def ticket_get(client: Client, args: Args, ui: Out) raises:
             code + "/sla",
             "<pre>" + escape_text(sla.doc.dump_pretty(row)) + "</pre>",
         )
-    print(
-        "SLA durations are server-native values; no hours or freshness"
-        " guarantee is inferred"
-    )
-    page_footer(
-        client, args, ui, "CmfSDeskSlaCycle", f, sla.doc.len(sla.result)
-    )
+    print("SLA durations are server-native values; no hours or freshness guarantee is inferred")
+    page_footer(client, args, ui, "CmfSDeskSlaCycle", f, sla.doc.len(sla.result))

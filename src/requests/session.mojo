@@ -85,8 +85,7 @@ struct Session(Movable):
         self._tls_sessions = existing._tls_sessions^
 
     def __deinit__(deinit self):
-        """Close every pooled connection when the Session is dropped (no fd/SSL leaks).
-        """
+        """Close every pooled connection when the Session is dropped (no fd/SSL leaks)."""
         self.close()
 
     def __enter__(var self) -> Self:
@@ -216,8 +215,7 @@ struct Session(Movable):
 
             # 303 / 301/302 after POST → GET (matches Python requests behavior).
             if resp.status_code == 303 or (
-                (resp.status_code == 301 or resp.status_code == 302)
-                and redirect_method == "POST"
+                (resp.status_code == 301 or resp.status_code == 302) and redirect_method == "POST"
             ):
                 redirect_method = "GET"
                 current_data = None
@@ -455,9 +453,7 @@ struct Session(Movable):
             # else: stale — fall through to a fresh connection.
 
         # Fresh connection.
-        var fresh = self._connect_new(
-            scheme, host, port, ip, timeout, verify, ca_bundle, is_https
-        )
+        var fresh = self._connect_new(scheme, host, port, ip, timeout, verify, ca_bundle, is_https)
         fresh.send_all(req_str)
         raw = fresh.recv_framed(method, reusable)
         if reusable:
@@ -488,9 +484,7 @@ struct Session(Movable):
             var cached_session = self._tls_sessions.get(session_key)
             try:
                 sock.connect_ip(ip, port, timeout)
-                tls.connect(
-                    sock.fd_value(), host, verify, ca_bundle, cached_session
-                )
+                tls.connect(sock.fd_value(), host, verify, ca_bundle, cached_session)
             except e:
                 tls.close()
                 sock.close()
@@ -505,9 +499,7 @@ struct Session(Movable):
             var handle = tls._steal_libssl()
             sock._disown()
             tls._disown()
-            return KeptAliveConn(
-                scheme, host, port, fd, True, handle^, ssl_ptr^
-            )
+            return KeptAliveConn(scheme, host, port, fd, True, handle^, ssl_ptr^)
         else:
             try:
                 sock.connect_ip(ip, port, timeout)
@@ -517,12 +509,8 @@ struct Session(Movable):
             var fd = sock.fd_value()
             sock._disown()
             var no_handle: Optional[OwnedPointer[OwnedDLHandle]] = None
-            var no_ssl: Optional[
-                Pointer[UInt8, MutUntrackedOrigin]
-            ] = None
-            return KeptAliveConn(
-                scheme, host, port, fd, False, no_handle^, no_ssl^
-            )
+            var no_ssl: Optional[Pointer[UInt8, MutUntrackedOrigin]] = None
+            return KeptAliveConn(scheme, host, port, fd, False, no_handle^, no_ssl^)
 
     def _connect_proxied(
         mut self,
@@ -560,9 +548,7 @@ struct Session(Movable):
             var handle = tls._steal_libssl()
             sock._disown()
             tls._disown()
-            return KeptAliveConn(
-                scheme, host, port, fd, True, handle^, ssl_ptr^
-            )
+            return KeptAliveConn(scheme, host, port, fd, True, handle^, ssl_ptr^)
         else:
             try:
                 sock.connect_ip(ip, proxy.port, timeout)
@@ -572,12 +558,8 @@ struct Session(Movable):
             var fd = sock.fd_value()
             sock._disown()
             var no_handle: Optional[OwnedPointer[OwnedDLHandle]] = None
-            var no_ssl: Optional[
-                Pointer[UInt8, MutUntrackedOrigin]
-            ] = None
-            return KeptAliveConn(
-                scheme, host, port, fd, False, no_handle^, no_ssl^
-            )
+            var no_ssl: Optional[Pointer[UInt8, MutUntrackedOrigin]] = None
+            return KeptAliveConn(scheme, host, port, fd, False, no_handle^, no_ssl^)
 
     def _stream_response(
         mut self,
@@ -597,9 +579,7 @@ struct Session(Movable):
         var term_found = False
         var tmp = unsafe_alloc[UInt8](8192)
         while not term_found:
-            var n = tls._ssl_read_raw(
-                tmp, 8192
-            ) if is_https else sock._recv_raw(tmp, 8192)
+            var n = tls._ssl_read_raw(tmp, 8192) if is_https else sock._recv_raw(tmp, 8192)
             if n > c_int(0):
                 var count = Int(n)
                 for i in range(count):
@@ -641,9 +621,7 @@ struct Session(Movable):
 
         # Build the StreamingConn. It takes ownership of the socket fd + TLS handle.
         var fd = sock.fd_value()
-        var ssl_ptr = (
-            tls._steal_ssl()
-        )  # transfer SSL* out of TLSConnection (prevents its close)
+        var ssl_ptr = tls._steal_ssl()  # transfer SSL* out of TLSConnection (prevents its close)
         var libssl_handle = tls._steal_libssl()  # transfer the libssl handle
         # Mark sock/tls as no longer owning the connection so their destructors don't double-close.
         sock._disown()
@@ -652,14 +630,10 @@ struct Session(Movable):
         var content_length = -1
         if cl != None:
             content_length = cl.value()
-        var conn = StreamingConn(
-            fd, libssl_handle^, ssl_ptr^, leftover^, content_length, chunked
-        )
+        var conn = StreamingConn(fd, libssl_handle^, ssl_ptr^, leftover^, content_length, chunked)
         var conn_ptr = OwnedPointer[StreamingConn](conn^)
 
-        return Response(
-            status_code, reason, hdrs^, List[UInt8](), final_url, conn_ptr^
-        )
+        return Response(status_code, reason, hdrs^, List[UInt8](), final_url, conn_ptr^)
 
     # --- Convenience method shortcuts ---
 
@@ -883,11 +857,7 @@ def _resolve_redirect(base_url: String, location: String) raises -> String:
 
     # Protocol-relative: "//host/path"
     var loc_ptr = location.unsafe_ptr()
-    if (
-        location.byte_length() >= 2
-        and loc_ptr[unsafe_offset=0] == 0x2F
-        and loc_ptr[unsafe_offset=1] == 0x2F
-    ):
+    if location.byte_length() >= 2 and loc_ptr[unsafe_offset=0] == 0x2F and loc_ptr[unsafe_offset=1] == 0x2F:
         return base.scheme + ":" + location
 
     # Root-relative: "/path"
@@ -959,8 +929,7 @@ def _crlf_crlf() -> List[UInt8]:
 
 
 def _find_in_list(buf: List[UInt8], needle: List[UInt8]) -> Int:
-    """Return the byte index of the first occurrence of ``needle`` in ``buf``, or -1.
-    """
+    """Return the byte index of the first occurrence of ``needle`` in ``buf``, or -1."""
     var bl = len(buf)
     var nl = len(needle)
     if nl == 0 or bl < nl:

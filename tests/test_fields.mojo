@@ -34,10 +34,7 @@ def test_from_meta_keeps_custom_fields() raises:
 
 def test_value_names() raises:
     var d = JsonDoc()
-    var r = d.parse(
-        '{"a": [{"name": "iOS"}, {"name": "BE"}], "b": [], "c": "plain", "d":'
-        ' ["x", "y"]}'
-    )
+    var r = d.parse('{"a": [{"name": "iOS"}, {"name": "BE"}], "b": [], "c": "plain", "d": ["x", "y"]}')
     assert_equal(value_names(d, d.get(r, "a")), "iOS, BE")
     assert_equal(value_names(d, d.get(r, "b")), "")
     assert_equal(value_names(d, d.get(r, "c")), "plain")

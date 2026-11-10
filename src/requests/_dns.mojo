@@ -139,9 +139,7 @@ def in6_halves(b: SIMD[DType.uint8, 16]) -> SIMD[DType.uint64, 2]:
 
 def _v4(addr: UInt32) -> ResolvedAddress:
     """Build an IPv4 ResolvedAddress (host byte order)."""
-    return ResolvedAddress(
-        Int8(4), Int8(2), addr, SIMD[DType.uint8, 16]()
-    )  # pf = AF_INET (2, portable)
+    return ResolvedAddress(Int8(4), Int8(2), addr, SIMD[DType.uint8, 16]())  # pf = AF_INET (2, portable)
 
 
 def _v6(pf: c_int, bytes: SIMD[DType.uint8, 16]) -> ResolvedAddress:
@@ -272,9 +270,7 @@ def _resolve_by_name(host: String) raises ConnectionError -> ResolvedAddress:
     var resolved = _getaddrinfo(host)
     if resolved != None:
         return _take(resolved)
-    raise ConnectionError(
-        String(t"DNS returned no usable addresses for host: {host}"), host=host
-    )
+    raise ConnectionError(String(t"DNS returned no usable addresses for host: {host}"), host=host)
 
 
 def _getaddrinfo(
@@ -319,9 +315,7 @@ def _getaddrinfo(
     while attempt < 5:
         rc = external_call["getaddrinfo", c_int](
             chost,
-            c_int(
-                0
-            ),  # service = NULL (we only want address resolution, not port)
+            c_int(0),  # service = NULL (we only want address resolution, not port)
             hints,
             result_addr,
         )
@@ -335,16 +329,12 @@ def _getaddrinfo(
     chost.unsafe_free()
     if rc != c_int(0):
         result_addr.unsafe_free()
-        raise ConnectionError(
-            String(t"DNS resolution failed for host: {host}"), host=host
-        )
+        raise ConnectionError(String(t"DNS resolution failed for host: {host}"), host=host)
 
     var first = result_addr[]
     result_addr.unsafe_free()
     if Int(first) == 0:
-        raise ConnectionError(
-            String(t"DNS returned no addresses for host: {host}"), host=host
-        )
+        raise ConnectionError(String(t"DNS returned no addresses for host: {host}"), host=host)
 
     # Walk the addrinfo linked list. Prefer AF_INET; remember the first non-AF_INET as a fallback.
     # Read fields through the pointer (AddrInfo is not ImplicitlyCopyable, so `var node = cur[]`
@@ -362,22 +352,16 @@ def _getaddrinfo(
         if ai_addr != 0:
             if family == AF_INET and not have_v4:
                 # ai_addr points to a sockaddr_in for AF_INET. Read sin_addr.
-                var sockaddr_ptr = Pointer[
-                    SockAddrIn, MutUntrackedOrigin
-                ](unsafe_from_address=Int(ai_addr))
+                var sockaddr_ptr = Pointer[SockAddrIn, MutUntrackedOrigin](unsafe_from_address=Int(ai_addr))
                 v4_addr = sockaddr_ptr[].sin_addr
                 have_v4 = True
             elif family != AF_INET and not have_v6:
                 # ai_addr points to a sockaddr_in6 for AF_INET6. Read sin6_addr.
-                var sockaddr_ptr = Pointer[
-                    SockAddrIn6, MutUntrackedOrigin
-                ](unsafe_from_address=Int(ai_addr))
+                var sockaddr_ptr = Pointer[SockAddrIn6, MutUntrackedOrigin](unsafe_from_address=Int(ai_addr))
                 v6_bytes = in6_bytes(sockaddr_ptr[].sin6_addr_lo, sockaddr_ptr[].sin6_addr_hi)
                 v6_pf = family
                 have_v6 = True
-        cur = Pointer[AddrInfo, MutUntrackedOrigin](
-            unsafe_from_address=Int(cur[].ai_next)
-        )
+        cur = Pointer[AddrInfo, MutUntrackedOrigin](unsafe_from_address=Int(cur[].ai_next))
 
     _ = external_call["freeaddrinfo", NoneType](first)
 

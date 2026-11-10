@@ -70,14 +70,10 @@ def test_unknown_commands_suggest() raises:
     with assert_raises(contains="unknown command 'zzz', see eva --help"):
         var a = Args(["zzz"])
         _ = resolve(a)
-    with assert_raises(
-        contains="unknown task command 'gett'; did you mean 'get'?"
-    ):
+    with assert_raises(contains="unknown task command 'gett'; did you mean 'get'?"):
         var a = Args(["task", "gett"])
         _ = resolve(a)
-    with assert_raises(
-        contains="unknown auth command 'x': login, status, use or logout"
-    ):
+    with assert_raises(contains="unknown auth command 'x': login, status, use or logout"):
         var a = Args(["auth", "x"])
         _ = resolve(a)
     with assert_raises(contains="eva task needs a command: get, list"):
@@ -86,9 +82,7 @@ def test_unknown_commands_suggest() raises:
 
 
 def test_unknown_option_suggests() raises:
-    with assert_raises(
-        contains="unknown option --projet; did you mean --project?"
-    ):
+    with assert_raises(contains="unknown option --projet; did you mean --project?"):
         Args(["--projet", "X"]).check_known(["project", "p", "json"])
     with assert_raises(contains="unknown option --bogus"):
         Args(["--bogus", "1"]).check_known(["json"])
@@ -152,13 +146,9 @@ def test_help_text() raises:
 
 def test_completion_scripts() raises:
     var fish = completion("fish")
-    assert_true(
-        "complete -c eva" in fish and "contains -- $w[2] task tasks t" in fish
-    )
+    assert_true("complete -c eva" in fish and "contains -- $w[2] task tasks t" in fish)
     var bash = completion("bash")
-    assert_true(
-        "task|tasks|t)" in bash and "complete -o default -F _eva eva" in bash
-    )
+    assert_true("task|tasks|t)" in bash and "complete -o default -F _eva eva" in bash)
     assert_true("compdef _eva eva" in completion("zsh"))
     for s in subcommands("doc"):
         assert_true(s in fish, s)

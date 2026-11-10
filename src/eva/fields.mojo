@@ -67,13 +67,9 @@ def from_meta(doc: JsonDoc, meta: Int) raises -> List[CustomField]:
             continue
         var f = doc.at(fields, i)
         var widget = _one_line(doc.text_at(f, "widget"))
-        var model = _one_line(
-            doc.text_at(f, "model")
-        ) if widget == "CmfM2M" else String("")
+        var model = _one_line(doc.text_at(f, "model")) if widget == "CmfM2M" else String("")
         var caption = _one_line(doc.text_at(f, "caption"))
-        out.append(
-            CustomField(name, widget, model, caption if caption != "" else name)
-        )
+        out.append(CustomField(name, widget, model, caption if caption != "" else name))
     return out^
 
 
@@ -113,29 +109,15 @@ def find_field(client: Client, name: String) raises -> CustomField:
     if len(hits) > 1:
         var names = List[String]()
         for i in hits:
-            names.append(
-                fields[i].name + " (" + kind_of(fields[i].widget) + ")"
-            )
-        raise Error(
-            "several fields are called "
-            + name
-            + ": "
-            + ", ".join(names)
-            + "; name one"
-        )
+            names.append(fields[i].name + " (" + kind_of(fields[i].widget) + ")")
+        raise Error("several fields are called " + name + ": " + ", ".join(names) + "; name one")
     raise Error("no custom field " + name + "; eva field list shows them")
 
 
 def multiselect_values(client: Client, model: String) raises -> Reply:
-    var r = client.call(
-        model + ".list", '{"fields":["id","name"],"slice":[0,1000]}'
-    )
+    var r = client.call(model + ".list", '{"fields":["id","name"],"slice":[0,1000]}')
     if r.doc.len(r.result) >= 1000:
-        raise Error(
-            model
-            + ": value lookup reached its 1000-row cap; use exact IDs or a"
-            " paginated raw query"
-        )
+        raise Error(model + ": value lookup reached its 1000-row cap; use exact IDs or a paginated raw query")
     return r^
 
 
@@ -147,9 +129,7 @@ def resolve_set(client: Client, mut d: JsonDoc, obj: Int) raises:
     for i in range(d.len(obj)):
         var key = d.key_at(obj, i)
         var v = d.at(obj, i)
-        if (
-            not key.startswith("cf_") and key != "tags" and key != "components"
-        ) or d.kind(v) != J_ARR:
+        if (not key.startswith("cf_") and key != "tags" and key != "components") or d.kind(v) != J_ARR:
             continue
         var names = False
         for j in range(d.len(v)):
@@ -185,23 +165,10 @@ def resolve_set(client: Client, mut d: JsonDoc, obj: Int) raises:
                     known.append(oname)
                     if oname.lower() == String(s.strip()).lower():
                         if id != "":
-                            raise Error(
-                                "ambiguous value "
-                                + s
-                                + " in "
-                                + key
-                                + "; use its id"
-                            )
+                            raise Error("ambiguous value " + s + " in " + key + "; use its id")
                         id = options.doc.text_at(o, "id")
                 if id == "":
-                    raise Error(
-                        "no value "
-                        + s
-                        + " in "
-                        + key
-                        + "; values: "
-                        + ", ".join(known)
-                    )
+                    raise Error("no value " + s + " in " + key + "; values: " + ", ".join(known))
             var node = d.string(id)
             d.push(ids, node)
         d.set(obj, key, ids)
@@ -215,25 +182,11 @@ def field_list(client: Client, args: Args, ui: Out) raises:
         raise Error("cannot read the task fields (CmfTask.get_meta)")
     var shown = 0
     for f in fields:
-        if (
-            q != ""
-            and f.name.lower().find(q) < 0
-            and f.caption.lower().find(q) < 0
-        ):
+        if q != "" and f.name.lower().find(q) < 0 and f.caption.lower().find(q) < 0:
             continue
-        print(
-            ui.accent(pad(f.name, 24))
-            + " "
-            + pad(kind_of(f.widget), 13)
-            + " "
-            + f.caption
-        )
+        print(ui.accent(pad(f.name, 24)) + " " + pad(kind_of(f.widget), 13) + " " + f.caption)
         shown += 1
-    print(
-        ui.dim(
-            String(shown) + " custom fields; values of one: eva field get NAME"
-        )
-    )
+    print(ui.dim(String(shown) + " custom fields; values of one: eva field get NAME"))
 
 
 def field_get(client: Client, args: Args, ui: Out) raises:
@@ -247,37 +200,15 @@ def field_get(client: Client, args: Args, ui: Out) raises:
         var r = multiselect_values(client, f.model)
         for i in range(r.doc.len(r.result)):
             var o = r.doc.at(r.result, i)
-            print(
-                "  "
-                + pad(r.doc.text_at(o, "name"), 30)
-                + " "
-                + ui.dim(r.doc.text_at(o, "id"))
-            )
-        print(
-            ui.dim(
-                "set by name: eva task update CODE --set '{\""
-                + f.name
-                + '": ["name", ...]}\''
-            )
-        )
+            print("  " + pad(r.doc.text_at(o, "name"), 30) + " " + ui.dim(r.doc.text_at(o, "id")))
+        print(ui.dim("set by name: eva task update CODE --set '{\"" + f.name + '": ["name", ...]}\''))
     elif f.widget == "CmfChoice":
         var meta = JsonDoc()
         var root = meta.parse(schema_metadata(client, "CmfTask"))
         var choices = meta.path(root, f.name + ".choices")
         for i in range(meta.len(choices)):
-            print(
-                "  "
-                + pad(meta.key_at(choices, i), 30)
-                + " "
-                + meta.text(meta.at(choices, i))
-            )
-        print(
-            ui.dim(
-                "set by key: eva task update CODE --set '{\""
-                + f.name
-                + '": "key"}\''
-            )
-        )
+            print("  " + pad(meta.key_at(choices, i), 30) + " " + meta.text(meta.at(choices, i)))
+        print(ui.dim("set by key: eva task update CODE --set '{\"" + f.name + '": "key"}\''))
 
 
 def value_names(doc: JsonDoc, n: Int) -> String:
@@ -288,9 +219,7 @@ def value_names(doc: JsonDoc, n: Int) -> String:
     for i in range(doc.len(n)):
         var x = doc.at(n, i)
         try:
-            var name = doc.text_at(x, "name") if doc.kind(
-                x
-            ) == J_OBJ else doc.text(x)
+            var name = doc.text_at(x, "name") if doc.kind(x) == J_OBJ else doc.text(x)
             if name != "":
                 names.append(name)
         except:

@@ -46,18 +46,13 @@ def page_rows(
     return client.call(cls + ".list", d.dump(kw))
 
 
-def page_footer(
-    client: Client, args: Args, ui: Out, cls: String, filter: String, shown: Int
-) raises:
+def page_footer(client: Client, args: Args, ui: Out, cls: String, filter: String, shown: Int) raises:
     var c = client.call(cls + ".count", '{"filter":' + filter + "}")
     footer(ui, shown, Int(c.doc.text(c.result)), args)
 
 
 def list_kind(group: String) -> String:
-    return (
-        "list.agile_sprint:default" if group
-        == "sprint" else "list.release:default"
-    )
+    return "list.agile_sprint:default" if group == "sprint" else "list.release:default"
 
 
 def list_command(client: Client, args: Args, ui: Out) raises:
@@ -94,23 +89,17 @@ def list_command(client: Client, args: Args, ui: Out) raises:
             if status != "open" and status != "closed":
                 raise Error("--status expects open, closed or all")
             v = d.string("CLOSED")
-            c = d.triple(
-                "cache_status_type", "==" if status == "closed" else "!=", v
-            )
+            c = d.triple("cache_status_type", "==" if status == "closed" else "!=", v)
             d.push(filter, c)
         simple_list(
             client,
             args,
             ui,
             "CmfList",
-            split_csv(
-                "code,name,project.code,cache_status_type,cache_members_count"
-            ),
+            split_csv("code,name,project.code,cache_status_type,cache_members_count"),
             d.dump(filter),
             "code",
-            split_csv(
-                "name,project.code,cache_status_type,cache_members_count"
-            ),
+            split_csv("name,project.code,cache_status_type,cache_members_count"),
         )
         return
     var code = args.need(2, group + " code")
@@ -118,32 +107,17 @@ def list_command(client: Client, args: Args, ui: Out) raises:
         client,
         "CmfList",
         code,
-        split_csv(
-            "id,code,name,logic_type.code,cache_status_type,cache_members_count,plan_start_date,plan_end_date"
-        ),
+        split_csv("id,code,name,logic_type.code,cache_status_type,cache_members_count,plan_start_date,plan_end_date"),
     )
     if r.doc.text_at(r.result, "logic_type.code") != list_kind(group):
         raise Error(code + " is not a " + group)
     if sub == "get":
-        args.check_known(
-            ["limit", "n", "page", "json", "format", "verbose", "v"]
-        )
+        args.check_known(["limit", "n", "page", "json", "format", "verbose", "v"])
         if want_json(args):
             print_json(r)
             return
-        print(
-            code
-            + "  "
-            + r.doc.text_at(r.result, "name")
-            + "  "
-            + r.doc.text_at(r.result, "cache_status_type")
-        )
-        print(
-            "dates: "
-            + r.doc.text_at(r.result, "plan_start_date")
-            + " → "
-            + r.doc.text_at(r.result, "plan_end_date")
-        )
+        print(code + "  " + r.doc.text_at(r.result, "name") + "  " + r.doc.text_at(r.result, "cache_status_type"))
+        print("dates: " + r.doc.text_at(r.result, "plan_start_date") + " → " + r.doc.text_at(r.result, "plan_end_date"))
         simple_list(
             client,
             args,
@@ -166,9 +140,7 @@ def list_command(client: Client, args: Args, ui: Out) raises:
         for i in range(len(ids)):
             var task_code = args.positionals[i + 3]
             try:
-                var before = get_by_code(
-                    client, "CmfTask", task_code, split_csv(field + ".id")
-                )
+                var before = get_by_code(client, "CmfTask", task_code, split_csv(field + ".id"))
                 var lid = r.doc.text_at(r.result, "id")
                 if not has_id(before, field, lid):
                     _ = client.call(
@@ -176,9 +148,7 @@ def list_command(client: Client, args: Args, ui: Out) raises:
                         "",
                         "[" + quote_str(ids[i]) + "," + quote_str(lid) + "]",
                     )
-                    var got = get_by_code(
-                        client, "CmfTask", task_code, split_csv(field + ".id")
-                    )
+                    var got = get_by_code(client, "CmfTask", task_code, split_csv(field + ".id"))
                     if not has_id(got, field, lid):
                         raise Error("membership was not confirmed by readback")
                 print(task_code + " in " + code)
@@ -186,9 +156,7 @@ def list_command(client: Client, args: Args, ui: Out) raises:
                 failures += 1
                 print("failed " + task_code + ": " + String(e))
         if failures > 0:
-            raise Error(
-                String(failures) + " tasks failed; successful changes were kept"
-            )
+            raise Error(String(failures) + " tasks failed; successful changes were kept")
     else:
         raise Error("unknown " + group + " command " + sub)
 
@@ -233,9 +201,7 @@ def task_history(client: Client, args: Args, ui: Out) raises:
 
 
 def task_time(client: Client, args: Args, ui: Out) raises:
-    args.check_known(
-        ["all", "limit", "n", "page", "json", "format", "full", "verbose", "v"]
-    )
+    args.check_known(["all", "limit", "n", "page", "json", "format", "full", "verbose", "v"])
     var code = args.need(2, "task code")
     var id = id_of(client, "CmfTask", "code", code)
     var d = JsonDoc()
@@ -296,12 +262,9 @@ def task_time(client: Client, args: Args, ui: Out) raises:
         print(
             "visible page total: "
             + fmt_minutes(actual)
-            + " actual; --all adds planned entries; only entries this"
-            " account may read"
+            + " actual; --all adds planned entries; only entries this account may read"
         )
-    page_footer(
-        client, args, ui, "CmfTimeTrackerHistory", filter, r.doc.len(r.result)
-    )
+    page_footer(client, args, ui, "CmfTimeTrackerHistory", filter, r.doc.len(r.result))
 
 
 def task_dev(client: Client, args: Args, ui: Out) raises:
@@ -311,9 +274,7 @@ def task_dev(client: Client, args: Args, ui: Out) raises:
         client,
         "CmfTask",
         code,
-        split_csv(
-            "git_repos.**,git_branches.**,git_commits.**,git_merge_requests.**"
-        ),
+        split_csv("git_repos.**,git_branches.**,git_commits.**,git_merge_requests.**"),
     )
     if want_json(args):
         print_json(r)
@@ -339,9 +300,7 @@ def escape_text(text: String) -> String:
 
 
 def notify_list(client: Client, args: Args, ui: Out) raises:
-    args.check_known(
-        ["all", "limit", "n", "page", "json", "format", "verbose", "v"]
-    )
+    args.check_known(["all", "limit", "n", "page", "json", "format", "verbose", "v"])
     var id = person_id(client, "me")
     var d = JsonDoc()
     var f = d.array()
@@ -426,9 +385,7 @@ def search(client: Client, args: Args, ui: Out) raises:
             d.push(conds, c)
         var filter = d.dump(conds)
         var cls = "CmfTask" if group == "task" else "CmfDocument"
-        var r = page_rows(
-            client, args, cls, filter, "id,code,name,text", "code"
-        )
+        var r = page_rows(client, args, cls, filter, "id,code,name,text", "code")
         if want_json(args):
             var values = combined.parse(r.doc.dump(r.result))
             combined.set(result, group, values)
@@ -445,9 +402,7 @@ def search(client: Client, args: Args, ui: Out) raises:
 
 
 def repo_list(client: Client, args: Args, ui: Out) raises:
-    args.check_known(
-        ["query", "q", "limit", "n", "page", "json", "format", "verbose", "v"]
-    )
+    args.check_known(["query", "q", "limit", "n", "page", "json", "format", "verbose", "v"])
     simple_list(
         client,
         args,
@@ -461,9 +416,7 @@ def repo_list(client: Client, args: Args, ui: Out) raises:
 
 
 def project_list(client: Client, args: Args, ui: Out) raises:
-    args.check_known(
-        ["query", "q", "limit", "n", "page", "json", "format", "verbose", "v"]
-    )
+    args.check_known(["query", "q", "limit", "n", "page", "json", "format", "verbose", "v"])
     var f = like_filter("name", args.get("query", "q"), "")
     simple_list(
         client,
@@ -478,12 +431,8 @@ def project_list(client: Client, args: Args, ui: Out) raises:
 
 
 def person_list(client: Client, args: Args, ui: Out) raises:
-    args.check_known(
-        ["query", "q", "limit", "n", "page", "json", "format", "verbose", "v"]
-    )
-    var f = like_filter(
-        "name", args.get("query", "q"), '["system", "==", false]'
-    )
+    args.check_known(["query", "q", "limit", "n", "page", "json", "format", "verbose", "v"])
+    var f = like_filter("name", args.get("query", "q"), '["system", "==", false]')
     simple_list(
         client,
         args,

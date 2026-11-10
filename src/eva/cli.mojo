@@ -275,9 +275,7 @@ def _component_list(client: Client, args: Args, ui: Out) raises:
 
 
 def _tag_list(client: Client, args: Args, ui: Out) raises:
-    args.check_known(
-        ["query", "q", "limit", "n", "page", "json", "verbose", "v"]
-    )
+    args.check_known(["query", "q", "limit", "n", "page", "json", "verbose", "v"])
     simple_list(
         client,
         args,
@@ -436,10 +434,7 @@ def completion(shell: String) raises -> String:
     var all_groups = String(" ").join(group_names())
     if shell == "fish":
         var out = String(
-            "# eva completion fish | source\n"
-            + "complete -c eva -n __fish_use_subcommand -f -a '"
-            + all_groups
-            + "'\n"
+            "# eva completion fish | source\n" + "complete -c eva -n __fish_use_subcommand -f -a '" + all_groups + "'\n"
         )
         for g in gs:
             var subs = String(" ").join(subcommands(g.name))
@@ -472,13 +467,7 @@ def completion(shell: String) raises -> String:
         for a in g.aliases:
             names += "|" + a
         if shell == "bash":
-            cases += (
-                "      "
-                + names
-                + ') COMPREPLY=($(compgen -W "'
-                + subs
-                + '" -- "$cur")) ;;\n'
-            )
+            cases += "      " + names + ') COMPREPLY=($(compgen -W "' + subs + '" -- "$cur")) ;;\n'
         else:
             cases += "      " + names + ") compadd -- " + subs + " ;;\n"
     if shell == "bash":

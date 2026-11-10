@@ -102,9 +102,7 @@ def parse_day(s: String) raises -> LocalTime:
         return local_time(epoch_of(t.year, t.month, t.day - 1, 12, 0))
     var parts = w.split("-")
     if len(parts) != 3 or w.byte_length() != 10:
-        raise Error(
-            "expected a date like 2026-11-05, today or yesterday, got " + s
-        )
+        raise Error("expected a date like 2026-11-05, today or yesterday, got " + s)
     var y: Int
     var m: Int
     var d: Int

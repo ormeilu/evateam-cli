@@ -127,9 +127,7 @@ def test_ends_crlf_crlf() raises:
 
 
 def test_connect_status_parse() raises:
-    assert_equal(
-        _parse_status("HTTP/1.1 200 Connection established\r\n\r\n"), 200
-    )
+    assert_equal(_parse_status("HTTP/1.1 200 Connection established\r\n\r\n"), 200)
     assert_equal(_parse_status("HTTP/1.1 407 Proxy Auth Required\r\n\r\n"), 407)
     assert_equal(_parse_status("HTTP/1.1 502 Bad Gateway\r\n\r\n"), 502)
 
@@ -175,9 +173,7 @@ def test_session_level_proxies() raises:
         return  # skip
     with Session() as s:
         s.proxies["http"] = proxy
-        var r = s.get(
-            base + "/index.html"
-        )  # no per-call proxies → uses Session default
+        var r = s.get(base + "/index.html")  # no per-call proxies → uses Session default
         assert_equal(r.status_code, 200)
 
 

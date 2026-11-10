@@ -7,8 +7,7 @@ from .models import Response
 
 
 def session() -> Session:
-    """Create a new Session (alias for ``Session()``, mirroring ``requests.session()``).
-    """
+    """Create a new Session (alias for ``Session()``, mirroring ``requests.session()``)."""
     return Session()
 
 

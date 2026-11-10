@@ -24,12 +24,7 @@ def validate_bql(d: JsonDoc, node: Int, depth: Int = 0) raises:
             raise Error("invalid BQL boolean expression")
         for i in range(1, n):
             validate_bql(d, d.at(node, i), depth + 1)
-    elif (
-        n != 3
-        or d.kind(first) != J_STR
-        or d.kind(d.at(node, 1)) != J_STR
-        or op == ""
-    ):
+    elif n != 3 or d.kind(first) != J_STR or d.kind(d.at(node, 1)) != J_STR or op == "":
         raise Error("invalid BQL predicate; expected [field,operator,value]")
 
 
@@ -63,11 +58,7 @@ def task_filter_text(client: Client, raw: String) raises -> String:
     # BQL. Missing/UBQL-only bodies must never turn into an unrestricted [].
     var bql = r.doc.text_at(row, "bql")
     if bql == "" or bql.byte_length() > 262144:
-        raise Error(
-            text
-            + ": missing or oversized computed BQL; UBQL compilation is not"
-            " supported"
-        )
+        raise Error(text + ": missing or oversized computed BQL; UBQL compilation is not supported")
     var d = JsonDoc()
     var node = d.parse(bql)
     validate_bql(d, node)

@@ -39,7 +39,9 @@ comptime TOKEN_GUIDE = (
     "  2. Click «Сгенерировать API токен», then «Создать токен API».\n"
     "  3. Give it a name and an expiry date, and create it.\n"
     "  4. Copy the token now: EvaTeam shows it once and keeps only its hash.\n"
-    "Step by step, with screenshots: " + TOKEN_DOCS + "\n"
+    "Step by step, with screenshots: "
+    + TOKEN_DOCS
+    + "\n"
 )
 
 
@@ -81,16 +83,15 @@ def auth_login(args: Args, ui: Out) raises:
     save_profiles(profiles)
     print("signed in to " + url + " as " + ui.bold(who))
     print(
-        "saved in " + keyring_name() + " as profile '" + profile + "'"
+        "saved in "
+        + keyring_name()
+        + " as profile '"
+        + profile
+        + "'"
         + (" (the default)" if profiles.default == profile else "")
     )
     if getenv("EVA_URL") != "" or getenv("EVA_API_KEY") != "":
-        print(
-            ui.dim(
-                "note: EVA_URL/EVA_API_KEY in the environment take precedence over"
-                " profiles until they are unset"
-            )
-        )
+        print(ui.dim("note: EVA_URL/EVA_API_KEY in the environment take precedence over profiles until they are unset"))
 
 
 def auth_status(args: Args, ui: Out) raises:

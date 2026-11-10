@@ -48,10 +48,7 @@ comptime TASK_FIELDS = (
 
 comptime PIPE_SUBTASKS = 20
 
-comptime LIST_FIELDS = (
-    "code,name,cache_status_type,status.name,responsible.login,"
-    "responsible.name,cmf_created_at"
-)
+comptime LIST_FIELDS = "code,name,cache_status_type,status.name,responsible.login,responsible.name,cmf_created_at"
 
 
 def task_by_id(client: Client, id: String, fields: String) raises -> Reply:
@@ -68,9 +65,7 @@ def task_by_id(client: Client, id: String, fields: String) raises -> Reply:
 def find_logic_type(client: Client, want: String) raises -> String:
     """A task type's id by name ("Подзадача", "Bug"), code ("task.sub:default")
     or short code ("sub"), any case."""
-    var r = client.call(
-        "CmfLogicType.list", '{"fields":["id","code","name"],"slice":[0,5000]}'
-    )
+    var r = client.call("CmfLogicType.list", '{"fields":["id","code","name"],"slice":[0,5000]}')
     var w = String(want.strip()).lower()
     var names = List[String]()
     for i in range(r.doc.len(r.result)):
@@ -78,11 +73,7 @@ def find_logic_type(client: Client, want: String) raises -> String:
         var code = r.doc.text_at(x, "code").lower()
         if not code.startswith("task."):
             continue
-        if (
-            code == w
-            or r.doc.text_at(x, "name").lower() == w
-            or code == "task." + w + ":default"
-        ):
+        if code == w or r.doc.text_at(x, "name").lower() == w or code == "task." + w + ":default":
             return r.doc.text_at(x, "id")
         names.append(r.doc.text_at(x, "name"))
     raise Error("no task type " + want + "; types: " + ", ".join(names))
@@ -122,45 +113,18 @@ def task_get(client: Client, args: Args, ui: Out) raises:
         # Only what was asked for: the server adds ids, and a dotted path
         # comes back nested. A multi-select prints as its value names.
         for f in split_csv(args.get("fields")):
-            print(
-                f
-                + ": "
-                + (
-                    value_names(d, d.path(t, f)) if f.find(".")
-                    < 0 else column_text(d, t, f)
-                )
-            )
+            print(f + ": " + (value_names(d, d.path(t, f)) if f.find(".") < 0 else column_text(d, t, f)))
         return
-    print(
-        ui.bold(d.text_at(t, "code"))
-        + "  "
-        + String(d.text_at(t, "name").strip())
-    )
+    print(ui.bold(d.text_at(t, "code")) + "  " + String(d.text_at(t, "name").strip()))
     var status = d.text_at(t, "status.name")
     if status == "":
         status = d.text_at(t, "cache_status_type")
-    var status_line = (
-        "status: "
-        + ui.status(status)
-        + "   stage: "
-        + d.text_at(t, "cache_status_type")
-    )
+    var status_line = "status: " + ui.status(status) + "   stage: " + d.text_at(t, "cache_status_type")
     var resolution = d.text_at(t, "resolution.code")
     if resolution != "":
-        status_line += (
-            "   resolution: "
-            + resolution
-            + " ("
-            + d.text_at(t, "resolution.name")
-            + ")"
-        )
+        status_line += "   resolution: " + resolution + " (" + d.text_at(t, "resolution.name") + ")"
     print(status_line)
-    print(
-        "assignee: "
-        + person(d, t, "responsible")
-        + "   author: "
-        + person(d, t, "cmf_author")
-    )
+    print("assignee: " + person(d, t, "responsible") + "   author: " + person(d, t, "cmf_author"))
     var priority = d.text_at(t, "priority")
     if priority != "" or d.text_at(t, "agile_story_points") != "":
         print(
@@ -193,27 +157,13 @@ def task_get(client: Client, args: Args, ui: Out) raises:
             elif field == "fix_versions":
                 label = "release"
             print(label + ": " + values)
-    if (
-        d.text_at(t, "waiting_for.login") != ""
-        or d.text_at(t, "waiting_for.name") != ""
-    ):
+    if d.text_at(t, "waiting_for.login") != "" or d.text_at(t, "waiting_for.name") != "":
         print("waiting for: " + person(d, t, "waiting_for"))
-    if (
-        d.text_at(t, "plan_start_date") != ""
-        or d.text_at(t, "plan_end_date") != ""
-    ):
-        print(
-            "planned: "
-            + d.text_at(t, "plan_start_date")
-            + " → "
-            + d.text_at(t, "plan_end_date")
-        )
+    if d.text_at(t, "plan_start_date") != "" or d.text_at(t, "plan_end_date") != "":
+        print("planned: " + d.text_at(t, "plan_start_date") + " → " + d.text_at(t, "plan_end_date"))
     # The Gantt chart schedules its own copy of the task: writing the planned
     # dates does not move it, and its dates follow the working calendar.
-    if (
-        d.text_at(t, "op_gantt_task.sched_start_date") != ""
-        or d.text_at(t, "op_gantt_task.sched_finish_date") != ""
-    ):
+    if d.text_at(t, "op_gantt_task.sched_start_date") != "" or d.text_at(t, "op_gantt_task.sched_finish_date") != "":
         print(
             "gantt schedule: "
             + d.text_at(t, "op_gantt_task.sched_start_date")
@@ -223,10 +173,7 @@ def task_get(client: Client, args: Args, ui: Out) raises:
         )
     if d.text_at(t, "alarm_date") != "":
         print("alarm: " + d.text_at(t, "alarm_date"))
-    if (
-        d.text_at(t, "checklists_items_count") != ""
-        and d.text_at(t, "checklists_items_count") != "0"
-    ):
+    if d.text_at(t, "checklists_items_count") != "" and d.text_at(t, "checklists_items_count") != "0":
         print(
             "checklists: "
             + d.text_at(t, "checklists_items_done_count")
@@ -240,20 +187,8 @@ def task_get(client: Client, args: Args, ui: Out) raises:
         print("project: " + project + "  " + d.text_at(t, "parent.name"))
     var parent_task = d.text_at(t, "parent_task.code")
     if parent_task != "":
-        print(
-            "parent task: "
-            + parent_task
-            + "  "
-            + String(d.text_at(t, "parent_task.name").strip())
-        )
-    print(
-        ui.dim(
-            "created: "
-            + d.text_at(t, "cmf_created_at")
-            + "   updated: "
-            + d.text_at(t, "cmf_modified_at")
-        )
-    )
+        print("parent task: " + parent_task + "  " + String(d.text_at(t, "parent_task.name").strip()))
+    print(ui.dim("created: " + d.text_at(t, "cmf_created_at") + "   updated: " + d.text_at(t, "cmf_modified_at")))
     var deadline = d.text_at(t, "deadline")
     if deadline != "":
         print("deadline: " + deadline)
@@ -267,18 +202,8 @@ def task_get(client: Client, args: Args, ui: Out) raises:
         var names = List[String]()
         for i in range(min(nfiles, 5)):
             names.append(d.text_at(d.at(files, i), "file_name"))
-        var more = ", +" + String(
-            nfiles - 5
-        ) + " more" if nfiles > 5 else String("")
-        print(
-            "attachments: "
-            + String(nfiles)
-            + " ("
-            + ", ".join(names)
-            + more
-            + "): eva task attachments "
-            + code
-        )
+        var more = ", +" + String(nfiles - 5) + " more" if nfiles > 5 else String("")
+        print("attachments: " + String(nfiles) + " (" + ", ".join(names) + more + "): eva task attachments " + code)
     print_subtasks(d, d.get(t, "child_tasks"), ui)
     ui.untrusted(code + "/text", d.text_at(t, "text"))
 
@@ -383,19 +308,14 @@ def task_filter(client: Client, mut d: JsonDoc, args: Args) raises -> Int:
         var value = args.get(option)
         if value == "":
             continue
-        var field = "components.name" if option == "component" else String(
-            "tags.name"
-        )
+        var field = "components.name" if option == "component" else String("tags.name")
         if option == "author":
             field = "cmf_author.login"
         elif option == "watching":
             field = "spectators.login"
         elif option == "waiting-for":
             field = "waiting_for.login"
-        var v = d.string(
-            value if option == "tag"
-            or option == "component" else current_login(client, value)
-        )
+        var v = d.string(value if option == "tag" or option == "component" else current_login(client, value))
         c = d.triple(field, "==", v)
         d.push(conds, c)
     if args.has("archived"):
@@ -447,20 +367,13 @@ def task_list(client: Client, args: Args, ui: Out) raises:
     var count_kw = d.dump(kw)
     var cols = args.get("cols")
     var format = args.get("format")
-    if (
-        format != ""
-        and format != "text"
-        and format != "json"
-        and format != "tsv"
-    ):
+    if format != "" and format != "text" and format != "json" and format != "tsv":
         raise Error("--format expects text, json or tsv")
     if args.has("json") and format != "" and format != "json":
         raise Error("--json conflicts with --format " + format)
     if format == "tsv" and cols == "":
         cols = "code,status.name,responsible.login,name"
-    var requested = split_csv(cols) if cols != "" else fields_from(
-        args, LIST_FIELDS
-    )
+    var requested = split_csv(cols) if cols != "" else fields_from(args, LIST_FIELDS)
     var fl = d.str_array(requested)
     d.set(kw, "fields", fl)
     var order = args.get("order")
@@ -480,9 +393,7 @@ def task_list(client: Client, args: Args, ui: Out) raises:
         for i in range(r.doc.len(r.result)):
             var cells = List[String]()
             for col in requested:
-                cells.append(
-                    tsv_cell(column_text(r.doc, r.doc.at(r.result, i), col))
-                )
+                cells.append(tsv_cell(column_text(r.doc, r.doc.at(r.result, i), col)))
             print("	".join(cells))
         return
     ref rd = r.doc
@@ -514,11 +425,7 @@ def task_list(client: Client, args: Args, ui: Out) raises:
         pass
     footer(ui, n, total, args)
     if hidden > 0:
-        print(
-            ui.dim(
-                String(hidden) + " of them hidden: no access to their projects"
-            )
-        )
+        print(ui.dim(String(hidden) + " of them hidden: no access to their projects"))
 
 
 def task_create(client: Client, args: Args, ui: Out) raises:
@@ -587,14 +494,12 @@ def task_create(client: Client, args: Args, ui: Out) raises:
     var parent = args.get("parent")
     var parent_id = String()
     if parent != "":
-        var p = get_by_code(
-            client, "CmfTask", parent, split_csv("id,epic_id,logic_type.code")
-        )
+        var p = get_by_code(client, "CmfTask", parent, split_csv("id,epic_id,logic_type.code"))
         parent_id = p.doc.text_at(p.result, "id")
         # A subtask belongs to its parent's epic, or to the parent if that is the epic.
-        var epic = parent_id if p.doc.text_at(
-            p.result, "logic_type.code"
-        ).startswith("task.epic") else p.doc.text_at(p.result, "epic_id")
+        var epic = parent_id if p.doc.text_at(p.result, "logic_type.code").startswith("task.epic") else p.doc.text_at(
+            p.result, "epic_id"
+        )
         # The epic becomes the parent task even when a parent_task is sent
         # with it, so the parent task is set by an update after the create.
         if epic != "":
@@ -613,11 +518,7 @@ def task_create(client: Client, args: Args, ui: Out) raises:
     task_options(client, args, d, kw)
     if preview_write(args.has("dry-run"), "CmfTask.create", d.dump(kw)):
         if parent_id != "":
-            print(
-                "parent-task update may follow creation/readback; requested"
-                " parent_task: "
-                + parent_id
-            )
+            print("parent-task update may follow creation/readback; requested parent_task: " + parent_id)
         return
     var r = client.call("CmfTask.create", d.dump(kw))
     var id = r.doc.text(r.result)
@@ -637,25 +538,12 @@ def task_create(client: Client, args: Args, ui: Out) raises:
         var uk = u.object()
         u.set_str(uk, "parent_task", parent_id)
         try:
-            _ = client.call(
-                "CmfTask.update", u.dump(uk), "[" + quote_str(id) + "]"
-            )
+            _ = client.call("CmfTask.update", u.dump(uk), "[" + quote_str(id) + "]")
         except e:
-            raise Error(
-                code
-                + " is created, but setting "
-                + parent
-                + " as its parent task failed: "
-                + String(e)
-            )
+            raise Error(code + " is created, but setting " + parent + " as its parent task failed: " + String(e))
         var t = task_by_id(client, id, "parent_task_id")
         if t.doc.text_at(t.result, "parent_task_id") != parent_id:
-            print(
-                "note: EvaTeam did not keep "
-                + parent
-                + " as the parent task; check eva task get "
-                + code
-            )
+            print("note: EvaTeam did not keep " + parent + " as the parent task; check eva task get " + code)
 
 
 def task_delete(client: Client, args: Args, ui: Out) raises:
@@ -675,27 +563,16 @@ def task_delete(client: Client, args: Args, ui: Out) raises:
         what += " (it has " + children + " subtasks)"
     if not args.has("yes", "y"):
         if not stdin_is_tty():
-            raise Error(
-                "deleting "
-                + what
-                + " needs confirmation: run it in a terminal, or pass --yes"
-            )
+            raise Error("deleting " + what + " needs confirmation: run it in a terminal, or pass --yes")
         var answer = prompt_line("delete " + what + "? [y/N] ").lower()
-        if (
-            answer != "y"
-            and answer != "yes"
-            and answer != "д"
-            and answer != "да"
-        ):
+        if answer != "y" and answer != "yes" and answer != "д" and answer != "да":
             print("not deleted")
             return
     _ = client.call("CmfTask.delete", "", "[" + quote_str(id) + "]")
     print("deleted " + ui.bold(code) + "  " + name)
 
 
-def build_update(
-    client: Client, args: Args, mut d: JsonDoc, kw: Int
-) raises -> List[String]:
+def build_update(client: Client, args: Args, mut d: JsonDoc, kw: Int) raises -> List[String]:
     var name = args.get("title", "t")
     if name == "":
         name = args.get("name")
@@ -732,9 +609,7 @@ def build_update(
     return changed^
 
 
-def report_derived_changes(
-    before: Reply, after: Reply, changed: List[String]
-) raises:
+def report_derived_changes(before: Reply, after: Reply, changed: List[String]) raises:
     for w in split_csv(WATCHED):
         var asked = False
         for key in watched_by(w):
@@ -797,25 +672,17 @@ def task_update(client: Client, args: Args, ui: Out) raises:
     var changed = build_update(client, args, d, kw)
     var status = args.get("status", "s")
     if len(changed) == 0 and status == "":
-        raise Error(
-            "nothing to change: pass -t, -d or -F, -s, -a, --resolution or"
-            " --set"
-        )
+        raise Error("nothing to change: pass -t, -d or -F, -s, -a, --resolution or --set")
     var comment = args.get("comment", "m")
     if comment != "" and status == "":
-        raise Error(
-            "-m is the comment of a status change and needs -s; for a comment"
-            " alone use eva task comment"
-        )
+        raise Error("-m is the comment of a status change and needs -s; for a comment alone use eva task comment")
     # Refuse before any field is written, not after.
     if status != "" and (comment != "" or args.get("resolution", "r") != ""):
         refuse_noop_move(client, code, status)
     if args.has("dry-run"):
         if len(changed) > 0:
             var id = id_of(client, "CmfTask", "code", code)
-            _ = preview_write(
-                True, "CmfTask.update", d.dump(kw), "[" + quote_str(id) + "]"
-            )
+            _ = preview_write(True, "CmfTask.update", d.dump(kw), "[" + quote_str(id) + "]")
         if status != "":
             move_task(
                 client,
@@ -830,9 +697,7 @@ def task_update(client: Client, args: Args, ui: Out) raises:
             )
         return
     if len(changed) > 0:
-        var before = get_by_code(
-            client, "CmfTask", code, split_csv("id," + WATCHED)
-        )
+        var before = get_by_code(client, "CmfTask", code, split_csv("id," + WATCHED))
         var id = before.doc.text_at(before.result, "id")
         var args_json = "[" + quote_str(id) + "]"
         _ = client.call("CmfTask.update", d.dump(kw), args_json)

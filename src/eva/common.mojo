@@ -35,18 +35,14 @@ def code_kwargs(code: String, fields: List[String]) raises -> String:
     return d.dump(kw)
 
 
-def get_by_code(
-    client: Client, cls: String, code: String, fields: List[String]
-) raises -> Reply:
+def get_by_code(client: Client, cls: String, code: String, fields: List[String]) raises -> Reply:
     var r = client.call(cls + ".get", code_kwargs(code, fields))
     if r.doc.is_null(r.result) or r.doc.kind(r.result) != J_OBJ:
         raise Error(code + ": not found")
     return r^
 
 
-def id_of(
-    client: Client, cls: String, field: String, value: String
-) raises -> String:
+def id_of(client: Client, cls: String, field: String, value: String) raises -> String:
     var d = JsonDoc()
     var kw = d.object()
     var v = d.string(value)
@@ -78,15 +74,12 @@ def text_from(args: Args, inline: String, what: String) raises -> String:
         except e:
             raise Error("cannot read " + path + ": " + String(e))
     if text.strip() == "":
-        raise Error(
-            what + " in " + ("stdin" if path == "-" else path) + " is empty"
-        )
+        raise Error(what + " in " + ("stdin" if path == "-" else path) + " is empty")
     return String(text.rstrip())
 
 
 def body_html(args: Args, text: String) raises -> String:
-    """Text as EvaTeam stores it: plain by default, --md converted, --html as is.
-    """
+    """Text as EvaTeam stores it: plain by default, --md converted, --html as is."""
     var md = args.has("md")
     var html = args.has("html")
     if md and html:
@@ -131,11 +124,7 @@ def footer(ui: Out, shown: Int, total: Int, args: Args) raises:
     var limit = args.int_or("limit", "n", 25)
     var page = args.int_or("page", "", 1)
     var first = (page - 1) * limit
-    var line = (
-        "shown "
-        + String(shown)
-        + (" of " + String(total) if total >= 0 else " (total unavailable)")
-    )
+    var line = "shown " + String(shown) + (" of " + String(total) if total >= 0 else " (total unavailable)")
     if first + shown < total or (total < 0 and shown == limit):
         line += " — next: --page " + String(page + 1)
     print(ui.dim(line))

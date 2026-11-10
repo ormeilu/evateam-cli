@@ -28,8 +28,7 @@ struct URL(Movable, Writable):
         self.fragment = ""
 
     def request_target(self) -> String:
-        """The request target for the HTTP request line (path [+ '?' + query]).
-        """
+        """The request target for the HTTP request line (path [+ '?' + query])."""
         if self.query.byte_length() > 0:
             return self.path + "?" + self.query
         return self.path
@@ -52,19 +51,13 @@ struct URL(Movable, Writable):
 
     def origin(self) -> String:
         """``scheme://host[:port]`` (omits default ports 80/443)."""
-        if (self.scheme == "http" and self.port == 80) or (
-            self.scheme == "https" and self.port == 443
-        ):
+        if (self.scheme == "http" and self.port == 80) or (self.scheme == "https" and self.port == 443):
             return self.scheme + "://" + self._display_host()
-        return (
-            self.scheme + "://" + self._display_host() + ":" + String(self.port)
-        )
+        return self.scheme + "://" + self._display_host() + ":" + String(self.port)
 
     def host_header(self) -> String:
         """Host header value (host[:port] if non-default for the scheme)."""
-        if (self.scheme == "http" and self.port == 80) or (
-            self.scheme == "https" and self.port == 443
-        ):
+        if (self.scheme == "http" and self.port == 80) or (self.scheme == "https" and self.port == 443):
             return self._display_host()
         return self._display_host() + ":" + String(self.port)
 
@@ -125,9 +118,7 @@ def parse_url(raw: String) raises -> URL:
         raise InvalidURL(String(t"URL missing host: {raw}"))
 
     var auth_ptr = authority.unsafe_ptr()
-    if (
-        authority.byte_length() >= 1 and auth_ptr[unsafe_offset=0] == 0x5B
-    ):  # '[' → IPv6 literal
+    if authority.byte_length() >= 1 and auth_ptr[unsafe_offset=0] == 0x5B:  # '[' → IPv6 literal
         var close = _find(authority, "]")
         if close < 0:
             raise InvalidURL(String(t"URL has unterminated '[' in host: {raw}"))
@@ -144,16 +135,10 @@ def parse_url(raw: String) raises -> URL:
             var rest_after_bracket = String(authority[byte = close + 1 :])
             var rap = rest_after_bracket.unsafe_ptr()
             if rest_after_bracket.byte_length() < 1 or rap[unsafe_offset=0] != 0x3A:  # ':'
-                raise InvalidURL(
-                    String(t"URL has garbage after IPv6 host: {raw}")
-                )
+                raise InvalidURL(String(t"URL has garbage after IPv6 host: {raw}"))
             var port_str = String(rest_after_bracket[byte=1:])
             var parsed_port = _parse_int(port_str)
-            if (
-                parsed_port == None
-                or parsed_port.value() < 1
-                or parsed_port.value() > 65535
-            ):
+            if parsed_port == None or parsed_port.value() < 1 or parsed_port.value() > 65535:
                 raise InvalidURL(String(t"URL has invalid port: {port_str}"))
             u.port = parsed_port.value()
     else:
@@ -163,11 +148,7 @@ def parse_url(raw: String) raises -> URL:
             u.host = String(authority[byte=0:colon])
             var port_str = String(authority[byte = colon + 1 :])
             var parsed_port = _parse_int(port_str)
-            if (
-                parsed_port == None
-                or parsed_port.value() < 1
-                or parsed_port.value() > 65535
-            ):
+            if parsed_port == None or parsed_port.value() < 1 or parsed_port.value() > 65535:
                 raise InvalidURL(String(t"URL has invalid port: {port_str}"))
             u.port = parsed_port.value()
         else:
@@ -202,20 +183,13 @@ def url_encode(s: String) -> String:
             out += "+"
         else:
             out += "%"
-            out += String(
-                Codepoint(
-                    unsafe_unchecked_codepoint=UInt32(hp[unsafe_offset=(b >> 4) & 0x0F])
-                )
-            )
-            out += String(
-                Codepoint(unsafe_unchecked_codepoint=UInt32(hp[unsafe_offset=b & 0x0F]))
-            )
+            out += String(Codepoint(unsafe_unchecked_codepoint=UInt32(hp[unsafe_offset=(b >> 4) & 0x0F])))
+            out += String(Codepoint(unsafe_unchecked_codepoint=UInt32(hp[unsafe_offset=b & 0x0F])))
     return out
 
 
 def build_query_string(params: Dict[String, String]) -> String:
-    """Build a ``key=value&key=value`` query string from a dict, percent-encoding both sides.
-    """
+    """Build a ``key=value&key=value`` query string from a dict, percent-encoding both sides."""
     var parts: List[String] = []
     for entry in params.items():
         parts.append(url_encode(entry.key) + "=" + url_encode(entry.value))
@@ -239,8 +213,7 @@ def _is_unreserved(b: UInt8) -> Bool:
 
 
 def _find(haystack: String, needle: String) -> Int:
-    """Return the byte index of the first occurrence of ``needle`` in ``haystack``, or -1.
-    """
+    """Return the byte index of the first occurrence of ``needle`` in ``haystack``, or -1."""
     var hl = haystack.byte_length()
     var nl = needle.byte_length()
     if nl == 0 or hl < nl:
@@ -275,8 +248,7 @@ def _parse_int(s: String) -> Optional[Int]:
 
 
 def _to_lower(s: String) -> String:
-    """Lowercase an ASCII string (non-ASCII codepoints pass through unchanged).
-    """
+    """Lowercase an ASCII string (non-ASCII codepoints pass through unchanged)."""
     var out = String()
     for cp in s.codepoints():
         var i = Int(cp)

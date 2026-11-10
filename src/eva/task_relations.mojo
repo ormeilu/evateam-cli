@@ -18,9 +18,7 @@ from eva.resources import filter_eq, page_rows, page_footer
 
 
 def relation_type(client: Client, want: String) raises -> String:
-    var name = want if want != "" and want != "relates" else String(
-        "system.link"
-    )
+    var name = want if want != "" and want != "relates" else String("system.link")
     var r = client.call(
         "CmfRelationType.list",
         '{"fields":["id","code","name"],"slice":[0,5000]}',
@@ -34,14 +32,10 @@ def relation_type(client: Client, want: String) raises -> String:
             return r.doc.text_at(row, "code")
         if r.doc.text_at(row, "name").lower() == name.lower():
             if code != "":
-                raise Error(
-                    "ambiguous relation type " + name + "; use its code"
-                )
+                raise Error("ambiguous relation type " + name + "; use its code")
             code = r.doc.text_at(row, "code")
     if code == "":
-        raise Error(
-            "unknown relation type " + name + "; eva relation types shows them"
-        )
+        raise Error("unknown relation type " + name + "; eva relation types shows them")
     return code
 
 
@@ -98,21 +92,11 @@ def task_link(client: Client, args: Args, ui: Out) raises:
         print("linked " + src + " → " + dst + "  " + kind)
     else:
         if r.doc.len(r.result) == 0:
-            print(
-                "no "
-                + kind
-                + " link "
-                + src
-                + " → "
-                + dst
-                + "; nothing to remove"
-            )
+            print("no " + kind + " link " + src + " → " + dst + "; nothing to remove")
             return
         for i in range(r.doc.len(r.result)):
             var id = r.doc.text_at(r.doc.at(r.result, i), "id")
-            _ = client.call(
-                "CmfRelationOption.delete", "", "[" + quote_str(id) + "]"
-            )
+            _ = client.call("CmfRelationOption.delete", "", "[" + quote_str(id) + "]")
         var after = client.call("CmfRelationOption.list", kw)
         if after.doc.len(after.result) != 0:
             raise Error("link removal was not confirmed")
@@ -120,14 +104,10 @@ def task_link(client: Client, args: Args, ui: Out) raises:
 
 
 def task_checklist(client: Client, args: Args, ui: Out) raises:
-    args.check_known(
-        ["limit", "n", "page", "json", "format", "verbose", "v", "full"]
-    )
+    args.check_known(["limit", "n", "page", "json", "format", "verbose", "v", "full"])
     var code = args.need(2, "task code")
     var filter = filter_eq("parent_id", id_of(client, "CmfTask", "code", code))
-    var lists = page_rows(
-        client, args, "CmfChecklist", filter, "id,code,name", "id"
-    )
+    var lists = page_rows(client, args, "CmfChecklist", filter, "id,code,name", "id")
     var d = JsonDoc()
     var result = d.array()
     for i in range(lists.doc.len(lists.result)):
@@ -148,11 +128,7 @@ def task_checklist(client: Client, args: Args, ui: Out) raises:
             d.set(obj, "items", it)
             d.push(result, obj)
         else:
-            print(
-                lists.doc.text_at(row, "code")
-                + "  "
-                + lists.doc.text_at(row, "name")
-            )
+            print(lists.doc.text_at(row, "code") + "  " + lists.doc.text_at(row, "name"))
             for j in range(items.doc.len(items.result)):
                 var item = items.doc.at(items.result, j)
                 var status = items.doc.text_at(item, "status")
@@ -189,9 +165,7 @@ def task_checklist(client: Client, args: Args, ui: Out) raises:
 def task_check(client: Client, args: Args, ui: Out) raises:
     args.check_known(["undo", "verbose", "v"])
     var code = args.need(2, "checklist item code")
-    var r = get_by_code(
-        client, "CmfChecklistItem", code, split_csv("id,status")
-    )
+    var r = get_by_code(client, "CmfChecklistItem", code, split_csv("id,status"))
     var want = "OPEN" if args.has("undo") else "DONE"
     if r.doc.text_at(r.result, "status") != want:
         _ = client.call(
@@ -199,9 +173,7 @@ def task_check(client: Client, args: Args, ui: Out) raises:
             '{"status":' + quote_str(want) + "}",
             "[" + quote_str(r.doc.text_at(r.result, "id")) + "]",
         )
-        var got = get_by_code(
-            client, "CmfChecklistItem", code, split_csv("id,status")
-        )
+        var got = get_by_code(client, "CmfChecklistItem", code, split_csv("id,status"))
         if got.doc.text_at(got.result, "status") != want:
             raise Error(code + ": checklist update was not confirmed")
     print(code + "  " + want)
@@ -241,9 +213,7 @@ def task_template(client: Client, args: Args, ui: Out) raises:
     var project = args.get("project", "p")
     if project == "":
         raise Error("--template requires -p PROJECT")
-    var before = get_by_code(
-        client, "CmfTask", args.get("template"), split_csv("id,is_template")
-    )
+    var before = get_by_code(client, "CmfTask", args.get("template"), split_csv("id,is_template"))
     if before.doc.text_at(before.result, "is_template") != "true":
         raise Error(args.get("template") + " is not a task template")
     var d = JsonDoc()
@@ -260,10 +230,7 @@ def task_template(client: Client, args: Args, ui: Out) raises:
         "[" + quote_str(before.doc.text_at(before.result, "id")) + "]",
     ):
         if d.len(override) > 0:
-            print(
-                "field overrides follow after the server assigns a task id: "
-                + d.dump(override)
-            )
+            print("field overrides follow after the server assigns a task id: " + d.dump(override))
         return
     var r = client.call(
         "CmfTask.create_task_from_template",
@@ -274,21 +241,15 @@ def task_template(client: Client, args: Args, ui: Out) raises:
     var got = task_by_id(client, id, "id,code")
     var code = got.doc.text_at(got.result, "code")
     if code == "":
-        raise Error(
-            "template returned " + id + ", but the new task code is unreadable"
-        )
+        raise Error("template returned " + id + ", but the new task code is unreadable")
     print("created " + ui.bold(code) + " from " + args.get("template"))
     if d.len(override) > 0:
         try:
-            _ = client.call(
-                "CmfTask.update", d.dump(override), "[" + quote_str(id) + "]"
-            )
+            _ = client.call("CmfTask.update", d.dump(override), "[" + quote_str(id) + "]")
             var fields = List[String]()
             for i in range(d.len(override)):
                 fields.append(d.key_at(override, i))
             var after = task_by_id(client, id, ",".join(fields))
             require_fields(d, override, after.doc, after.result, code)
         except e:
-            raise Error(
-                code + " is kept, but applying overrides failed: " + String(e)
-            )
+            raise Error(code + " is kept, but applying overrides failed: " + String(e))

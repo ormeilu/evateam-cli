@@ -58,19 +58,12 @@ struct Transitions(Movable):
         return False
 
     def runnable(self, i: Int, status_id: String) -> Bool:
-        """Transition i leads somewhere else from status_id and can be run by hand.
-        """
-        return (
-            self.to_ids[i] != status_id
-            and self.starts_from(i, status_id)
-            and self.limits[i] != "automatic"
-        )
+        """Transition i leads somewhere else from status_id and can be run by hand."""
+        return self.to_ids[i] != status_id and self.starts_from(i, status_id) and self.limits[i] != "automatic"
 
     def matches(self, i: Int, target: String) -> Bool:
         var want = String(target.strip()).lower()
-        return (
-            self.to_codes[i].lower() == want or self.to_names[i].lower() == want
-        )
+        return self.to_codes[i].lower() == want or self.to_names[i].lower() == want
 
     def by_preference(self) -> List[Int]:
         """Transition indexes, those from named statuses before those from any
@@ -167,11 +160,7 @@ struct Transitions(Movable):
                         break
                 if known:
                     continue
-                if (
-                    avoid_hubs
-                    and not self.matches(i, target)
-                    and self.is_hub(to)
-                ):
+                if avoid_hubs and not self.matches(i, target) and self.is_hub(to):
                     continue
                 seen.append(to)
                 queue.append(to)
@@ -238,10 +227,7 @@ def transitions_for(client: Client, code: String) raises -> Transitions:
     d.set(kw, "slice", s)
     var r = client.call("CmfTrans.list", d.dump(kw))
     if r.doc.len(r.result) >= 1000:
-        raise Error(
-            "workflow transition list reached its 1000-row cap; refusing to"
-            " plan an incomplete path"
-        )
+        raise Error("workflow transition list reached its 1000-row cap; refusing to plan an incomplete path")
     for i in range(r.doc.len(r.result)):
         var tr = r.doc.at(r.result, i)
         var from_list = r.doc.get(tr, "status_from")
@@ -271,9 +257,7 @@ def transitions_for(client: Client, code: String) raises -> Transitions:
 
 def find_resolution(client: Client, want: String) raises -> Resolution:
     """A resolution by code or name, any case; the error lists the codes."""
-    var r = client.call(
-        "CmfResolution.list", '{"fields":["id","code","name"],"slice":[0,500]}'
-    )
+    var r = client.call("CmfResolution.list", '{"fields":["id","code","name"],"slice":[0,500]}')
     var w = String(want.strip()).lower()
     var codes = List[String]()
     for i in range(r.doc.len(r.result)):
@@ -283,12 +267,7 @@ def find_resolution(client: Client, want: String) raises -> Resolution:
         if code.lower() == w or name.lower() == w:
             return Resolution(r.doc.text_at(x, "id"), code, name)
         codes.append(code)
-    raise Error(
-        "no resolution "
-        + want
-        + "; eva resolution list shows them: "
-        + ", ".join(codes)
-    )
+    raise Error("no resolution " + want + "; eva resolution list shows them: " + ", ".join(codes))
 
 
 def run_transition(
@@ -302,9 +281,7 @@ def run_transition(
 ) raises:
     var d = JsonDoc()
     var kw = d.object()
-    d.set_str(
-        kw, "comment_append", text_to_html(comment) if comment != "" else ""
-    )
+    d.set_str(kw, "comment_append", text_to_html(comment) if comment != "" else "")
     var changed = d.object()
     if fields != "":
         # Fields the transition requires, e.g. --set '{"cf_vid_uslugi": "razvitie"}'.
@@ -315,31 +292,21 @@ def run_transition(
     if res.id != "":
         d.set_str(changed, "resolution", res.id)
     d.set(kw, "changed_fields", changed)
-    var args_json = (
-        "[" + quote_str(tr.task_id) + "," + quote_str(tr.trans_ids[i]) + "]"
-    )
-    if preview_write(
-        dry_run, "CmfTask.task_transition_run", d.dump(kw), args_json
-    ):
+    var args_json = "[" + quote_str(tr.task_id) + "," + quote_str(tr.trans_ids[i]) + "]"
+    if preview_write(dry_run, "CmfTask.task_transition_run", d.dump(kw), args_json):
         return
     _ = client.call("CmfTask.task_transition_run", d.dump(kw), args_json)
 
 
-def keep_resolution(
-    client: Client, code: String, task_id: String, res: Resolution
-) raises:
+def keep_resolution(client: Client, code: String, task_id: String, res: Resolution) raises:
     """A closing transition may put its default resolution over the one sent
     with it; set it again after the move if so."""
-    var after = get_by_code(
-        client, "CmfTask", code, [String("resolution.code")]
-    )
+    var after = get_by_code(client, "CmfTask", code, [String("resolution.code")])
     if after.doc.text_at(after.result, "resolution.code") != res.code:
         var u = JsonDoc()
         var uk = u.object()
         u.set_str(uk, "resolution", res.id)
-        _ = client.call(
-            "CmfTask.update", u.dump(uk), "[" + quote_str(task_id) + "]"
-        )
+        _ = client.call("CmfTask.update", u.dump(uk), "[" + quote_str(task_id) + "]")
 
 
 def shell_word(s: String) -> String:
@@ -361,9 +328,7 @@ def refuse_noop_move(client: Client, code: String, target: String) raises:
     comment or resolution meant for it would be lost."""
     var tr = transitions_for(client, code)
     var want = String(target.strip()).lower()
-    if want == tr.current.lower() or (
-        tr.current_code != "" and want == tr.current_code.lower()
-    ):
+    if want == tr.current.lower() or (tr.current_code != "" and want == tr.current_code.lower()):
         raise Error(
             code
             + " is already in "
@@ -386,16 +351,13 @@ def move_task(
 ) raises:
     var tr = transitions_for(client, code)
     var want = String(target.strip()).lower()
-    if want == tr.current.lower() or (
-        tr.current_code != "" and want == tr.current_code.lower()
-    ):
+    if want == tr.current.lower() or (tr.current_code != "" and want == tr.current_code.lower()):
         if fields != "" or comment != "" or resolution != "":
             raise Error(
                 code
                 + " is already in "
                 + tr.current
-                + "; no transition would run, so its fields/comment/resolution"
-                " would not apply; use task update"
+                + "; no transition would run, so its fields/comment/resolution would not apply; use task update"
             )
         print(code + " is already in " + tr.current)
         return
@@ -423,13 +385,7 @@ def move_task(
                 options.append(tr.to_codes[i] + " (" + tr.to_names[i] + ")")
             var hint = String("")
             if len(tr.path_to(target)) > 0:
-                hint = (
-                    "; it can get there in steps: eva task move "
-                    + code
-                    + " "
-                    + shell_word(target)
-                    + " --path"
-                )
+                hint = "; it can get there in steps: eva task move " + code + " " + shell_word(target) + " --path"
             raise Error(
                 code
                 + " is in "
@@ -480,15 +436,7 @@ def move_task(
             keep_resolution(client, code, tr.task_id, res)
             note = ", resolution " + res.code + " (" + res.name + ")"
         if not dry_run:
-            print(
-                "moved "
-                + ui.bold(code)
-                + ": "
-                + before
-                + " → "
-                + ui.status(tr.to_names[i])
-                + note
-            )
+            print("moved " + ui.bold(code) + ": " + before + " → " + ui.status(tr.to_names[i]) + note)
         tr.current = tr.to_names[i]
         tr.current_id = tr.to_ids[i]
 
@@ -499,66 +447,31 @@ def task_path(client: Client, args: Args, ui: Out) raises:
     var target = args.need(3, "status code or name")
     var tr = transitions_for(client, code)
     var want = String(target.strip()).lower()
-    if want == tr.current.lower() or (
-        tr.current_code != "" and want == tr.current_code.lower()
-    ):
+    if want == tr.current.lower() or (tr.current_code != "" and want == tr.current_code.lower()):
         print(tr.current + " (0 steps; already there)")
         return
     var steps = tr.path_to(target)
     if len(steps) == 0:
-        raise Error(
-            code
-            + " is in "
-            + tr.current
-            + " and the workflow has no path to "
-            + target
-        )
-    print(
-        path_text(tr, steps)
-        + ui.dim(
-            "  ("
-            + String(len(steps))
-            + (" step)" if len(steps) == 1 else " steps)")
-        )
-    )
+        raise Error(code + " is in " + tr.current + " and the workflow has no path to " + target)
+    print(path_text(tr, steps) + ui.dim("  (" + String(len(steps)) + (" step)" if len(steps) == 1 else " steps)")))
     for i in steps:
         if tr.limits[i] == "conditional":
-            print(
-                ui.dim(
-                    "the move to "
-                    + tr.to_names[i]
-                    + " has a condition the server checks, often a role"
-                )
-            )
-    print(
-        ui.dim(
-            "run it: eva task move "
-            + code
-            + " "
-            + shell_word(target)
-            + " --path"
-        )
-    )
+            print(ui.dim("the move to " + tr.to_names[i] + " has a condition the server checks, often a role"))
+    print(ui.dim("run it: eva task move " + code + " " + shell_word(target) + " --path"))
 
 
 def task_statuses(client: Client, args: Args, ui: Out) raises:
     args.check_known(["verbose", "v"])
     var code = args.need(2, "task code")
     var tr = transitions_for(client, code)
-    print(
-        ui.bold(code) + " is in " + ui.status(tr.current) + "; it can move to:"
-    )
+    print(ui.bold(code) + " is in " + ui.status(tr.current) + "; it can move to:")
     var here = tr.from_here()
     for i in here:
-        var line = (
-            "  " + ui.accent(pad(tr.to_codes[i], 26)) + " " + tr.to_names[i]
-        )
+        var line = "  " + ui.accent(pad(tr.to_codes[i], 26)) + " " + tr.to_names[i]
         if tr.froms[i] == FROM_ANY:
             line += ui.dim("  (from any status)")
         if tr.limits[i] == "conditional":
-            line += ui.dim(
-                "  (conditional: the server may refuse it for your role)"
-            )
+            line += ui.dim("  (conditional: the server may refuse it for your role)")
         print(line)
     if len(here) == 0:
         print(ui.dim("  nothing"))
@@ -586,9 +499,7 @@ def task_move(client: Client, args: Args, ui: Out) raises:
         ]
     )
     var code = args.need(2, "task code")
-    var target = args.need(
-        3, "status code or name; see eva task statuses " + code
-    )
+    var target = args.need(3, "status code or name; see eva task statuses " + code)
     move_task(
         client,
         code,
@@ -604,16 +515,10 @@ def task_move(client: Client, args: Args, ui: Out) raises:
 
 def resolution_list(client: Client, args: Args, ui: Out) raises:
     args.check_known(["json", "format", "verbose", "v"])
-    var r = client.call(
-        "CmfResolution.list", '{"fields":["code","name"],"slice":[0,500]}'
-    )
+    var r = client.call("CmfResolution.list", '{"fields":["code","name"],"slice":[0,500]}')
     if want_json(args):
         print_json(r)
         return
     for i in range(r.doc.len(r.result)):
         var x = r.doc.at(r.result, i)
-        print(
-            ui.accent(pad(r.doc.text_at(x, "code"), 18))
-            + " "
-            + r.doc.text_at(x, "name")
-        )
+        print(ui.accent(pad(r.doc.text_at(x, "code"), 18)) + " " + r.doc.text_at(x, "name"))

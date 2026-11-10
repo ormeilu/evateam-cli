@@ -51,9 +51,7 @@ def recently_checked(cache: PrivateCache, latest: String) raises:
 
 def test_versions_from_the_redirect() raises:
     assert_equal(
-        version_from_location(
-            "https://github.com/ormeilu/evateam-cli/releases/tag/v0.10.0"
-        ),
+        version_from_location("https://github.com/ormeilu/evateam-cli/releases/tag/v0.10.0"),
         "0.10.0",
     )
     assert_equal(version_from_location("/releases/tag/v1.2.3-rc.1"), "1.2.3-rc.1")
@@ -160,9 +158,7 @@ def test_a_newer_release_is_announced_at_once() raises:
     recently_checked(cache, "0.10.0")
     assert_true(check_for_update("0.9.0", False) != "")
     _ = cache.write(LATEST_FILE, "0.11.0\n")
-    assert_equal(
-        check_for_update("0.9.0", False), update_line("0.11.0", "0.9.0")
-    )
+    assert_equal(check_for_update("0.9.0", False), update_line("0.11.0", "0.9.0"))
 
 
 def test_nothing_for_the_current_or_an_older_release() raises:

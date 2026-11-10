@@ -265,9 +265,7 @@ def run(var raw: List[String], update: String) raises:
         print(completion(args.need(1, "shell: fish, bash or zsh")), end="")
         return
     if group == "schema" and args.has("classes"):
-        args.check_known(
-            ["classes", "query", "q", "json", "format", "full", "verbose", "v"]
-        )
+        args.check_known(["classes", "query", "q", "json", "format", "full", "verbose", "v"])
         if args.pos(1) != "":
             raise Error("schema --classes takes no class argument")
         schema_classes(
@@ -322,9 +320,7 @@ def main():
         var parsed = Args(raw.copy())
         var group = parsed.pos(0)
         checks = group != "upgrade" and group != "self-update"
-        own = group == "context" or (
-            parsed.has("version") and len(parsed.positionals) == 0
-        )
+        own = group == "context" or (parsed.has("version") and len(parsed.positionals) == 0)
     except:
         pass
     var update = check_for_update(VERSION, own) if checks else String("")

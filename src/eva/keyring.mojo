@@ -47,7 +47,8 @@ def _c_string_at(addr: Int, length: Int = -1) -> String:
 
 def _cannot_ask(what: String) -> Error:
     return Error(
-        what + ": macOS wants to ask first (once after each install or upgrade of eva, or when"
+        what
+        + ": macOS wants to ask first (once after each install or upgrade of eva, or when"
         " the keychain is locked), and cannot ask outside a terminal. Run `eva auth status` in"
         " a terminal on this Mac and choose Always Allow"
     )
@@ -215,9 +216,7 @@ struct _Secret:
         var equal_fn = self.glib.get_symbol[UInt8]("g_str_equal")
         if not hash_fn or not equal_fn:
             raise Error("glib lacks g_str_hash/g_str_equal")
-        var table = self.glib.call["g_hash_table_new", Int](
-            Int(hash_fn.unsafe_value()), Int(equal_fn.unsafe_value())
-        )
+        var table = self.glib.call["g_hash_table_new", Int](Int(hash_fn.unsafe_value()), Int(equal_fn.unsafe_value()))
         _ = self.glib.call["g_hash_table_insert", c_int](table, self.attr_name, profile)
         return table
 
@@ -264,9 +263,7 @@ def _linux_set(profile: String, secret: String) raises:
     var table = s.attributes(p)
     var err = unsafe_alloc[Int](1)
     err[unsafe_offset=0] = 0
-    var ok = s.ss.call["secret_password_storev_sync", c_int](
-        s.schema, table, Int(0), label, pw, Int(0), err
-    )
+    var ok = s.ss.call["secret_password_storev_sync", c_int](s.schema, table, Int(0), label, pw, Int(0), err)
     s.unref(table)
     p.unsafe_free()
     label.unsafe_free()

@@ -93,13 +93,7 @@ def is_newer(latest: String, current: String) -> Bool:
 
 
 def update_line(latest: String, current: String) -> String:
-    return (
-        "eva "
-        + latest
-        + " is out (you have "
-        + current
-        + "); update with: eva upgrade"
-    )
+    return "eva " + latest + " is out (you have " + current + "); update with: eva upgrade"
 
 
 def _epoch(text: String) -> Int:
@@ -149,9 +143,7 @@ def _start_check():
     var exe = _self_exe()
     if exe == "":
         return
-    var c = _cstr(
-        shell_quote(exe) + " " + FETCH_ARG + " </dev/null >/dev/null 2>&1 &"
-    )
+    var c = _cstr(shell_quote(exe) + " " + FETCH_ARG + " </dev/null >/dev/null 2>&1 &")
     _ = external_call["system", c_int](c)
     c.unsafe_free()
 
@@ -185,16 +177,12 @@ def check_for_update(current: String, always: Bool) -> String:
         var cache = PrivateCache()
         var now = now_epoch()
         var state = UpdateState(cache.read(STATE_FILE))
-        var start = check_due(
-            state.checked, now, check_interval(getenv("EVA_UPDATE_CHECK_HOURS"))
-        )
+        var start = check_due(state.checked, now, check_interval(getenv("EVA_UPDATE_CHECK_HOURS")))
         if start:
             state.checked = now
         var latest = clean_version(cache.read(LATEST_FILE))
         var known = is_newer(latest, current)
-        var due = known and notice_due(
-            latest, state.notified, state.notified_at, now
-        )
+        var due = known and notice_due(latest, state.notified, state.notified_at, now)
         if due:
             state.notified = latest
             state.notified_at = now

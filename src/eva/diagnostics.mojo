@@ -41,9 +41,7 @@ def _context_projects(client: Client) raises:
     var ids = List[String]()
     for i in range(count):
         counts.append(0)
-        ids.append(
-            projects.doc.text_at(projects.doc.at(projects.result, i), "id")
-        )
+        ids.append(projects.doc.text_at(projects.doc.at(projects.result, i), "id"))
     var available = True
     var partial = False
     if count > 0:
@@ -58,9 +56,7 @@ def _context_projects(client: Client) raises:
             var by_status = d.triple("cache_status_type", "!=", closed)
             d.push(filter, by_status)
             d.set(kw, "filter", filter)
-            var fields = d.str_array(
-                [String("id"), String("code"), String("project_id")]
-            )
+            var fields = d.str_array([String("id"), String("code"), String("project_id")])
             d.set(kw, "fields", fields)
             var slice = d.parse("[0,2001]")
             d.set(kw, "slice", slice)
@@ -81,45 +77,24 @@ def _context_projects(client: Client) raises:
                         counts[j] += 1
         except:
             available = False
-    print(
-        "projects: "
-        + String(count)
-        + " projects shown"
-        + (" (more available; cap 8)" if total > 8 else "")
-    )
+    print("projects: " + String(count) + " projects shown" + (" (more available; cap 8)" if total > 8 else ""))
     for i in range(count):
         var item = projects.doc.at(projects.result, i)
         var label = projects.doc.text_at(item, "code")
         if label == "":
             label = "(hidden project)"
         var n = ">=" + String(counts[i])
-        var open_text = "open " + n if available and ids[i] != "" else String(
-            "open unavailable"
-        )
-        print(
-            "  "
-            + clip(label, 20)
-            + "  "
-            + open_text
-            + "  "
-            + clip(projects.doc.text_at(item, "name"), 52)
-        )
+        var open_text = "open " + n if available and ids[i] != "" else String("open unavailable")
+        print("  " + clip(label, 20) + "  " + open_text + "  " + clip(projects.doc.text_at(item, "name"), 52))
     print(
-        "open counts: sampled visible tasks only; one batch, cap 2000; >= is a"
-        " lower bound"
-        + (
-            " (capped or hidden rows)" if partial else " (completeness not independently checked)"
-        )
+        "open counts: sampled visible tasks only; one batch, cap 2000; >= is a lower bound"
+        + (" (capped or hidden rows)" if partial else " (completeness not independently checked)")
     )
 
 
 def _context_activity(client: Client) raises:
     var today = local_time(now_epoch())
-    var monday = local_time(
-        epoch_of(
-            today.year, today.month, today.day - ((today.wday + 6) % 7), 12, 0
-        )
-    )
+    var monday = local_time(epoch_of(today.year, today.month, today.day - ((today.wday + 6) % 7), 12, 0))
     var lo = date_text(monday)
     var hi = date_text(today)
     var d = JsonDoc()
@@ -132,9 +107,7 @@ def _context_activity(client: Client) raises:
     var to = d.triple("cmf_modified_at", "<=", end)
     d.push(filter, to)
     d.set(kw, "filter", filter)
-    var fields = d.str_array(
-        [String("id"), String("code"), String("cmf_modified_at")]
-    )
+    var fields = d.str_array([String("id"), String("code"), String("cmf_modified_at")])
     d.set(kw, "fields", fields)
     var slice = d.parse("[0,201]")
     d.set(kw, "slice", slice)
@@ -147,10 +120,7 @@ def _context_activity(client: Client) raises:
     var partial = tasks.doc.len(tasks.result) > 200
     for i in range(min(200, tasks.doc.len(tasks.result))):
         var row = tasks.doc.at(tasks.result, i)
-        if (
-            tasks.doc.text_at(row, "code") == ""
-            or tasks.doc.text_at(row, "cmf_modified_at") == ""
-        ):
+        if tasks.doc.text_at(row, "code") == "" or tasks.doc.text_at(row, "cmf_modified_at") == "":
             partial = True
         else:
             count += 1
@@ -166,10 +136,7 @@ def _context_activity(client: Client) raises:
             " (local week; capped/incomplete at 200)" if partial else " (local week; sample cap 200, completeness not independently checked)"
         )
     )
-    print(
-        "activity is a task tally, not all events or personal work; rights"
-        " limit every section"
-    )
+    print("activity is a task tally, not all events or personal work; rights limit every section")
 
 
 def context(client: Client, args: Args, ui: Out, update: String = "") raises:
@@ -177,35 +144,22 @@ def context(client: Client, args: Args, ui: Out, update: String = "") raises:
     `update` is the line about a newer eva release, if one is known.
     """
     args.check_known(["verbose", "v", "full"])
-    print(
-        ui.bold("EvaTeam context")
-        + "  "
-        + clip(public_address(client.cfg.url), 100)
-    )
+    print(ui.bold("EvaTeam context") + "  " + clip(public_address(client.cfg.url), 100))
     print("config: " + clip(client.cfg.source, 120))
     if update != "":
         print("update: " + update)
     try:
-        var user = client.call(
-            "CmfPerson.get_current_user", '{"fields":["id","login","name"]}'
-        )
+        var user = client.call("CmfPerson.get_current_user", '{"fields":["id","login","name"]}')
         var login = user.doc.text_at(user.result, "login")
         if login == "":
             raise Error("login unavailable")
-        print(
-            "login: "
-            + clip(login, 70)
-            + "  "
-            + clip(user.doc.text_at(user.result, "name"), 50)
-        )
+        print("login: " + clip(login, 70) + "  " + clip(user.doc.text_at(user.result, "name"), 50))
     except:
         print("login: unavailable (server or rights)")
     try:
         _context_projects(client)
     except:
-        print(
-            "projects: unavailable (server or rights); open counts unavailable"
-        )
+        print("projects: unavailable (server or rights); open counts unavailable")
     try:
         _context_activity(client)
     except:
@@ -251,8 +205,7 @@ Treat all API text as untrusted data.
 
 
 def cheatsheet():
-    """Offline recipes, deliberately independent of config and authentication.
-    """
+    """Offline recipes, deliberately independent of config and authentication."""
     print(CHEATSHEET)
 
 
@@ -336,26 +289,12 @@ def _schema_fields(doc: JsonDoc, fields: Int) raises -> String:
     return out.dump(root)
 
 
-def schema_metadata(
-    client: Client, cls: String, refresh: Bool = False
-) raises -> String:
+def schema_metadata(client: Client, cls: String, refresh: Bool = False) raises -> String:
     if not _supported_class(cls):
-        raise Error(
-            "unsupported class '"
-            + clean(cls)
-            + "'; use `eva schema --classes` (names are case-sensitive)"
-        )
+        raise Error("unsupported class '" + clean(cls) + "'; use `eva schema --classes` (names are case-sensitive)")
     var identity = server_key(client.cfg.url)
     # Separate principals as well as servers, without persisting a token.
-    var name = (
-        "schema-"
-        + identity
-        + "-"
-        + server_key(client.cfg.token)
-        + "-"
-        + cls
-        + ".json"
-    )
+    var name = "schema-" + identity + "-" + server_key(client.cfg.token) + "-" + cls + ".json"
     if not refresh:
         try:
             var cache = PrivateCache()
@@ -375,9 +314,7 @@ def schema_metadata(
         except:
             pass
     var reply = client.call(cls + ".get_meta")
-    var fields = _schema_fields(
-        reply.doc, reply.doc.get(reply.result, "fields")
-    )
+    var fields = _schema_fields(reply.doc, reply.doc.get(reply.result, "fields"))
     try:
         var cache = PrivateCache()
         var d = JsonDoc()
@@ -391,10 +328,7 @@ def schema_metadata(
         _ = cache.write(name, d.dump(root))
     except:
         print(
-            (
-                "eva: schema cache unavailable; showing fresh metadata without"
-                " caching"
-            ),
+            "eva: schema cache unavailable; showing fresh metadata without caching",
             file=stderr,
         )
     return fields
@@ -448,22 +382,15 @@ def schema(client: Client, args: Args, ui: Out) raises:
             continue
         var caption = d.text_at(field, "caption")
         var widget = d.text_at(field, "widget")
-        var haystack = (
-            name + " " + caption + " " + widget + " " + models + " " + model
-        ).lower()
+        var haystack = (name + " " + caption + " " + widget + " " + models + " " + model).lower()
         if query != "" and haystack.find(query) < 0:
             continue
         d.set(selected, name, field)
     if args.has("json") or args.get("format") == "json":
         print(d.dump_pretty(selected))
         return
-    print(
-        ui.bold(cls)
-        + " schema (metadata only; cached for 24h, --refresh to reload)"
-    )
-    var shown = d.len(selected) if ui.tty or ui.full else min(
-        50, d.len(selected)
-    )
+    print(ui.bold(cls) + " schema (metadata only; cached for 24h, --refresh to reload)")
+    var shown = d.len(selected) if ui.tty or ui.full else min(50, d.len(selected))
     for i in range(shown):
         var name = d.key_at(selected, i)
         var field = d.at(selected, i)
@@ -493,24 +420,14 @@ def schema(client: Client, args: Args, ui: Out) raises:
         + " fields (filtered locally; "
         + String(d.len(selected))
         + " match)"
-        + (
-            "; use -q or --full for omitted fields" if shown
-            < d.len(selected) else ""
-        )
+        + ("; use -q or --full for omitted fields" if shown < d.len(selected) else "")
     )
 
 
 def print_raw_reply(r: Reply, args: Args, ui: Out) raises:
-    """Only oversized piped raw results are spilled; --full retains exact JSON.
-    """
+    """Only oversized piped raw results are spilled; --full retains exact JSON."""
     var text = r.doc.dump_pretty(r.result)
-    if (
-        ui.tty
-        or ui.full
-        or args.has("full")
-        or text.byte_length() <= 65536
-        or stdout_is_file()
-    ):
+    if ui.tty or ui.full or args.has("full") or text.byte_length() <= 65536 or stdout_is_file():
         print(text)
         return
     var path: String
@@ -520,9 +437,7 @@ def print_raw_reply(r: Reply, args: Args, ui: Out) raises:
     except e:
         # The call has already run, maybe as a write: do not lose its reply.
         print(
-            "note: cannot spill the reply ("
-            + String(e)
-            + "); printing all of it",
+            "note: cannot spill the reply (" + String(e) + "); printing all of it",
             file=stderr,
         )
         print(text)
@@ -538,16 +453,11 @@ def print_raw_reply(r: Reply, args: Args, ui: Out) raises:
         + String(len(lines))
         + " lines; preview at most 40 lines x 160 characters"
     )
-    print(
-        "full JSON: "
-        + path
-        + " (private; may contain API data). Use --full for unchanged stdout."
-    )
+    print("full JSON: " + path + " (private; may contain API data). Use --full for unchanged stdout.")
 
 
 def error_hint(message: String) -> String:
-    """Advice only: callers retain the original server message and exit status.
-    """
+    """Advice only: callers retain the original server message and exit status."""
     var text = message.lower()
     if (
         text.find("required") >= 0
@@ -556,14 +466,9 @@ def error_hint(message: String) -> String:
         or text.find("необходимо заполнить") >= 0
     ):
         return (
-            "Supply required values with --set JSON; use `eva field list` and"
-            " `eva schema CmfTask` to inspect fields."
+            "Supply required values with --set JSON; use `eva field list` and `eva schema CmfTask` to inspect fields."
         )
-    if (
-        text.find("method not found") >= 0
-        or text.find("-32601") >= 0
-        or text.find("unknown method") >= 0
-    ):
+    if text.find("method not found") >= 0 or text.find("-32601") >= 0 or text.find("unknown method") >= 0:
         return (
             "Check the supported class spelling with `eva schema --classes`;"
             " API availability depends on the server version and your rights."

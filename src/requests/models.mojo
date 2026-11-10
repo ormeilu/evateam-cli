@@ -53,8 +53,7 @@ struct Headers(Movable):
 
 
 struct _ItemsRef:
-    """Helper exposing iteration over header entries (workaround for returning iterables).
-    """
+    """Helper exposing iteration over header entries (workaround for returning iterables)."""
 
     var _data: Dict[String, String]
 
@@ -124,13 +123,10 @@ struct Response(Movable, Writable):
         return self.status_code < 400
 
     def is_streaming(self) -> Bool:
-        """True if this Response was created with stream=True (body not yet read).
-        """
+        """True if this Response was created with stream=True (body not yet read)."""
         return self._stream_conn != None
 
-    def iter_content(
-        mut self, chunk_size: Int = 512
-    ) raises -> List[List[UInt8]]:
+    def iter_content(mut self, chunk_size: Int = 512) raises -> List[List[UInt8]]:
         """Iterate body chunks. Only valid for streaming responses (stream=True).
 
         Returns a List of byte chunks. Drains the stream; calling twice returns an empty list.
@@ -180,8 +176,7 @@ struct Response(Movable, Writable):
         return lines^
 
     def is_redirect(self) raises -> Bool:
-        """True if the response is a redirect that carries a ``Location`` header.
-        """
+        """True if the response is a redirect that carries a ``Location`` header."""
         if not self.headers.contains("location"):
             return False
         var s = self.status_code
@@ -225,13 +220,11 @@ struct Response(Movable, Writable):
         return result^
 
     def close(mut self):
-        """Release the underlying connection for a streaming response (no-op otherwise).
-        """
+        """Release the underlying connection for a streaming response (no-op otherwise)."""
         self._stream_conn = None
 
     def _drain_stream(mut self) raises:
-        """Read the entire streaming body into self.content (used by text()/content access).
-        """
+        """Read the entire streaming body into self.content (used by text()/content access)."""
         if self._stream_conn == None:
             return
         while True:
@@ -243,8 +236,7 @@ struct Response(Movable, Writable):
         self._stream_conn = None
 
     def text(mut self) raises -> String:
-        """Decode the body to a String using ``encoding`` (lossy UTF-8). Drains stream if streaming.
-        """
+        """Decode the body to a String using ``encoding`` (lossy UTF-8). Drains stream if streaming."""
         if self._stream_conn != None:
             self._drain_stream()
         return _bytes_to_string(self.content)
@@ -279,4 +271,3 @@ def _to_lower(s: String) -> String:
         else:
             out += String(Codepoint(unsafe_unchecked_codepoint=UInt32(i)))
     return out
-

@@ -42,8 +42,7 @@ struct CookieJar(Movable):
                 self._cookies[name] = value
 
     def cookie_header(self) -> String:
-        """Build a 'name=value; name2=value2' string for the Cookie request header.
-        """
+        """Build a 'name=value; name2=value2' string for the Cookie request header."""
         if len(self._cookies) == 0:
             return String()
         var parts: List[String] = []

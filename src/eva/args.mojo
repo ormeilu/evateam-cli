@@ -54,9 +54,7 @@ struct Args(Movable):
             if a == "--":
                 only_positionals = True
                 continue
-            var name = String(a[byte=2:]) if a.startswith("--") else String(
-                a[byte=1:]
-            )
+            var name = String(a[byte=2:]) if a.startswith("--") else String(a[byte=1:])
             var eq = name.find("=")
             var key = String(name[byte=0:eq]) if eq >= 0 else name
             var doc_version = (
@@ -70,9 +68,7 @@ struct Args(Movable):
                 var value = String(name[byte = eq + 1 :])
                 # --yes=false must not read as yes.
                 if switch and value != "true":
-                    raise Error(
-                        "option --" + key + " is a switch; drop =" + value
-                    )
+                    raise Error("option --" + key + " is a switch; drop =" + value)
                 self.keys.append(key)
                 self.values.append(value)
                 continue
@@ -182,12 +178,7 @@ def edit_distance(a: String, b: String) -> Int:
         for j in range(1, len(y) + 1):
             var cost = 0 if x[i - 1] == y[j - 1] else 1
             var d = min(min(prev[j] + 1, cur[j - 1] + 1), prev[j - 1] + cost)
-            if (
-                i > 1
-                and j > 1
-                and x[i - 1] == y[j - 2]
-                and x[i - 2] == y[j - 1]
-            ):
+            if i > 1 and j > 1 and x[i - 1] == y[j - 2] and x[i - 2] == y[j - 1]:
                 d = min(d, before[j - 2] + 1)
             cur.append(d)
         before = prev^

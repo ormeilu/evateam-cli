@@ -80,7 +80,7 @@ def defuse_fence(text: String) -> String:
     var i = 0
     var n = text.byte_length()
     while i < n:
-        var rest = String(lower[byte = i : n])
+        var rest = String(lower[byte=i:n])
         if rest.startswith("<untrusted") or rest.startswith("</untrusted"):
             out += "&lt;"
             i += 1
@@ -88,7 +88,7 @@ def defuse_fence(text: String) -> String:
         var j = rest.find("<")
         if j <= 0:
             if j < 0:
-                out += String(text[byte = i : n])
+                out += String(text[byte=i:n])
                 break
             out += String(text[byte = i : i + 1])
             i += 1
@@ -270,11 +270,7 @@ def md_inline(s: String) -> String:
                 end = j + 2
         elif c == 0x2A or (c == 0x5F and (i == 0 or not _is_word_byte(b[i - 1]))):  # * or _
             var j = s.find("*" if c == 0x2A else "_", i + 1)
-            if (
-                j > i + 1
-                and Int(b[i + 1]) != 0x20
-                and (c == 0x2A or j + 1 >= n or not _is_word_byte(b[j + 1]))
-            ):
+            if j > i + 1 and Int(b[i + 1]) != 0x20 and (c == 0x2A or j + 1 >= n or not _is_word_byte(b[j + 1])):
                 html = "<em>" + md_inline(String(s[byte = i + 1 : j])) + "</em>"
                 end = j + 1
         elif c == 0x5B:  # [text](url)
@@ -320,7 +316,9 @@ def _heading(line: String) -> Tuple[Int, String]:
 
 def _is_rule(line: String) -> Bool:
     var t = String(line.strip().replace(" ", ""))
-    return t.byte_length() >= 3 and (t == "-" * t.byte_length() or t == "*" * t.byte_length() or t == "_" * t.byte_length())
+    return t.byte_length() >= 3 and (
+        t == "-" * t.byte_length() or t == "*" * t.byte_length() or t == "_" * t.byte_length()
+    )
 
 
 struct _Md:
