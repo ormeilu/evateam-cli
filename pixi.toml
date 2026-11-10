@@ -49,7 +49,7 @@ wheel = { cmd = "python scripts/build_wheel.py", depends-on = ["build"], descrip
 archive = { cmd = "python scripts/build_archive.py", depends-on = ["build"], description = "Pack a release archive: pixi run archive TARGET" }
 coverage = { cmd = "bash scripts/coverage.sh", description = "Line coverage of src/ by unit and e2e tests (coverage/index.html)" }
 asan = { cmd = "bash scripts/asan.sh", description = "Unit and e2e tests under AddressSanitizer" }
-fmt = { cmd = "mojo format src tests", description = "Format sources" }
+fmt = { cmd = "mojo format -l 120 src tests", description = "Format sources (120 columns)" }
 fmt-check = { cmd = "bash scripts/fmt_check.sh", description = "Fail if mojo format would change anything (touches no files)" }
 ci = { depends-on = ["test", "e2e", "asan"], description = "What the CI test job runs" }
 
