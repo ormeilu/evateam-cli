@@ -25,7 +25,9 @@ def test_html_paragraphs_and_lists() raises:
 
 def test_html_breaks_and_tables() raises:
     assert_equal(html_to_text("one<br>two<br/>three"), "one\ntwo\nthree")
-    assert_equal(html_to_text("<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>"), "a | b\nc | d")
+    assert_equal(
+        html_to_text("<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>"), "a | b\nc | d"
+    )
 
 
 def test_html_collapses_blank_runs() raises:
@@ -37,7 +39,10 @@ def test_html_unterminated_tag_is_dropped() raises:
 
 
 def test_entities() raises:
-    assert_equal(unescape_entities("&lt;b&gt; &quot;q&quot; &#39;s&#39; &laquo;x&raquo; a&nbsp;b &amp;lt;"), "<b> \"q\" 's' «x» a b &lt;")
+    assert_equal(
+        unescape_entities("&lt;b&gt; &quot;q&quot; &#39;s&#39; &laquo;x&raquo; a&nbsp;b &amp;lt;"),
+        "<b> \"q\" 's' «x» a b &lt;",
+    )
 
 
 def test_text_to_html_escapes() raises:

@@ -74,8 +74,7 @@ struct StreamingConn(Movable):
         self.close()
 
     def read_chunk(mut self, chunk_size: Int) raises -> Optional[List[UInt8]]:
-        """Read up to ``chunk_size`` body bytes. Returns None when the body is fully consumed.
-        """
+        """Read up to ``chunk_size`` body bytes. Returns None when the body is fully consumed."""
         if self.closed:
             return None
         # For chunked encoding we don't fully implement incremental dechunking here; instead we
@@ -92,10 +91,7 @@ struct StreamingConn(Movable):
         # First drain any bytes already buffered (leftover from the header read).
         while self.buffer_pos < len(self.buffer) and len(out) < chunk_size:
             # Respect Content-Length if known.
-            if (
-                self.content_length >= 0
-                and self.body_read >= self.content_length
-            ):
+            if self.content_length >= 0 and self.body_read >= self.content_length:
                 break
             out.append(self.buffer[self.buffer_pos])
             self.buffer_pos += 1
@@ -121,11 +117,8 @@ struct StreamingConn(Movable):
         self.body_read += len(fresh)
         return out^
 
-    def _read_chunk_until_close(
-        mut self, chunk_size: Int
-    ) raises -> Optional[List[UInt8]]:
-        """For chunked encoding: drain buffer, then read until the connection closes.
-        """
+    def _read_chunk_until_close(mut self, chunk_size: Int) raises -> Optional[List[UInt8]]:
+        """For chunked encoding: drain buffer, then read until the connection closes."""
         var out = List[UInt8]()
         while self.buffer_pos < len(self.buffer) and len(out) < chunk_size:
             out.append(self.buffer[self.buffer_pos])
@@ -149,9 +142,7 @@ struct StreamingConn(Movable):
         if self.ssl:
             # HTTPS: SSL_read via the libssl handle.
             var raw = unsafe_alloc[UInt8](max_bytes)
-            var n = self.libssl.value()[].call["SSL_read", c_int](
-                self.ssl.value(), raw, c_int(max_bytes)
-            )
+            var n = self.libssl.value()[].call["SSL_read", c_int](self.ssl.value(), raw, c_int(max_bytes))
             if n > c_int(0):
                 for i in range(Int(n)):
                     buf.append(raw[unsafe_offset=i])
@@ -159,9 +150,7 @@ struct StreamingConn(Movable):
         else:
             # HTTP: raw recv.
             var raw = unsafe_alloc[UInt8](max_bytes)
-            var n = external_call["recv", c_int](
-                self.fd, raw, c_int(max_bytes), c_int(0)
-            )
+            var n = external_call["recv", c_int](self.fd, raw, c_int(max_bytes), c_int(0))
             if n > c_int(0):
                 for i in range(Int(n)):
                     buf.append(raw[unsafe_offset=i])
@@ -173,9 +162,7 @@ struct StreamingConn(Movable):
             return
         self.closed = True
         if self.ssl:
-            _ = self.libssl.value()[].call["SSL_shutdown", c_int](
-                self.ssl.value()
-            )
+            _ = self.libssl.value()[].call["SSL_shutdown", c_int](self.ssl.value())
             _ = self.libssl.value()[].call["SSL_free", c_int](self.ssl.value())
             self.ssl = None
         if self.fd >= c_int(0):

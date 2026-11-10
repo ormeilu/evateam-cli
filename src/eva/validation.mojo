@@ -92,9 +92,7 @@ def _strings_match(expected: String, actual: String) -> Bool:
     return False
 
 
-def field_confirmed(
-    expected: JsonDoc, e: Int, actual: JsonDoc, a: Int
-) raises -> Bool:
+def field_confirmed(expected: JsonDoc, e: Int, actual: JsonDoc, a: Int) raises -> Bool:
     if a < 0:
         return False
     var ek = expected.kind(e)
@@ -122,9 +120,7 @@ def field_confirmed(
                 for k in used:
                     if j == k:
                         taken = True
-                if not taken and field_confirmed(
-                    expected, expected.at(e, i), actual, actual.at(a, j)
-                ):
+                if not taken and field_confirmed(expected, expected.at(e, i), actual, actual.at(a, j)):
                     hit = j
                     break
             if hit < 0:
@@ -133,9 +129,7 @@ def field_confirmed(
         return True
     if ek == J_STR and ak == J_OBJ:
         var value = expected.text(e)
-        return value == actual.text_at(a, "id") or value == actual.text_at(
-            a, "code"
-        )
+        return value == actual.text_at(a, "id") or value == actual.text_at(a, "code")
     if ek == J_NUM and (ak == J_NUM or ak == J_STR):
         # Decimal fields can come back as strings ("3.00").
         var x = _number(expected.text(e))
@@ -166,9 +160,7 @@ def _soft(expected: JsonDoc, e: Int) raises -> Bool:
     return date_key(s) != "" or s.startswith("<")
 
 
-def require_fields(
-    expected: JsonDoc, kw: Int, actual: JsonDoc, result: Int, code: String
-) raises:
+def require_fields(expected: JsonDoc, kw: Int, actual: JsonDoc, result: Int, code: String) raises:
     for i in range(expected.len(kw)):
         var field = expected.key_at(kw, i)
         var a = actual.get(result, field)
@@ -187,8 +179,5 @@ def require_fields(
             )
             continue
         raise Error(
-            code
-            + " was written, but "
-            + field
-            + " was not confirmed by readback; inspect the task before retrying"
+            code + " was written, but " + field + " was not confirmed by readback; inspect the task before retrying"
         )

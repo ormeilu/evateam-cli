@@ -11,10 +11,7 @@ from eva.render import Out
 
 def task_card(client: Client, args: Args, ui: Out) raises:
     if args.has("json") or args.has("fields") or args.get("format") != "":
-        raise Error(
-            "--with is a text card; use the individual readers for JSON or"
-            " field projection"
-        )
+        raise Error("--with is a text card; use the individual readers for JSON or field projection")
     var code = args.need(2, "task code")
     var sections = split_csv(args.get("with"))
     if args.get("with") == "all":
@@ -22,12 +19,7 @@ def task_card(client: Client, args: Args, ui: Out) raises:
     if len(sections) == 0:
         raise Error("--with needs comments,attachments,links,statuses or all")
     for section in sections:
-        if (
-            section != "comments"
-            and section != "attachments"
-            and section != "links"
-            and section != "statuses"
-        ):
+        if section != "comments" and section != "attachments" and section != "links" and section != "statuses":
             raise Error("unknown --with section " + section)
     var raw: List[String] = ["task", "get", code]
     for i in range(len(args.keys)):

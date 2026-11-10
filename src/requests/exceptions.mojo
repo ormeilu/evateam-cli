@@ -73,16 +73,13 @@ struct ConnectionError(Movable, Writable):
 
     def write_to(self, mut writer: Some[Writer]):
         if self.host.byte_length() > 0:
-            writer.write(
-                CONNECTION_PREFIX, ": ", self.msg, " (host=", self.host, ")"
-            )
+            writer.write(CONNECTION_PREFIX, ": ", self.msg, " (host=", self.host, ")")
         else:
             writer.write(CONNECTION_PREFIX, ": ", self.msg)
 
 
 struct Timeout(Movable, Writable):
-    """The request timed out (SO_RCVTIMEO/SO_SNDTIMEO expired on a socket with a timeout set).
-    """
+    """The request timed out (SO_RCVTIMEO/SO_SNDTIMEO expired on a socket with a timeout set)."""
 
     var msg: String
     var host: String
@@ -93,9 +90,7 @@ struct Timeout(Movable, Writable):
 
     def write_to(self, mut writer: Some[Writer]):
         if self.host.byte_length() > 0:
-            writer.write(
-                TIMEOUT_PREFIX, ": ", self.msg, " (host=", self.host, ")"
-            )
+            writer.write(TIMEOUT_PREFIX, ": ", self.msg, " (host=", self.host, ")")
         else:
             writer.write(TIMEOUT_PREFIX, ": ", self.msg)
 
@@ -145,8 +140,7 @@ struct HTTPError(Movable, Writable):
 
 
 struct SSLError(Movable, Writable):
-    """A TLS/SSL error (handshake failure, certificate validation, missing libssl, etc.).
-    """
+    """A TLS/SSL error (handshake failure, certificate validation, missing libssl, etc.)."""
 
     var msg: String
     var hostname: String
@@ -157,9 +151,7 @@ struct SSLError(Movable, Writable):
 
     def write_to(self, mut writer: Some[Writer]):
         if self.hostname.byte_length() > 0:
-            writer.write(
-                SSL_PREFIX, ": ", self.msg, " (hostname=", self.hostname, ")"
-            )
+            writer.write(SSL_PREFIX, ": ", self.msg, " (hostname=", self.hostname, ")")
         else:
             writer.write(SSL_PREFIX, ": ", self.msg)
 
@@ -206,9 +198,7 @@ struct ReadTimeout(Movable, Writable):
 
     def write_to(self, mut writer: Some[Writer]):
         if self.host.byte_length() > 0:
-            writer.write(
-                READ_TIMEOUT_PREFIX, ": ", self.msg, " (host=", self.host, ")"
-            )
+            writer.write(READ_TIMEOUT_PREFIX, ": ", self.msg, " (host=", self.host, ")")
         else:
             writer.write(READ_TIMEOUT_PREFIX, ": ", self.msg)
 
@@ -275,9 +265,7 @@ struct ProxyError(Movable, Writable):
 
     def write_to(self, mut writer: Some[Writer]):
         if self.host.byte_length() > 0:
-            writer.write(
-                PROXY_PREFIX, ": ", self.msg, " (host=", self.host, ")"
-            )
+            writer.write(PROXY_PREFIX, ": ", self.msg, " (host=", self.host, ")")
         else:
             writer.write(PROXY_PREFIX, ": ", self.msg)
 

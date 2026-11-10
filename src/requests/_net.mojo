@@ -148,9 +148,7 @@ struct TCPSocket:
         """The raw socket file descriptor (for binding to a TLS layer)."""
         return self.fd
 
-    def connect(
-        mut self, host: String, port: Int, timeout: Optional[Float64] = None
-    ) raises:
+    def connect(mut self, host: String, port: Int, timeout: Optional[Float64] = None) raises:
         """Open a TCP connection to ``host:port``.
 
         ``host`` may be a dotted-decimal IPv4 literal, an IPv6 literal (``::1``), or a hostname
@@ -159,9 +157,7 @@ struct TCPSocket:
         var addr = _dns_resolve(host)
         self._connect_addr(addr, port, timeout, host)
 
-    def connect_ip(
-        mut self, addr: UInt32, port: Int, timeout: Optional[Float64] = None
-    ) raises:
+    def connect_ip(mut self, addr: UInt32, port: Int, timeout: Optional[Float64] = None) raises:
         """Open a TCP connection to a pre-resolved IPv4 address (host byte order).
 
         Use this when DNS was already resolved by the caller (avoids re-resolution).
@@ -196,9 +192,7 @@ struct TCPSocket:
     ) raises:
         # PF is the platform address-family integer (AF_INET=2 portable; AF_INET6 non-portable,
         # sourced from getaddrinfo's ai_family via ResolvedAddress.pf).
-        var raw_fd = external_call["socket", c_int](
-            c_int(addr.pf), SOCK_STREAM, c_int(0)
-        )
+        var raw_fd = external_call["socket", c_int](c_int(addr.pf), SOCK_STREAM, c_int(0))
         if raw_fd < c_int(0):
             raise ConnectionError("socket() failed")
         self.fd = raw_fd
@@ -234,16 +228,10 @@ struct TCPSocket:
     def _set_timeouts(mut self, timeout_secs: Float64) raises:
         var tv = unsafe_alloc[Timeval](1)
         tv[].tv_sec = Int64(timeout_secs)
-        tv[].tv_usec = Int64(
-            (timeout_secs - Float64(Int64(timeout_secs))) * 1_000_000.0
-        )
+        tv[].tv_usec = Int64((timeout_secs - Float64(Int64(timeout_secs))) * 1_000_000.0)
         var size = c_int(16)  # sizeof(struct timeval) on 64-bit
-        _ = external_call["setsockopt", c_int](
-            self.fd, SOL_SOCKET, SO_RCVTIMEO, tv, size
-        )
-        _ = external_call["setsockopt", c_int](
-            self.fd, SOL_SOCKET, SO_SNDTIMEO, tv, size
-        )
+        _ = external_call["setsockopt", c_int](self.fd, SOL_SOCKET, SO_RCVTIMEO, tv, size)
+        _ = external_call["setsockopt", c_int](self.fd, SOL_SOCKET, SO_SNDTIMEO, tv, size)
         tv.unsafe_free()
         self._has_timeout = True
 
@@ -262,9 +250,7 @@ struct TCPSocket:
         err[] = c_int(0)
         var lenp = unsafe_alloc[c_int](1)
         lenp[] = c_int(4)
-        _ = external_call["getsockopt", c_int](
-            self.fd, SOL_SOCKET, SO_ERROR, err, lenp
-        )
+        _ = external_call["getsockopt", c_int](self.fd, SOL_SOCKET, SO_ERROR, err, lenp)
         var e = err[]
         err.unsafe_free()
         lenp.unsafe_free()
@@ -303,9 +289,7 @@ struct TCPSocket:
         var remaining = data.byte_length()
         var offset = 0
         while remaining > 0:
-            var sent = external_call["send", c_int](
-                self.fd, ptr.unsafe_offset(offset), c_int(remaining), SEND_FLAGS
-            )
+            var sent = external_call["send", c_int](self.fd, ptr.unsafe_offset(offset), c_int(remaining), SEND_FLAGS)
             if sent <= c_int(0):
                 self._io_failure(
                     "send() failed or connection closed",
@@ -320,9 +304,7 @@ struct TCPSocket:
         var remaining = len(data)
         var offset = 0
         while remaining > 0:
-            var sent = external_call["send", c_int](
-                self.fd, ptr.unsafe_offset(offset), c_int(remaining), SEND_FLAGS
-            )
+            var sent = external_call["send", c_int](self.fd, ptr.unsafe_offset(offset), c_int(remaining), SEND_FLAGS)
             if sent <= c_int(0):
                 self._io_failure(
                     "send() failed or connection closed",
@@ -339,9 +321,7 @@ struct TCPSocket:
         var all: List[UInt8] = []
         var buf = alloc[UInt8](CHUNK_SIZE)
         while True:
-            var n = external_call["recv", c_int](
-                self.fd, buf, c_int(CHUNK_SIZE), RECV_FLAGS
-            )
+            var n = external_call["recv", c_int](self.fd, buf, c_int(CHUNK_SIZE), RECV_FLAGS)
             if n <= c_int(0):
                 break
             var count = Int(n)
@@ -354,17 +334,12 @@ struct TCPSocket:
         if not self.closed:
             self._raw_close()
 
-    def _recv_raw(
-        mut self, buf: Pointer[UInt8, MutUntrackedOrigin], max_bytes: Int
-    ) raises -> c_int:
+    def _recv_raw(mut self, buf: Pointer[UInt8, MutUntrackedOrigin], max_bytes: Int) raises -> c_int:
         """Single recv() call. Returns byte count, or <=0 on close/error."""
-        return external_call["recv", c_int](
-            self.fd, buf, c_int(max_bytes), RECV_FLAGS
-        )
+        return external_call["recv", c_int](self.fd, buf, c_int(max_bytes), RECV_FLAGS)
 
     def _disown(mut self):
-        """Mark this socket as not owning its fd (so __del__/close won't close it). Used for streaming.
-        """
+        """Mark this socket as not owning its fd (so __del__/close won't close it). Used for streaming."""
         self.closed = True
         self.fd = c_int(-1)
 

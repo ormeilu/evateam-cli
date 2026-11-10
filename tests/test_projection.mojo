@@ -15,9 +15,7 @@ from eva.filters import validate_bql
 
 def test_projection_nested_arrays_and_missing_fields() raises:
     var src = JsonDoc()
-    var root = src.parse(
-        '{"code":"X","people":[{"login":"a","id":"1"},{"login":null,"id":"2"}],"extra":3}'
-    )
+    var root = src.parse('{"code":"X","people":[{"login":"a","id":"1"},{"login":null,"id":"2"}],"extra":3}')
     var got = JsonDoc()
     var value = got.parse(
         project_json(
@@ -134,9 +132,7 @@ def test_version_flag_context_and_repeated_flags() raises:
     assert_equal(Args(["--version"]).get("version"), "true")
     assert_equal(Args(["--version", "--md"]).get("md"), "true")
     assert_equal(
-        Args(["doc", "get", "DOC-1", "--version", "00170000000000000"]).get(
-            "version"
-        ),
+        Args(["doc", "get", "DOC-1", "--version", "00170000000000000"]).get("version"),
         "00170000000000000",
     )
     var repeated = Args(["task", "update", "X", "--tag", "a", "--tag", "b"])

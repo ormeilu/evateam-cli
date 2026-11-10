@@ -97,8 +97,12 @@ def _take_pair(mut cfg: Config, url: String, token: String, source: String) rais
         var has = "EVA_URL" if url != "" else "EVA_API_KEY"
         var lacks = "EVA_API_KEY" if url != "" else "EVA_URL"
         raise Error(
-            source + " sets " + has + " but not " + lacks + "; eva takes both from"
-            " one place, so that a token is never sent to an address from somewhere else"
+            source
+            + " sets "
+            + has
+            + " but not "
+            + lacks
+            + "; eva takes both from one place, so that a token is never sent to an address from somewhere else"
         )
     cfg.url = url
     cfg.token = token
@@ -138,7 +142,9 @@ def _file_pair(mut cfg: Config, path: String, label: String) raises -> Bool:
     cfg.insecure = cfg.insecure or insecure
     if token != "" and _group_or_world_readable(path):
         print(
-            "eva: warning: " + label + " holds a token and other users can read it;"
+            "eva: warning: "
+            + label
+            + " holds a token and other users can read it;"
             " chmod 600 it, or move the token to the keychain with `eva auth login`",
             file=stderr,
         )
@@ -188,14 +194,21 @@ def _keychain_pair(mut cfg: Config, profile: String, required: Bool) raises -> B
     if not secret:
         if required:
             raise Error(
-                "no profile '" + profile + "' in " + keyring_name()
-                + "; `eva auth login --profile " + profile + "` creates it"
+                "no profile '"
+                + profile
+                + "' in "
+                + keyring_name()
+                + "; `eva auth login --profile "
+                + profile
+                + "` creates it"
             )
         return False
     var d = JsonDoc()
     var root = d.parse(secret.value())
     var ok = _take_pair(
-        cfg, d.text_at(root, "url"), d.text_at(root, "token"),
+        cfg,
+        d.text_at(root, "url"),
+        d.text_at(root, "token"),
         "profile '" + profile + "' in " + keyring_name(),
     )
     if ok:
@@ -247,7 +260,8 @@ def normalize_url(raw: String, insecure: Bool) raises -> String:
         var local = host == "localhost" or host == "127.0.0.1" or host == "[::1]"
         if not local:
             raise Error(
-                url + " is plain http, which would send the token unencrypted; use https,"
+                url
+                + " is plain http, which would send the token unencrypted; use https,"
                 " or set EVA_INSECURE=1 if this server really has no TLS"
             )
     return url
@@ -312,10 +326,7 @@ struct Client(Movable):
 
     def __init__(out self, var cfg: Config, verbose: Bool) raises:
         if cfg.url == "" or cfg.token == "":
-            raise Error(
-                "not signed in: run `eva auth login`, or set EVA_URL and EVA_API_KEY"
-                " in the environment"
-            )
+            raise Error("not signed in: run `eva auth login`, or set EVA_URL and EVA_API_KEY in the environment")
         self.cfg = cfg^
         self.verbose = verbose
         self.ca = ca_bundle()
@@ -355,7 +366,9 @@ struct Client(Movable):
         if self.verbose:
             print("← HTTP", status, kind, len(body), "bytes", file=stderr)
         if status >= 300 and status < 400:
-            raise Error("the file address redirects (HTTP " + String(status) + "); eva does not follow it with your token")
+            raise Error(
+                "the file address redirects (HTTP " + String(status) + "); eva does not follow it with your token"
+            )
         if status == 401 or status == 403:
             raise Error("HTTP " + String(status) + ": the token was rejected; sign in again with `eva auth login`")
         if status != 200:
@@ -370,8 +383,12 @@ struct Client(Movable):
         # A file name cannot end the header line or its quoted value early.
         var name = String(clean(file_name).replace('"', "'").replace("\n", " ").replace("\r", " "))
         var head = (
-            "--" + boundary + "\r\n"
-            + 'Content-Disposition: form-data; name="file"; filename="' + name + '"\r\n'
+            "--"
+            + boundary
+            + "\r\n"
+            + 'Content-Disposition: form-data; name="file"; filename="'
+            + name
+            + '"\r\n'
             + "Content-Type: application/octet-stream\r\n\r\n"
         )
         var bytes = List[UInt8]()
@@ -412,12 +429,22 @@ struct Client(Movable):
         if self.verbose:
             print("← HTTP", status, clean(String(text[byte = 0 : min(text.byte_length(), 300)])), file=stderr)
         if status >= 300 and status < 400:
-            raise Error("the upload address redirects (HTTP " + String(status) + "); eva does not follow it with your token")
+            raise Error(
+                "the upload address redirects (HTTP " + String(status) + "); eva does not follow it with your token"
+            )
         if status == 401 or status == 403:
-            raise Error("HTTP " + String(status) + ": the server refused the upload: " + clean(String(text[byte = 0 : min(text.byte_length(), 200)])))
+            raise Error(
+                "HTTP "
+                + String(status)
+                + ": the server refused the upload: "
+                + clean(String(text[byte = 0 : min(text.byte_length(), 200)]))
+            )
         if status != 200:
             raise Error(
-                "HTTP " + String(status) + " for the upload: " + clean(String(String(text[byte = 0 : min(text.byte_length(), 200)]).strip()))
+                "HTTP "
+                + String(status)
+                + " for the upload: "
+                + clean(String(String(text[byte = 0 : min(text.byte_length(), 200)]).strip()))
             )
 
     def call(
@@ -472,7 +499,11 @@ struct Client(Movable):
             raise Error("cannot reach " + self.cfg.url + ": " + String(e))
         if status >= 300 and status < 400:
             raise Error(
-                self.cfg.url + "/api/ redirects (HTTP " + String(status) + ") to " + clean(location)
+                self.cfg.url
+                + "/api/ redirects (HTTP "
+                + String(status)
+                + ") to "
+                + clean(location)
                 + "; eva does not follow it with your token. If that is the real address,"
                 " sign in to it with `eva auth login`"
             )
@@ -480,7 +511,9 @@ struct Client(Movable):
             print("← HTTP", status, clean(String(text[byte = 0 : min(text.byte_length(), 600)])), file=stderr)
         if status == 401 or status == 403:
             raise Error(
-                "HTTP " + String(status) + ": the token was rejected ("
+                "HTTP "
+                + String(status)
+                + ": the token was rejected ("
                 + clean(String(text[byte = 0 : min(text.byte_length(), 120)].strip()))
                 + "); sign in again with `eva auth login`"
             )

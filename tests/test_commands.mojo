@@ -72,9 +72,7 @@ def test_like_filter() raises:
 
 def test_like_filter_quotes_input() raises:
     # A quote in the search text stays inside the JSON string.
-    assert_equal(
-        like_filter("name", 'a"],["x', ""), '["name","ILIKE","%a\\"],[\\"x%"]'
-    )
+    assert_equal(like_filter("name", 'a"],["x', ""), '["name","ILIKE","%a\\"],[\\"x%"]')
 
 
 def test_split_csv_and_fields() raises:
@@ -92,16 +90,12 @@ def test_code_kwargs_escapes() raises:
         code_kwargs("DEV-1", [String("code")]),
         '{"filter":["code","==","DEV-1"],"fields":["code"]}',
     )
-    assert_equal(
-        code_kwargs('X"Y', List[String]()), '{"filter":["code","==","X\\"Y"]}'
-    )
+    assert_equal(code_kwargs('X"Y', List[String]()), '{"filter":["code","==","X\\"Y"]}')
 
 
 def test_page_slice() raises:
     var d = JsonDoc()
-    assert_equal(
-        d.dump(page_slice(d, Args(["-n", "10", "--page", "3"]))), "[20,30]"
-    )
+    assert_equal(d.dump(page_slice(d, Args(["-n", "10", "--page", "3"]))), "[20,30]")
     assert_equal(d.dump(page_slice(d, Args([]))), "[0,25]")
     with assert_raises(contains="start at 1"):
         _ = page_slice(d, Args(["--page", "0"]))
@@ -109,9 +103,7 @@ def test_page_slice() raises:
 
 def test_person_prefers_login() raises:
     var d = JsonDoc()
-    var r = d.parse(
-        '{"a": {"login": "l", "name": "N"}, "b": {"name": "Only"}, "c": null}'
-    )
+    var r = d.parse('{"a": {"login": "l", "name": "N"}, "b": {"name": "Only"}, "c": null}')
     assert_equal(person(d, r, "a"), "l")
     assert_equal(person(d, r, "b"), "Only")
     assert_equal(person(d, r, "c"), "-")
@@ -144,13 +136,9 @@ def test_shell_quote_and_dirname() raises:
 
 
 def test_body_html_modes() raises:
-    assert_equal(
-        body_html(Args(["x"]), "<b>a</b>"), "<p>&lt;b&gt;a&lt;/b&gt;</p>"
-    )
+    assert_equal(body_html(Args(["x"]), "<b>a</b>"), "<p>&lt;b&gt;a&lt;/b&gt;</p>")
     assert_equal(body_html(Args(["--html"]), "<b>a</b>"), "<b>a</b>")
-    assert_equal(
-        body_html(Args(["--md"]), "**a**"), "<p><strong>a</strong></p>"
-    )
+    assert_equal(body_html(Args(["--md"]), "**a**"), "<p><strong>a</strong></p>")
     with assert_raises(contains="exclude each other"):
         _ = body_html(Args(["--md", "--html"]), "a")
 

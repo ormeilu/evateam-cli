@@ -72,8 +72,7 @@ struct KeptAliveConn(Movable):
         self.closed = False
 
     def __moveinit__(out self, mut existing: Self):
-        """Transfer ownership; neuter the source so its destructor doesn't double-close.
-        """
+        """Transfer ownership; neuter the source so its destructor doesn't double-close."""
         self.scheme = existing.scheme^
         self.host = existing.host^
         self.port = existing.port
@@ -90,16 +89,10 @@ struct KeptAliveConn(Movable):
 
     def matches(self, scheme: String, host: String, port: Int) -> Bool:
         """True if this idle connection serves the given endpoint."""
-        return (
-            not self.closed
-            and self.scheme == scheme
-            and self.host == host
-            and self.port == port
-        )
+        return not self.closed and self.scheme == scheme and self.host == host and self.port == port
 
     def send_all(mut self, data: String) raises:
-        """Send the full request over the connection (raw send for HTTP, SSL_write for HTTPS).
-        """
+        """Send the full request over the connection (raw send for HTTP, SSL_write for HTTPS)."""
         var ptr = data.unsafe_ptr()
         var remaining = data.byte_length()
         var offset = 0
@@ -110,30 +103,19 @@ struct KeptAliveConn(Movable):
                     self.ssl.value(), ptr.unsafe_offset(offset), c_int(remaining)
                 )
             else:
-                sent = external_call["send", c_int](
-                    self.fd, ptr.unsafe_offset(offset), c_int(remaining), c_int(0)
-                )
+                sent = external_call["send", c_int](self.fd, ptr.unsafe_offset(offset), c_int(remaining), c_int(0))
             if sent <= c_int(0):
                 raise ConnectionError("send failed on pooled connection")
             offset += Int(sent)
             remaining -= Int(sent)
 
-    def _recv_once(
-        mut self, buf: Pointer[UInt8, MutUntrackedOrigin], max_bytes: Int
-    ) raises -> c_int:
-        """One recv()/SSL_read() call. Returns byte count, or <=0 on close/error.
-        """
+    def _recv_once(mut self, buf: Pointer[UInt8, MutUntrackedOrigin], max_bytes: Int) raises -> c_int:
+        """One recv()/SSL_read() call. Returns byte count, or <=0 on close/error."""
         if self.is_https:
-            return self.libssl.value()[].call["SSL_read", c_int](
-                self.ssl.value(), buf, c_int(max_bytes)
-            )
-        return external_call["recv", c_int](
-            self.fd, buf, c_int(max_bytes), c_int(0)
-        )
+            return self.libssl.value()[].call["SSL_read", c_int](self.ssl.value(), buf, c_int(max_bytes))
+        return external_call["recv", c_int](self.fd, buf, c_int(max_bytes), c_int(0))
 
-    def recv_framed(
-        mut self, method: String, mut reusable: Bool
-    ) raises -> List[UInt8]:
+    def recv_framed(mut self, method: String, mut reusable: Bool) raises -> List[UInt8]:
         """Read exactly one HTTP response and return the raw bytes (headers + framed body).
 
         Reads until the header terminator, parses the framing (Content-Length / chunked /
@@ -158,9 +140,7 @@ struct KeptAliveConn(Movable):
             if n <= c_int(0):
                 buf.unsafe_free()
                 if len(raw) == 0:
-                    raise ConnectionError(
-                        "pooled connection closed before response"
-                    )
+                    raise ConnectionError("pooled connection closed before response")
                 # Partial headers then EOF — malformed; let the caller's parser reject it.
                 return raw^
             for i in range(Int(n)):
@@ -173,12 +153,7 @@ struct KeptAliveConn(Movable):
         var cl = _header_content_length(head)
         var chunked = _header_is_chunked(head)
         var conn_close = _header_conn_close(head)
-        var bodiless = (
-            method == "HEAD"
-            or status == 204
-            or status == 304
-            or (status >= 100 and status < 200)
-        )
+        var bodiless = method == "HEAD" or status == 204 or status == 304 or (status >= 100 and status < 200)
 
         var body_have = len(raw) - hdr_end
 
@@ -227,9 +202,7 @@ struct KeptAliveConn(Movable):
             return
         self.closed = True
         if self.is_https and self.libssl != None and self.ssl != None:
-            _ = self.libssl.value()[].call["SSL_shutdown", c_int](
-                self.ssl.value()
-            )
+            _ = self.libssl.value()[].call["SSL_shutdown", c_int](self.ssl.value())
             _ = self.libssl.value()[].call["SSL_free", c_int](self.ssl.value())
             self.ssl = None
         if self.fd >= c_int(0):
@@ -241,18 +214,12 @@ struct KeptAliveConn(Movable):
 
 
 def _find_crlf_crlf(raw: List[UInt8]) -> Int:
-    """Index of the first byte AFTER a ``\\r\\n\\r\\n`` terminator in ``raw``, or -1.
-    """
+    """Index of the first byte AFTER a ``\\r\\n\\r\\n`` terminator in ``raw``, or -1."""
     var n = len(raw)
     if n < 4:
         return -1
     for i in range(n - 3):
-        if (
-            raw[i] == 0x0D
-            and raw[i + 1] == 0x0A
-            and raw[i + 2] == 0x0D
-            and raw[i + 3] == 0x0A
-        ):
+        if raw[i] == 0x0D and raw[i + 1] == 0x0A and raw[i + 2] == 0x0D and raw[i + 3] == 0x0A:
             return i + 4
     return -1
 
@@ -269,13 +236,7 @@ def _has_chunk_terminator(raw: List[UInt8], body_start: Int) -> Bool:
     if start < 0:
         start = 0
     for i in range(start, n - 4):
-        if (
-            raw[i] == 0x30
-            and raw[i + 1] == 0x0D
-            and raw[i + 2] == 0x0A
-            and raw[i + 3] == 0x0D
-            and raw[i + 4] == 0x0A
-        ):
+        if raw[i] == 0x30 and raw[i + 1] == 0x0D and raw[i + 2] == 0x0A and raw[i + 3] == 0x0D and raw[i + 4] == 0x0A:
             # Ensure this "0" starts a chunk-size line: it's at body_start, or preceded by \r\n.
             if i == start or (raw[i - 1] == 0x0A and raw[i - 2] == 0x0D):
                 return True
@@ -309,8 +270,7 @@ def _to_lower(s: String) -> String:
 
 
 def _parse_status(head: String) -> Int:
-    """Extract the numeric status code from the status line ("HTTP/1.1 200 OK" -> 200).
-    """
+    """Extract the numeric status code from the status line ("HTTP/1.1 200 OK" -> 200)."""
     var lines = head.split("\r\n")
     if len(lines) == 0:
         return 0

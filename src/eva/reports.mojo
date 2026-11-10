@@ -115,10 +115,7 @@ def time_report(client: Client, args: Args, ui: Out) raises:
     d.set_str(
         result,
         "scope",
-        (
-            "visible rows for the selected person, grouped by entry start-date;"
-            " permissions may hide other rows"
-        ),
+        "visible rows for the selected person, grouped by entry start-date; permissions may hide other rows",
     )
     if args.has("json") or args.get("format") == "json":
         print(d.dump_pretty(result))
@@ -145,7 +142,4 @@ def time_report(client: Client, args: Args, ui: Out) raises:
         + fmt_minutes(other)
         + " other/draft"
     )
-    print(
-        "only rows this account may read; entries are assigned to their"
-        " start-date, not split across midnight"
-    )
+    print("only rows this account may read; entries are assigned to their start-date, not split across midnight")

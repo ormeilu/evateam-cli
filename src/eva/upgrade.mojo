@@ -119,8 +119,6 @@ def upgrade() -> Int:
         return 0
     if exists(root + "/LICENSE-MODULAR"):
         # A release archive unpacked by install.sh into <install dir>/<version>/.
-        return run_shell(
-            "curl -fsSL " + INSTALL_URL + " | EVA_INSTALL_DIR=" + shell_quote(dirname(root)) + " sh"
-        )
+        return run_shell("curl -fsSL " + INSTALL_URL + " | EVA_INSTALL_DIR=" + shell_quote(dirname(root)) + " sh")
     print("eva at " + exe + " looks built from source: git pull && pixi run build")
     return 0

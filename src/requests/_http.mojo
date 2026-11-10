@@ -94,9 +94,7 @@ def parse_headers(head: String) raises -> ParsedHeaders:
         raise RequestException(String(t"malformed status line: {status_line}"))
     var code = _parse_int_local(String(status_parts[1]))
     if code == None:
-        raise RequestException(
-            String(t"malformed status code: {status_parts[1]}")
-        )
+        raise RequestException(String(t"malformed status code: {status_parts[1]}"))
 
     var reason = String()
     var sp_pos = _find(status_line, " ")
@@ -171,9 +169,7 @@ def parse_response(raw: List[UInt8]) raises -> ParsedResponse:
     return _build_parsed(ph^, raw, body_start)
 
 
-def _build_parsed(
-    var ph: ParsedHeaders, raw: List[UInt8], body_start: Int
-) raises -> ParsedResponse:
+def _build_parsed(var ph: ParsedHeaders, raw: List[UInt8], body_start: Int) raises -> ParsedResponse:
     """Build a ParsedResponse from owned headers.
 
     Copies header entries into a fresh Dict (Dict is non-copyable and can't be moved out of a struct
@@ -199,8 +195,7 @@ def _extract_body(
     chunked: Bool,
     content_length: Optional[Int],
 ) raises -> List[UInt8]:
-    """Extract the response body. ``chunked`` and ``content_length`` are pre-parsed framing values.
-    """
+    """Extract the response body. ``chunked`` and ``content_length`` are pre-parsed framing values."""
     if chunked:
         return _dechunk(raw, body_start)
 
@@ -258,8 +253,7 @@ struct _LineRead:
 
 
 def _read_line(raw: List[UInt8], start: Int) -> _LineRead:
-    """Read bytes until \n, not including the trailing \r\n. Returns the line and the position after \n.
-    """
+    """Read bytes until \n, not including the trailing \r\n. Returns the line and the position after \n."""
     var line = List[UInt8]()
     var pos = start
     var total = len(raw)

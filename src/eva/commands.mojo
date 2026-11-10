@@ -37,9 +37,7 @@ def raw_call(client: Client, args: Args, ui: Out) raises:
             "format",
         ]
     )
-    var method = args.need(
-        1, "method, e.g. eva call CmfTask.count --kwargs '{}'"
-    )
+    var method = args.need(1, "method, e.g. eva call CmfTask.count --kwargs '{}'")
     var check = JsonDoc()
     var kwargs = args.get("kwargs", "k")
     var a = args.get("args")

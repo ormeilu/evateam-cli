@@ -162,9 +162,7 @@ def test_build_get_request_ipv6_host_brackets_host_header() raises:
     var headers: Dict[String, String] = {"User-Agent": "test/1.0"}
     var req = build_request("GET", u, headers, "")
     assert_true(_contains(req, "GET /a?x=1 HTTP/1.1"), "request line")
-    assert_true(
-        _contains(req, "Host: [::1]:9090"), "bracketed IPv6 host header"
-    )
+    assert_true(_contains(req, "Host: [::1]:9090"), "bracketed IPv6 host header")
 
 
 # --- DNS resolver: IPv4 / IPv6 literal detection (no network) ---
@@ -216,10 +214,7 @@ def test_build_post_request_sets_content_length() raises:
 
 
 def test_parse_response_content_length() raises:
-    var raw = _to_bytes(
-        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length:"
-        " 5\r\n\r\nhello"
-    )
+    var raw = _to_bytes("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 5\r\n\r\nhello")
     var pr = parse_response(raw)
     assert_equal(pr.status_code, 200)
     assert_equal(pr.reason, "OK")
@@ -228,10 +223,7 @@ def test_parse_response_content_length() raises:
 
 
 def test_parse_response_chunked() raises:
-    var raw = _to_bytes(
-        "HTTP/1.1 200 OK\r\nTransfer-Encoding:"
-        " chunked\r\n\r\n5\r\nHello\r\n6\r\n World\r\n0\r\n\r\n"
-    )
+    var raw = _to_bytes("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nHello\r\n6\r\n World\r\n0\r\n\r\n")
     var pr = parse_response(raw)
     assert_equal(pr.status_code, 200)
     assert_equal(Int(len(pr.body[])), 11)
@@ -244,12 +236,6 @@ def test_parse_response_404() raises:
     assert_equal(pr.reason, "Not Found")
 
 
-
-
-
-
-
-
 # --- typed-exception classification ---
 #
 # These exercise the new typed-Error-struct model at the leaf functions: each typed leaf
@@ -260,14 +246,12 @@ def test_parse_response_404() raises:
 
 
 def _classify_parse_error(url: String) raises -> String:
-    """Run parse_url (which raises InvalidURL / UnsupportedScheme) and classify the caught error.
-    """
+    """Run parse_url (which raises InvalidURL / UnsupportedScheme) and classify the caught error."""
     try:
         _ = parse_url(url)
         return ""  # unreachable — url is malformed
     except e:
         return exception_kind(e)
-
 
 
 def _classify_raise_for_status(status_code: Int) raises -> String:
@@ -282,9 +266,7 @@ def _classify_raise_for_status(status_code: Int) raises -> String:
 
 def test_parse_ftp_scheme_classifies_unsupported() raises:
     # UnsupportedScheme is a typed leaf in parse_url.
-    assert_equal(
-        _classify_parse_error("ftp://example.com"), "UnsupportedScheme"
-    )
+    assert_equal(_classify_parse_error("ftp://example.com"), "UnsupportedScheme")
 
 
 def test_parse_missing_scheme_classifies_invalid_url() raises:
@@ -294,10 +276,7 @@ def test_parse_missing_scheme_classifies_invalid_url() raises:
 
 
 def test_parse_bad_port_classifies_invalid_url() raises:
-    assert_equal(
-        _classify_parse_error("http://example.com:notaport/"), "InvalidURL"
-    )
-
+    assert_equal(_classify_parse_error("http://example.com:notaport/"), "InvalidURL")
 
 
 def test_raise_for_status_classifies_http_error() raises:

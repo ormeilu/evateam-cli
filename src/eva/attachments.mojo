@@ -52,18 +52,14 @@ def attachment_kwargs(ref_: String, fields: String) raises -> String:
     var d = JsonDoc()
     var kw = d.object()
     var v = d.string(ref_)
-    var f = d.triple(
-        "id" if ref_.startswith("CmfAttachment:") else "code", "==", v
-    )
+    var f = d.triple("id" if ref_.startswith("CmfAttachment:") else "code", "==", v)
     d.set(kw, "filter", f)
     var fl = d.str_array(split_csv(fields))
     d.set(kw, "fields", fl)
     return d.dump(kw)
 
 
-def get_attachment(
-    client: Client, ref_: String, fields: String
-) raises -> Reply:
+def get_attachment(client: Client, ref_: String, fields: String) raises -> Reply:
     var r = client.call("CmfAttachment.get", attachment_kwargs(ref_, fields))
     if r.doc.is_null(r.result) or r.doc.kind(r.result) != J_OBJ:
         raise Error(ref_ + ": no such attachment, or no access to it")
@@ -73,12 +69,8 @@ def get_attachment(
 def task_attachments(client: Client, args: Args, ui: Out) raises:
     args.check_known(["json", "format", "verbose", "v"])
     var code = args.need(2, "task code")
-    var cls = "CmfDocument" if (
-        args.pos(0) == "doc" or args.pos(0) == "docs"
-    ) else "CmfTask"
-    var task_id = code if code.startswith("CmfComment:") else id_of(
-        client, cls, "code", code
-    )
+    var cls = "CmfDocument" if (args.pos(0) == "doc" or args.pos(0) == "docs") else "CmfTask"
+    var task_id = code if code.startswith("CmfComment:") else id_of(client, cls, "code", code)
     var d = JsonDoc()
     var kw = d.object()
     var v = d.string(task_id)
@@ -95,31 +87,13 @@ def task_attachments(client: Client, args: Args, ui: Out) raises:
     var n = r.doc.len(r.result)
     for i in range(n):
         var a = r.doc.at(r.result, i)
-        var size = (
-            Int(r.doc.text_at(a, "st_size")) if r.doc.text_at(a, "st_size")
-            != "" else 0
-        )
-        var line = (
-            ui.accent(pad(r.doc.text_at(a, "code"), 12))
-            + " "
-            + pad(human_size(size), 8)
-        )
-        line += (
-            " "
-            + String(r.doc.text_at(a, "cmf_created_at")[byte=0:10])
-            + "  "
-            + r.doc.text_at(a, "file_name")
-        )
+        var size = Int(r.doc.text_at(a, "st_size")) if r.doc.text_at(a, "st_size") != "" else 0
+        var line = ui.accent(pad(r.doc.text_at(a, "code"), 12)) + " " + pad(human_size(size), 8)
+        line += " " + String(r.doc.text_at(a, "cmf_created_at")[byte=0:10]) + "  " + r.doc.text_at(a, "file_name")
         if r.doc.text_at(a, "embedded") == "true":
             line += ui.dim("  (image in the text)")
         print(line)
-    print(
-        ui.dim(
-            String(n)
-            + (" attachment" if n == 1 else " attachments")
-            + "; read one: eva attachment get ATT-…"
-        )
-    )
+    print(ui.dim(String(n) + (" attachment" if n == 1 else " attachments") + "; read one: eva attachment get ATT-…"))
 
 
 def attachment_get(client: Client, args: Args, ui: Out) raises:
@@ -131,48 +105,23 @@ def attachment_get(client: Client, args: Args, ui: Out) raises:
         return
     ref d = r.doc
     var a = r.result
-    var size = (
-        Int(d.text_at(a, "st_size")) if d.text_at(a, "st_size") != "" else 0
-    )
+    var size = Int(d.text_at(a, "st_size")) if d.text_at(a, "st_size") != "" else 0
     print(ui.bold(d.text_at(a, "code")) + "  " + d.text_at(a, "file_name"))
-    print(
-        "type: "
-        + d.text_at(a, "file_type")
-        + "   size: "
-        + human_size(size)
-        + "   on: "
-        + d.text_at(a, "parent_id")
-    )
-    print(
-        ui.dim(
-            "added: "
-            + d.text_at(a, "cmf_created_at")
-            + " by "
-            + d.text_at(a, "cmf_author.name")
-        )
-    )
+    print("type: " + d.text_at(a, "file_type") + "   size: " + human_size(size) + "   on: " + d.text_at(a, "parent_id"))
+    print(ui.dim("added: " + d.text_at(a, "cmf_created_at") + " by " + d.text_at(a, "cmf_author.name")))
     var text = d.text_at(a, "text")
     if String(text.strip()) == "":
-        print(
-            ui.dim(
-                "no extracted text; get the file: eva attachment download "
-                + d.text_at(a, "code")
-            )
-        )
+        print(ui.dim("no extracted text; get the file: eva attachment download " + d.text_at(a, "code")))
         return
     # Plain text, not HTML: escape it so the fence's HTML reading keeps it as is.
-    var esc = String(
-        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-    )
+    var esc = String(text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
     ui.untrusted(d.text_at(a, "code") + "/text", esc.replace("\n", "<br>"))
 
 
 def _write_stdout(data: List[UInt8]) raises:
     var done = 0
     while done < len(data):
-        var n = external_call["write", Int](
-            c_int(1), data.unsafe_ptr().unsafe_offset(done), len(data) - done
-        )
+        var n = external_call["write", Int](c_int(1), data.unsafe_ptr().unsafe_offset(done), len(data) - done)
         if n <= 0:
             raise Error("cannot write to stdout")
         done += n
@@ -180,51 +129,32 @@ def _write_stdout(data: List[UInt8]) raises:
 
 def _fetch(client: Client, d: JsonDoc, a: Int) raises -> List[UInt8]:
     """The bytes of attachment row `a`, refusing a short read or a refusal."""
-    var expected = (
-        Int(d.text_at(a, "st_size")) if d.text_at(a, "st_size") != "" else -1
-    )
+    var expected = Int(d.text_at(a, "st_size")) if d.text_at(a, "st_size") != "" else -1
     var data = client.download(d.text_at(a, "url"))
     # A refusal comes back as a short JSON reply with HTTP 200. Files uploaded
     # through the API keep st_size 0, so a size of 0 says nothing.
     var head = String(from_utf8_lossy=Span(data)[0 : min(len(data), 200)])
     if expected > 0 and len(data) != expected:
         raise Error(
-            "got "
-            + String(len(data))
-            + " bytes instead of "
-            + String(expected)
-            + "; the server said: "
-            + clean(head)
+            "got " + String(len(data)) + " bytes instead of " + String(expected) + "; the server said: " + clean(head)
         )
-    if (
-        expected <= 0
-        and head.startswith('{"error"')
-        and not d.text_at(a, "file_type").lower().endswith("json")
-    ):
+    if expected <= 0 and head.startswith('{"error"') and not d.text_at(a, "file_type").lower().endswith("json"):
         raise Error("the server refused the download: " + clean(head))
     return data^
 
 
 def attachment_download(client: Client, args: Args, ui: Out) raises:
     args.check_known(["output", "o", "force", "verbose", "v"])
-    var ref_ = args.need(
-        2, "attachment code, e.g. eva attachment download ATT-1234"
-    )
+    var ref_ = args.need(2, "attachment code, e.g. eva attachment download ATT-1234")
     var r = get_attachment(client, ref_, ATTACHMENT_FIELDS)
     ref d = r.doc
     var a = r.result
     var code = d.text_at(a, "code")
     var out = args.get("output", "o")
     if out == "":
-        out = safe_file_name(
-            d.text_at(a, "file_name"), code + d.text_at(a, "file_type")
-        )
+        out = safe_file_name(d.text_at(a, "file_name"), code + d.text_at(a, "file_type"))
     if out != "-" and exists(out) and not args.has("force"):
-        raise Error(
-            out
-            + " already exists; pass --force to overwrite it, or -o another"
-            " path"
-        )
+        raise Error(out + " already exists; pass --force to overwrite it, or -o another path")
     var data = _fetch(client, d, a)
     if out == "-":
         _write_stdout(data)
@@ -265,20 +195,12 @@ def doc_download_all(client: Client, args: Args, ui: Out) raises:
     for i in range(n):
         var a = d.at(rows.result, i)
         var att = d.text_at(a, "code")
-        var name = safe_file_name(
-            d.text_at(a, "file_name"), att + d.text_at(a, "file_type")
-        )
+        var name = safe_file_name(d.text_at(a, "file_name"), att + d.text_at(a, "file_type"))
         if name in taken:
             name = att + "-" + name
         taken[name] = True
         if exists(dir + "/" + name) and not args.has("force"):
-            raise Error(
-                dir
-                + "/"
-                + name
-                + " already exists; pass --force to overwrite it, or -o"
-                " another directory"
-            )
+            raise Error(dir + "/" + name + " already exists; pass --force to overwrite it, or -o another directory")
         names.append(name)
     makedirs(dir, exist_ok=True)
     var total = 0
@@ -306,15 +228,7 @@ def doc_download_all(client: Client, args: Args, ui: Out) raises:
             f.write_bytes(Span(data))
         total += len(data)
         print("saved " + ui.bold(path) + " (" + human_size(len(data)) + ")")
-    print(
-        ui.dim(
-            String(n)
-            + (" file, " if n == 1 else " files, ")
-            + human_size(total)
-            + " in "
-            + dir
-        )
-    )
+    print(ui.dim(String(n) + (" file, " if n == 1 else " files, ") + human_size(total) + " in " + dir))
 
 
 def attachment_delete(client: Client, args: Args, ui: Out) raises:
@@ -323,9 +237,7 @@ def attachment_delete(client: Client, args: Args, ui: Out) raises:
     var r = get_attachment(client, code, ATTACHMENT_FIELDS)
     var id = r.doc.text_at(r.result, "id")
     var file_name = r.doc.text_at(r.result, "file_name")
-    var what = (
-        code + "  " + file_name + " on " + r.doc.text_at(r.result, "parent_id")
-    )
+    var what = code + "  " + file_name + " on " + r.doc.text_at(r.result, "parent_id")
     # EvaTeam keeps files by name per parent: deleting one attachment removes
     # the bytes of every other attachment there with the same name.
     var siblings = collect_rows(
@@ -343,49 +255,23 @@ def attachment_delete(client: Client, args: Args, ui: Out) raises:
     )
     var shared = List[String]()
     for i in range(siblings.doc.len(siblings.result)):
-        shared.append(
-            siblings.doc.text_at(siblings.doc.at(siblings.result, i), "code")
-        )
+        shared.append(siblings.doc.text_at(siblings.doc.at(siblings.result, i), "code"))
     if len(shared) > 0:
         what += " (shares its file with " + ", ".join(shared) + ")"
         if not args.has("force"):
-            raise Error(
-                what
-                + "; removing it would remove their bytes too. Pass --force"
-                " to remove it anyway"
-            )
+            raise Error(what + "; removing it would remove their bytes too. Pass --force to remove it anyway")
     if not args.has("yes", "y"):
         if not stdin_is_tty():
-            raise Error(
-                "removing "
-                + what
-                + " needs confirmation: run it in a terminal, or pass --yes"
-            )
+            raise Error("removing " + what + " needs confirmation: run it in a terminal, or pass --yes")
         var answer = prompt_line("remove " + what + "? [y/N] ").lower()
-        if (
-            answer != "y"
-            and answer != "yes"
-            and answer != "д"
-            and answer != "да"
-        ):
+        if answer != "y" and answer != "yes" and answer != "д" and answer != "да":
             print("not removed")
             return
     _ = client.call("CmfAttachment.delete", "", "[" + quote_str(id) + "]")
-    var got = client.call(
-        "CmfAttachment.get", attachment_kwargs(id, "id,cmf_deleted")
-    )
-    if (
-        got.doc.kind(got.result) == J_OBJ
-        and got.doc.text_at(got.result, "cmf_deleted") != "true"
-    ):
-        raise Error(
-            code + ": delete returned, but the attachment is still visible"
-        )
-    print(
-        "removed "
-        + ui.bold(code)
-        + "; server deletion confirmed, not proof that stored bytes were erased"
-    )
+    var got = client.call("CmfAttachment.get", attachment_kwargs(id, "id,cmf_deleted"))
+    if got.doc.kind(got.result) == J_OBJ and got.doc.text_at(got.result, "cmf_deleted") != "true":
+        raise Error(code + ": delete returned, but the attachment is still visible")
+    print("removed " + ui.bold(code) + "; server deletion confirmed, not proof that stored bytes were erased")
 
 
 def _base_name(path: String) -> String:
@@ -405,11 +291,7 @@ def task_attach(client: Client, args: Args, ui: Out) raises:
     for path in paths:
         var name = _base_name(path)
         if name in names:
-            raise Error(
-                "two files in this batch have the same name "
-                + name
-                + "; attach them separately or rename one"
-            )
+            raise Error("two files in this batch have the same name " + name + "; attach them separately or rename one")
         names[name] = True
     # Read everything first: a missing file stops before anything is created.
     var contents = List[List[UInt8]]()
@@ -419,12 +301,8 @@ def task_attach(client: Client, args: Args, ui: Out) raises:
                 contents.append(f.read_bytes())
         except e:
             raise Error("cannot read " + p + ": " + String(e))
-    var cls = "CmfDocument" if (
-        args.pos(0) == "doc" or args.pos(0) == "docs"
-    ) else "CmfTask"
-    var task_id = code if code.startswith("CmfComment:") else id_of(
-        client, cls, "code", code
-    )
+    var cls = "CmfDocument" if (args.pos(0) == "doc" or args.pos(0) == "docs") else "CmfTask"
+    var task_id = code if code.startswith("CmfComment:") else id_of(client, cls, "code", code)
     # EvaTeam keeps a task's files by name: a second file with the same name
     # replaces the first one's bytes, and deleting either removes both.
     var existing = collect_rows(
@@ -439,10 +317,7 @@ def task_attach(client: Client, args: Args, ui: Out) raises:
         var name = _base_name(p)
         for j in range(existing.doc.len(existing.result)):
             var x = existing.doc.at(existing.result, j)
-            if (
-                existing.doc.text_at(x, "file_name") == name
-                or existing.doc.text_at(x, "name") == name
-            ):
+            if existing.doc.text_at(x, "file_name") == name or existing.doc.text_at(x, "name") == name:
                 if not force:
                     raise Error(
                         code
@@ -450,8 +325,7 @@ def task_attach(client: Client, args: Args, ui: Out) raises:
                         + name
                         + " ("
                         + existing.doc.text_at(x, "code")
-                        + "); a file of the same name would replace it. Rename"
-                        " the file, or pass --force to replace it"
+                        + "); a file of the same name would replace it. Rename the file, or pass --force to replace it"
                     )
     for i in range(len(paths)):
         var name = _base_name(paths[i])
@@ -462,14 +336,8 @@ def task_attach(client: Client, args: Args, ui: Out) raises:
         # The server checks the size against its limit before the upload.
         var size_node = d.number(len(contents[i]))
         d.set(kw, "size", size_node)
-        if preview_write(
-            args.has("dry-run"), "CmfAttachment.create", d.dump(kw)
-        ):
-            print(
-                "upload "
-                + paths[i]
-                + " follows after the server supplies its attachment URL"
-            )
+        if preview_write(args.has("dry-run"), "CmfAttachment.create", d.dump(kw)):
+            print("upload " + paths[i] + " follows after the server supplies its attachment URL")
             continue
         var created = client.call("CmfAttachment.create", d.dump(kw))
         var id = created.doc.text(created.result)
@@ -481,9 +349,7 @@ def task_attach(client: Client, args: Args, ui: Out) raises:
             # one that was there before (--force): deleting it would delete that.
             if not force:
                 try:
-                    _ = client.call(
-                        "CmfAttachment.delete", "", "[" + quote_str(id) + "]"
-                    )
+                    _ = client.call("CmfAttachment.delete", "", "[" + quote_str(id) + "]")
                 except:
                     pass
             raise Error(paths[i] + " was not attached: " + String(e))

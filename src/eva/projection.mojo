@@ -15,9 +15,7 @@ def copy_path(
             var item = src.at(node, i)
             var target: Int
             if dst.len(result) <= i:
-                target = (
-                    dst.array() if src.kind(item) == J_ARR else dst.object()
-                )
+                target = dst.array() if src.kind(item) == J_ARR else dst.object()
                 dst.push(result, target)
             else:
                 target = dst.at(result, i)
@@ -51,9 +49,7 @@ def path_parts(path: String) raises -> List[String]:
     return out^
 
 
-def project_json(
-    src: JsonDoc, root: Int, fields: List[String]
-) raises -> String:
+def project_json(src: JsonDoc, root: Int, fields: List[String]) raises -> String:
     var dst = JsonDoc()
     var result = dst.array() if src.kind(root) == J_ARR else dst.object()
     for field in fields:
@@ -61,9 +57,7 @@ def project_json(
     return dst.dump_pretty(result)
 
 
-def path_text(
-    src: JsonDoc, node: Int, parts: List[String], index: Int
-) raises -> String:
+def path_text(src: JsonDoc, node: Int, parts: List[String], index: Int) raises -> String:
     if src.kind(node) == J_ARR:
         var values = List[String]()
         for i in range(src.len(node)):
@@ -79,9 +73,4 @@ def column_text(src: JsonDoc, node: Int, path: String) raises -> String:
 
 
 def tsv_cell(value: String) -> String:
-    return (
-        value.replace("\\", "\\\\")
-        .replace("\t", "\\t")
-        .replace("\r", "\\r")
-        .replace("\n", "\\n")
-    )
+    return value.replace("\\", "\\\\").replace("\t", "\\t").replace("\r", "\\r").replace("\n", "\\n")

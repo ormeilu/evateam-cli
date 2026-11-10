@@ -73,9 +73,9 @@ def test_take_removes_global_option() raises:
 
 
 def test_unicode_values() raises:
-    var a = Args(["-q", "Иванов", "--set={\"a\": \"б\"}"])
+    var a = Args(["-q", "Иванов", '--set={"a": "б"}'])
     assert_equal(a.get("query", "q"), "Иванов")
-    assert_equal(a.get("set"), "{\"a\": \"б\"}")
+    assert_equal(a.get("set"), '{"a": "б"}')
 
 
 def test_values_and_switches_do_not_swallow_each_other() raises:

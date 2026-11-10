@@ -10,9 +10,7 @@ from eva.dates import parse_day, parse_hm
 def current_login(client: Client, login: String) raises -> String:
     if login != "me":
         return login
-    var r = client.call(
-        "CmfPerson.get_current_user", '{"fields":["id","login"]}'
-    )
+    var r = client.call("CmfPerson.get_current_user", '{"fields":["id","login"]}')
     var value = r.doc.text_at(r.result, "login")
     if value == "":
         raise Error("current user has no readable login")
@@ -21,9 +19,7 @@ def current_login(client: Client, login: String) raises -> String:
 
 def person_id(client: Client, login: String) raises -> String:
     if login == "" or login == "me":
-        var current = client.call(
-            "CmfPerson.get_current_user", '{"fields":["id"]}'
-        )
+        var current = client.call("CmfPerson.get_current_user", '{"fields":["id"]}')
         var id = current.doc.text_at(current.result, "id")
         if id == "":
             raise Error("current user has no readable id")
@@ -71,17 +67,9 @@ def priority_value(value: String) raises -> Int:
     var want = value.lower()
     for i in range(len(aliases)):
         var code = String(i - 2)
-        if (
-            want == code
-            or want == aliases[i]
-            or want == priority_caption(code).lower()
-        ):
+        if want == code or want == aliases[i] or want == priority_caption(code).lower():
             return i - 2
-    raise Error(
-        "unknown priority "
-        + value
-        + "; use -2..3, lowest, low, normal, high, critical or blocker"
-    )
+    raise Error("unknown priority " + value + "; use -2..3, lowest, low, normal, high, critical or blocker")
 
 
 def valid_datetime(value: String) raises:
@@ -103,11 +91,7 @@ def task_options(client: Client, args: Args, mut d: JsonDoc, kw: Int) raises:
     value = args.get("story-points")
     if value != "":
         var n = d.parse(value)
-        if (
-            d.kind(n) != J_NUM
-            or not isfinite(Float64(value))
-            or Float64(value) < 0
-        ):
+        if d.kind(n) != J_NUM or not isfinite(Float64(value)) or Float64(value) < 0:
             raise Error("--story-points requires a non-negative finite number")
         d.set(kw, "agile_story_points", n)
     var options: List[String] = ["plan-start", "plan-end", "alarm"]
@@ -155,10 +139,7 @@ def task_options(client: Client, args: Args, mut d: JsonDoc, kw: Int) raises:
                 if value == "none":
                     clear = True
                 else:
-                    var n = d.string(
-                        person_id(client, value) if option
-                        == "co-assignee" else value
-                    )
+                    var n = d.string(person_id(client, value) if option == "co-assignee" else value)
                     d.push(values, n)
         if clear and d.len(values) > 0:
             raise Error("--" + option + " none cannot be mixed with values")
