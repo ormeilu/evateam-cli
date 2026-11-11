@@ -16,7 +16,7 @@
 from std.ffi import external_call, OwnedDLHandle, c_int
 from std.memory import OwnedPointer
 from std.memory.alloc import unsafe_alloc
-from .exceptions import ConnectionError, SSLError
+from .exceptions import ConnectionError, SSLError, NO_RESPONSE
 
 comptime CHUNK_SIZE = 8192
 
@@ -105,7 +105,7 @@ struct KeptAliveConn(Movable):
             else:
                 sent = external_call["send", c_int](self.fd, ptr.unsafe_offset(offset), c_int(remaining), c_int(0))
             if sent <= c_int(0):
-                raise ConnectionError("send failed on pooled connection")
+                raise ConnectionError("send failed before the whole request went out")
             offset += Int(sent)
             remaining -= Int(sent)
 
@@ -126,8 +126,9 @@ struct KeptAliveConn(Movable):
         or bodiless) AND the server did not send ``Connection: close``. When neither framing is
         present, falls back to read-to-EOF and marks the connection not reusable.
 
-        Raises ``ConnectionError`` if the peer closes before any headers arrive (a stale pooled
-        connection) so the caller can retry on a fresh socket.
+        Raises ``ConnectionError`` with ``NO_RESPONSE`` when the read ends before the header block
+        does: the peer closed the connection, or SO_RCVTIMEO expired. On a reused connection
+        that usually means it went stale; on a fresh one the server may have acted on the request.
         """
         reusable = False
         var raw = List[UInt8]()
@@ -140,9 +141,8 @@ struct KeptAliveConn(Movable):
             if n <= c_int(0):
                 buf.unsafe_free()
                 if len(raw) == 0:
-                    raise ConnectionError("pooled connection closed before response")
-                # Partial headers then EOF — malformed; let the caller's parser reject it.
-                return raw^
+                    raise ConnectionError(NO_RESPONSE + ": the connection closed or timed out before any reply")
+                raise ConnectionError(NO_RESPONSE + ": the reply ended inside its headers")
             for i in range(Int(n)):
                 raw.append(buf[unsafe_offset=i])
             hdr_end = _find_crlf_crlf(raw)

@@ -32,6 +32,7 @@ class Features(unittest.TestCase):
     def setUp(self):
         for key, value in copy.deepcopy(self.initial).items():
             setattr(mock_server, key, value)
+        mock_server.DROP_REPLY.clear()
         self.log.write_text("")
 
     @classmethod
@@ -146,6 +147,31 @@ class Features(unittest.TestCase):
             self.assertIn("not found", self.run_cli(group, "add", code, "DEV-404", ok=False))
         self.assertIn("not a sprint", self.run_cli("sprint", "get", "REL-1", ok=False))
         self.run_cli("sprint", "list", "-s", "bad", ok=False)
+
+    def test_lost_reply_to_a_write_is_not_called_unreachable(self):
+        mock_server.DROP_REPLY["CmfTask.create"] = 1
+        out = self.run_cli("task", "create", "-p", "DEV", "-t", "Lost", ok=False)
+        self.assertIn("CmfTask.create was sent to", out)
+        self.assertIn("may have been applied", out)
+        # Sent once, not retried.
+        self.assertEqual(len(self.requests("CmfTask.create")), 1)
+        mock_server.DROP_REPLY["CmfTask.update"] = 1
+        out = self.run_cli("call", "CmfTask.update", "--kwargs", '{"name": "x"}', "--args", '["CmfTask:1"]', ok=False)
+        self.assertIn("may have been applied", out)
+        self.assertNotIn("cannot reach", out)
+        self.assertEqual(len(self.requests("CmfTask.update")), 1)
+
+    def test_lost_reply_to_a_read_is_retried_once(self):
+        mock_server.DROP_REPLY["CmfList.get"] = 1
+        self.assertIn("Release 1", self.run_cli("release", "get", "REL-1"))
+        self.assertEqual(len(self.requests("CmfList.get")), 2)
+        self.log.write_text("")
+        mock_server.DROP_REPLY["CmfList.get"] = 2
+        out = self.run_cli("release", "get", "REL-1", ok=False)
+        self.assertIn("CmfList.get got no reply", out)
+        self.assertIn("tried twice", out)
+        self.assertNotIn("may have been applied", out)
+        self.assertEqual(len(self.requests("CmfList.get")), 2)
 
     def test_read_history_time_dev_notifications(self):
         self.assertIn("In Review → Done", self.run_cli("task", "history", "DEV-1"))

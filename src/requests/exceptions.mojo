@@ -41,6 +41,11 @@ comptime TOO_MANY_REDIRECTS_PREFIX = "TooManyRedirects"
 comptime URL_REQUIRED_PREFIX = "URLRequired"
 comptime PROXY_PREFIX = "ProxyError"
 
+# What a ConnectionError says when the whole request went out and no complete reply came back.
+# The server may have acted on such a request, so a caller must not treat it like a failed
+# connect: a retry can apply a write twice.
+comptime NO_RESPONSE = "no complete response after the request was sent"
+
 
 # --- Structs --------------------------------------------------------------
 

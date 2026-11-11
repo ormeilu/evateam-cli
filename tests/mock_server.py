@@ -12,6 +12,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 TOKEN = "test-token"
 DROP_UPDATES = False
+# Method -> how many of its next replies to drop: the request is handled, then
+# the connection closes without an answer, as when a reply is lost on the way.
+DROP_REPLY = {}
 
 TRANS = [
     {"id": "CmfTrans:done", "name": "Done", "status_to_id": "CmfStatus:3",
@@ -238,6 +241,11 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def reply(self, code, body):
+        method = getattr(self, "rpc_method", None)
+        if DROP_REPLY.get(method, 0) > 0:
+            DROP_REPLY[method] -= 1
+            self.close_connection = True
+            return
         data = json.dumps(body, ensure_ascii=False).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
@@ -293,6 +301,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(401, {"error": {"code": 401, "message": "unauthorized"}})
         req = json.loads(body)
         method, kw = req["method"], req.get("kwargs", {})
+        self.rpc_method = method
         flt = kw.get("filter")
         if method == "CmfTask.create_task_from_template":
             return self.reply(200, {"result": "CmfTask:3"})
