@@ -21,6 +21,7 @@ from eva.json import JsonDoc, NO_NODE, clean, quote
 from eva.keyring import keyring_get, keyring_name
 from eva.profiles import check_profile_name, load_profiles
 from requests._dns import _cstr
+from requests.exceptions import NO_RESPONSE, READ_TIMEOUT_PREFIX
 
 # Where systems keep the PEM bundle of trusted CAs, most common first.
 comptime CA_BUNDLES = (
@@ -47,6 +48,63 @@ def ca_bundle() -> String:
         if exists(String(path)):
             return String(path)
     return ""
+
+
+comptime CALL_TIMEOUT = 30
+"""Seconds eva waits for the reply to one API call."""
+
+comptime MAYBE_APPLIED = "it may have been applied"
+"""What the message for a write whose reply was lost says, for callers that
+add how to check."""
+
+comptime READ_ACTIONS = "get,list,count,get_meta,get_current_user"
+"""Method names after the last dot that only read."""
+
+
+def is_read_method(method: String) -> Bool:
+    """Whether a JSON-RPC method only reads (Class.get, .list, .count and the
+    like). Anything else counts as a write, whatever `eva call` is given."""
+    var dot = method.rfind(".")
+    if dot < 0:
+        return False
+    var action = String(method[byte = dot + 1 :])
+    for a in READ_ACTIONS.split(","):
+        if action == String(a):
+            return True
+    return False
+
+
+def reply_lost(err: String) -> Bool:
+    """Whether a transport error came after the whole request had gone out,
+    so the server may have acted on it."""
+    return err.find(NO_RESPONSE) >= 0 or err.startswith(READ_TIMEOUT_PREFIX)
+
+
+def timed_out(seconds: Float64) -> Bool:
+    return seconds >= Float64(CALL_TIMEOUT - 1)
+
+
+def transport_failure(url: String, method: String, err: String, seconds: Float64, tries: Int) -> String:
+    """The message for a call that got no reply. A connect that failed sent
+    nothing; a reply lost after the request went out may hide an applied write,
+    and saying `cannot reach` there invites a retry that applies it twice."""
+    if not reply_lost(err):
+        return "cannot reach " + url + ": " + err
+    var why = String("the connection closed without a reply")
+    if timed_out(seconds):
+        why = "no reply within " + String(CALL_TIMEOUT) + " s"
+    if is_read_method(method):
+        return method + " got no reply from " + url + ": " + why + (" (tried twice)" if tries > 1 else "")
+    return (
+        method
+        + " was sent to "
+        + url
+        + ", but "
+        + why
+        + "; "
+        + MAYBE_APPLIED
+        + ", so check before running it again (a retry can apply it twice)"
+    )
 
 
 def new_callid() -> String:
@@ -304,6 +362,15 @@ def load_config(profile_flag: String = "") raises -> Config:
     return cfg^
 
 
+@fieldwise_init
+struct RawReply(Movable):
+    """One HTTP exchange with /api/, before the JSON-RPC envelope is read."""
+
+    var status: Int
+    var text: String
+    var location: String
+
+
 struct Reply(Movable):
     var doc: JsonDoc
     var result: Int
@@ -468,35 +535,34 @@ struct Client(Movable):
         body += "}"
         if self.verbose:
             print("→ POST", self.cfg.url + "/api/", body, file=stderr)
-
-        var headers = Dict[String, String]()
-        headers["Authorization"] = "Bearer " + self.cfg.token
-        headers["User-Agent"] = "eva-cli"
-        var ca: Optional[String] = None
-        if self.ca != "":
-            ca = self.ca
-        var status: Int
-        var text: String
-        var location = String()
-        try:
-            # Redirects are not followed: the token is meant for this address
-            # alone, and a JSON-RPC endpoint has no reason to move.
-            var session = requests.Session()
-            var resp = session.post(
-                self.cfg.url + "/api/",
-                json=body,
-                headers=headers^,
-                timeout=30.0,
-                verify=not self.cfg.insecure,
-                ca_bundle=ca,
-                allow_redirects=False,
-            )
-            status = resp.status_code
-            if resp.headers.contains("location"):
-                location = resp.headers["location"]
-            text = resp.text()
-        except e:
-            raise Error("cannot reach " + self.cfg.url + ": " + String(e))
+        # A read whose reply was lost is sent once more on a fresh connection;
+        # a write is not, since the server may have applied it.
+        var tries = 2 if is_read_method(method) else 1
+        var attempt = 0
+        var raw = RawReply(0, String(), String())
+        while True:
+            attempt += 1
+            var started = perf_counter_ns()
+            var failed = False
+            var err = String()
+            try:
+                raw = self._post_api(body)
+            except e:
+                failed = True
+                err = String(e)
+            if not failed:
+                break
+            var seconds = Float64(Int(perf_counter_ns() - started)) / 1e9
+            if self.verbose:
+                print("← failed:", err, file=stderr)
+            if reply_lost(err) and attempt < tries and not timed_out(seconds):
+                if self.verbose:
+                    print("→ POST again on a fresh connection (a read)", file=stderr)
+                continue
+            raise Error(transport_failure(self.cfg.url, method, err, seconds, attempt))
+        var status = raw.status
+        var text = raw.text
+        var location = raw.location
         if status >= 300 and status < 400:
             raise Error(
                 self.cfg.url
@@ -523,12 +589,15 @@ struct Client(Movable):
         try:
             root = doc.parse(text)
         except e:
-            raise Error(
+            var msg = (
                 "HTTP "
                 + String(status)
                 + ", reply is not JSON: "
                 + clean(String(text[byte = 0 : min(text.byte_length(), 200)]))
             )
+            if not is_read_method(method):
+                msg += "; " + MAYBE_APPLIED + ", so check before running it again"
+            raise Error(msg)
         var err = doc.get(root, "error")
         if err != NO_NODE and not doc.is_null(err):
             var msg = doc.text_at(err, "message")
@@ -544,3 +613,28 @@ struct Client(Movable):
             raise Error("HTTP " + String(status) + " from " + method)
         var result = doc.get(root, "result")
         return Reply(doc^, result)
+
+    def _post_api(self, body: String) raises -> RawReply:
+        """One POST of `body` to /api/, on a connection of its own."""
+        var headers = Dict[String, String]()
+        headers["Authorization"] = "Bearer " + self.cfg.token
+        headers["User-Agent"] = "eva-cli"
+        var ca: Optional[String] = None
+        if self.ca != "":
+            ca = self.ca
+        # Redirects are not followed: the token is meant for this address
+        # alone, and a JSON-RPC endpoint has no reason to move.
+        var session = requests.Session()
+        var resp = session.post(
+            self.cfg.url + "/api/",
+            json=body,
+            headers=headers^,
+            timeout=Float64(CALL_TIMEOUT),
+            verify=not self.cfg.insecure,
+            ca_bundle=ca,
+            allow_redirects=False,
+        )
+        var location = String()
+        if resp.headers.contains("location"):
+            location = resp.headers["location"]
+        return RawReply(resp.status_code, resp.text(), location)

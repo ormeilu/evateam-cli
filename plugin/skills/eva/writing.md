@@ -37,6 +37,21 @@ creates the subtask under the epic and sets the parent task in a second
 request. If EvaTeam still ends up with a different parent, eva prints
 `note: EvaTeam did not keep …`; check the task with `eva task get`.
 
+## When a write gets no reply
+
+```text
+eva: CmfList.create was sent to https://…, but the connection closed without a reply;
+it may have been applied, so check before running it again (a retry can apply it twice)
+```
+
+The request reached the server and the answer was lost on the way back. Do not
+run the command again yet: look first (`eva task get`, `eva release list -p
+PROJ`), because a second create makes a duplicate. `no reply within 30 s` in
+the same message means the server took longer than eva waits, which can also
+end in an applied write. `cannot reach …` is different: nothing was sent, and
+running it again is safe. A read that loses its reply is sent once more on its
+own; `got no reply … (tried twice)` means both tries failed.
+
 ## Attaching files
 
 ```bash
