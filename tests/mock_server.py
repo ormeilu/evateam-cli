@@ -15,6 +15,13 @@ DROP_UPDATES = False
 # Method -> how many of its next replies to drop: the request is handled, then
 # the connection closes without an answer, as when a reply is lost on the way.
 DROP_REPLY = {}
+LOGIC_TYPES = [
+    {"id": "CmfLogicType:bug", "code": "task.bug:default", "name": "Bug"},
+    {"id": "CmfLogicType:sub", "code": "task.sub:default", "name": "Подзадача"},
+    {"id": "CmfLogicType:doc", "code": "document.base:default", "name": "Документ"},
+    {"id": "CmfLogicType:sprint", "code": "list.agile_sprint:default", "name": "Спринт"},
+    {"id": "CmfLogicType:release", "code": "list.release:default", "name": "Релиз"},
+]
 
 TRANS = [
     {"id": "CmfTrans:done", "name": "Done", "status_to_id": "CmfStatus:3",
@@ -333,6 +340,7 @@ class Handler(BaseHTTPRequestHandler):
             "CmfChecklist": CHECKLISTS,
             "CmfChecklistItem": CHECK_ITEMS,
             "CmfList": LISTS,
+            "CmfLogicType": LOGIC_TYPES,
             "CmfStatusHistory": [{"id": "CmfStatusHistory:1", "obj_code": "DEV-1", "from_status_name": "In Review", "to_status_name": "Done", "cmf_created_at": "2026-11-06", "cmf_author": {"login": "me@example.ru"}}],
             "CmfGitRepo": [{"id": "CmfGitRepo:1", "code": "GRP-1", "name": "service", "url": "ssh://git.example/service"}],
             "CmfNotify": [{"id": "CmfNotify:1", "code": "NTF-1", "name": "assigned you", "obj_code": "DEV-1", "person_id": "CmfPerson:me", "confirmed": False, "cmf_created_at": "2026-11-06"}],
@@ -347,13 +355,35 @@ class Handler(BaseHTTPRequestHandler):
             lo, hi = kw.get("slice", [0, 10000])
             result = len(rows) if action == "count" else ((rows[0] if rows else None) if action == "get" else rows[lo:hi])
             return self.reply(200, {"result": result})
-        if method in ("CmfTask.lists.append", "CmfTask.fix_versions.append"):
+        if method.startswith(("CmfTask.lists.", "CmfTask.fix_versions.")) and action in ("append", "remove"):
             task = next(t for t in TASKS if t["id"] == req["args"][0])
             values = task.setdefault(method.split(".")[1], [])
-            row = next(r for r in LISTS if r["id"] == req["args"][1])
-            if row not in values:
-                values.append(row)
+            if action == "append":
+                row = next(r for r in LISTS if r["id"] == req["args"][1])
+                if row not in values:
+                    values.append(row)
+            else:
+                values[:] = [r for r in values if r["id"] != req["args"][1]]
             return self.reply(200, {"result": True})
+        if method in ("CmfList.create", "CmfList.update"):
+            if action == "create":
+                kind = next(t["code"] for t in LOGIC_TYPES if t["id"] == kw["logic_type"])
+                n = len(LISTS) + 1
+                row = {"id": f"CmfList:{n}", "code": f"{'SPR' if 'sprint' in kind else 'REL'}-{n}",
+                       "logic_type": {"code": kind}, "project": {"code": "DEV"}, "cache_status_type": "OPEN"}
+                LISTS.append(row)
+                kw = {k: v for k, v in kw.items() if k not in ("parent", "logic_type")}
+            else:
+                row = next((r for r in LISTS if r["id"] == req["args"][0]), None)
+                if row is None:
+                    return self.reply(200, {"abort": "Объект не найден"})
+            row.update(kw)
+            # Like EvaTeam, plan dates read back in ISO form with an offset.
+            for name in ("plan_start_date", "plan_end_date"):
+                value = row.get(name)
+                if isinstance(value, str) and len(value) in (10, 16):
+                    row[name] = (value + " 00:00")[:16].replace(" ", "T") + ":00+03:00"
+            return self.reply(200, {"result": row["id"] if action == "create" else True})
         if method.startswith("CmfDocument."):
             action = method.split(".")[1]
             if action == "create":
@@ -527,12 +557,6 @@ class Handler(BaseHTTPRequestHandler):
                                             "abort": "Это служебное поле, для присвоения ид используйте " + name})
             CREATED["parent_task_id"] = kw.get("epic") or kw.get("parent_task")
             return self.reply(200, {"jsonrpc": "2.2", "result": "CmfTask:3"})
-        if method == "CmfLogicType.list":
-            return self.reply(200, {"jsonrpc": "2.2", "result": [
-                {"id": "CmfLogicType:bug", "code": "task.bug:default", "name": "Bug"},
-                {"id": "CmfLogicType:sub", "code": "task.sub:default", "name": "Подзадача"},
-                {"id": "CmfLogicType:doc", "code": "document.base:default", "name": "Документ"},
-            ]})
         if method == "CmfTask.update":
             if DROP_UPDATES:
                 return self.reply(200, {"result": True})

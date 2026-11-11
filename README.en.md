@@ -273,10 +273,18 @@ verification off.
 | `eva doc watch CODE [--children] [--off] [--dry-run]` | follow a document as yourself; `--children` adds the pages under it, `--off` stops |
 | `eva sprint list [-p PROJ] [-s open\|closed\|all]` | discover sprint codes |
 | `eva sprint get CODE [-n 25] [--page 1]` | sprint metadata and its tasks |
-| `eva sprint add CODE TASK [TASK...]` | append tasks without replacing their other sprints |
+| `eva sprint create -p PROJ NAME [--start DATE] [--end DATE] [--text TEXT] [--dry-run]` | new sprint in a project; prints its code |
+| `eva sprint update CODE [--name NAME] [--start DATE\|none] [--end DATE\|none] [--text TEXT] [--dry-run]` | change its name, plan dates or description; `none` clears a date |
+| `eva sprint rename CODE NAME [--dry-run]` | short for `update --name` |
+| `eva sprint add CODE TASK [TASK...] [--dry-run]` | append tasks without replacing their other sprints |
+| `eva sprint remove CODE TASK [TASK...] [--dry-run]` | take tasks out of it, keeping their other sprints |
 | `eva release list [-p PROJ] [-s open\|closed\|all]` | discover release codes |
 | `eva release get CODE [-n 25] [--page 1]` | release metadata and its tasks |
-| `eva release add CODE TASK [TASK...]` | append tasks without replacing their other releases |
+| `eva release create -p PROJ NAME [--start DATE] [--end DATE] [--text TEXT] [--dry-run]` | new release in a project; prints its code |
+| `eva release update CODE [--name NAME] [--start DATE\|none] [--end DATE\|none] [--text TEXT] [--dry-run]` | change its name, plan dates or description; `none` clears a date |
+| `eva release rename CODE NAME [--dry-run]` | short for `update --name` |
+| `eva release add CODE TASK [TASK...] [--dry-run]` | append tasks without replacing their other releases |
+| `eva release remove CODE TASK [TASK...] [--dry-run]` | take tasks out of it, keeping their other releases |
 | `eva relation types [-n 25] [--page 1]` | relation codes and names |
 | `eva tag list [-q TEXT]` | tag names; task update --tag replaces the tag set |
 | `eva component list [-p PROJ] [-q TEXT]` | project-scoped components; task list --component NAME |
@@ -316,7 +324,7 @@ fields; `--json` without projection keeps the result.
 `task create/update` accept `--priority`, `--story-points`, `--plan-start`,
 `--plan-end`, `--alarm`, `--co-assignee`, `--waiting-for` and `--tag`.
 `--co-assignee` and `--tag` replace the set; `none` clears it. Repeated flags
-supply several values. Sprint/release `add` appends instead of replacing.
+supply several values. Sprint/release `add` and `remove` change one membership and keep the others.
 
 Planned dates are written to the task card. The Gantt chart keeps its own
 schedule, aligned to the working calendar, and `--plan-start` does not move it;

@@ -178,6 +178,4 @@ def require_fields(expected: JsonDoc, kw: Int, actual: JsonDoc, result: Int, cod
                 file=stderr,
             )
             continue
-        raise Error(
-            code + " was written, but " + field + " was not confirmed by readback; inspect the task before retrying"
-        )
+        raise Error(code + " was written, but " + field + " was not confirmed by readback; inspect it before retrying")

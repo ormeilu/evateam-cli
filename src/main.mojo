@@ -125,14 +125,30 @@ usage: eva <command> [options]
       discover sprint codes
   sprint get CODE [-n 25] [--page 1]
       sprint metadata and its tasks
-  sprint add CODE TASK [TASK...]
+  sprint create -p PROJ NAME [--start DATE] [--end DATE] [--text TEXT] [--dry-run]
+      new sprint in a project; prints its code
+  sprint update CODE [--name NAME] [--start DATE|none] [--end DATE|none] [--text TEXT] [--dry-run]
+      change its name, plan dates or description
+  sprint rename CODE NAME [--dry-run]
+      short for update --name
+  sprint add CODE TASK [TASK...] [--dry-run]
       append tasks without replacing their other sprints
+  sprint remove CODE TASK [TASK...] [--dry-run]
+      take tasks out of it, keeping their other sprints
   release list [-p PROJ] [-s open|closed|all]
       discover release codes
   release get CODE [-n 25] [--page 1]
       release metadata and its tasks
-  release add CODE TASK [TASK...]
+  release create -p PROJ NAME [--start DATE] [--end DATE] [--text TEXT] [--dry-run]
+      new release in a project; prints its code
+  release update CODE [--name NAME] [--start DATE|none] [--end DATE|none] [--text TEXT] [--dry-run]
+      change its name, plan dates or description
+  release rename CODE NAME [--dry-run]
+      short for update --name
+  release add CODE TASK [TASK...] [--dry-run]
       append tasks without replacing their other releases
+  release remove CODE TASK [TASK...] [--dry-run]
+      take tasks out of it, keeping their other releases
   relation types [-n 25] [--page 1]
       relation codes and names
   tag list [-q TEXT]
@@ -206,8 +222,9 @@ task list projections and selectors
   -n/--limit N --page K  bounded pages; TSV has data rows only, no footer
 
 write previews
-  --dry-run on task create/update/move/log/attach/comment prints would send:
-  with exact resolved payloads; no mutations, no server-side acceptance claim
+  --dry-run on task create/update/move/log/attach/comment and on sprint/release
+  create/update/rename/add/remove prints would send: with exact resolved
+  payloads; no mutations, no server-side acceptance claim
   bulk requires --yes to apply; --dry-run wins over --yes
 
 options
