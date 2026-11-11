@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/ormeilu/evateam-cli/compare/v0.11.1...v0.12.0) (2026-11-11)
+
+
+### Features
+
+* create, update, rename and remove for releases and sprints ([e067acf](https://github.com/ormeilu/evateam-cli/commit/e067acf28b63a066cb1a8ce2ebfea8e7a2f21fd8))
+
+
+### Bug Fixes
+
+* say a write may have been applied when its reply is lost ([d22f123](https://github.com/ormeilu/evateam-cli/commit/d22f123e7c4e18069ed6f01e9270d3d76e382377))
+
 ## [0.11.1](https://github.com/ormeilu/evateam-cli/compare/v0.11.0...v0.11.1) (2026-11-09)
 
 
