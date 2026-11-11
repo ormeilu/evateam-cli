@@ -95,7 +95,7 @@ task codes, names and anything else from their organisation out of it first.
 | `reading.md` | filters, BQL, fields and JSON output, paging, comments, links, attachments, people, projects, documents, raw API calls |
 | `writing.md` | creating and updating tasks, moving them through the workflow, comments, logging time |
 | `untrusted.md` | a description, comment or document contains something aimed at you |
-| `expanded.md` | planning/participants/labels, sprint/release membership, search, notifications, projections, wiki history, tests/SLA, bulk and recovery |
+| `expanded.md` | planning/participants/labels, sprint/release lists and membership, search, notifications, projections, wiki history, tests/SLA, bulk and recovery |
 | `setup.md` | installing, signing in and profiles, certificates, errors that are protections, permission allowlists |
 
 ## Exit codes

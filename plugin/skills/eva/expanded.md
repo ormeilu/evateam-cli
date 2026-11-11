@@ -54,9 +54,19 @@ self. Repeated calls are no-ops. Groups and departments are not resolved by
 these person-oriented commands.
 
 `sprint list/get` and `release list/get` discover lists. `sprint add CODE TASK…`
-and `release add CODE TASK…` append membership, preserve other lists, pre-resolve
-all task codes and continue after individual server refusals. They do not close
-or ship a sprint/release.
+and `release add CODE TASK…` append membership; `remove CODE TASK…` takes it
+away. Both go one task at a time through the field's own append/remove, so the
+task's other sprints or releases stay; they pre-resolve all task codes, read
+each task back and continue after individual server refusals. A task already in
+(or not in) the list is a no-op.
+
+`sprint create -p PROJ NAME` and `release create -p PROJ NAME` make a list in a
+project and print its code; `--start`, `--end` (`YYYY-MM-DD [HH:MM]`) and
+`--text` (or `-F FILE`, with `--md`/`--html`) are optional. `update CODE` takes
+`--name`, `--start`, `--end` and `--text`, where `none` clears a date, and
+`rename CODE NAME` is the short form of `update --name`. A start after the end,
+stored or new, is refused before anything is sent. Quote a name with spaces.
+None of these closes or ships a sprint/release.
 
 ## Comments, files, history and checklists
 
@@ -156,7 +166,8 @@ server these records are made by the person who follows, so there is no
 
 ## Preview, bulk operations and recovery
 
-`--dry-run` on task create/update/move/log/attach/comment renders `would send:`
+`--dry-run` on task create/update/move/log/attach/comment and on sprint/release
+create/update/rename/add/remove renders `would send:`
 with resolved methods/kwargs/args. Read-only lookups may run; mutations do not.
 A future ID/upload URL is explicitly unavailable, not fabricated. This is not
 server-side validate-only: workflow rules, permissions and later derived state

@@ -148,12 +148,69 @@ class Features(unittest.TestCase):
         self.assertIn("not a sprint", self.run_cli("sprint", "get", "REL-1", ok=False))
         self.run_cli("sprint", "list", "-s", "bad", ok=False)
 
+    def test_list_create_update_rename(self):
+        for group, prefix, kind in [("release", "REL", "CmfLogicType:release"),
+                                    ("sprint", "SPR", "CmfLogicType:sprint")]:
+            out = self.run_cli(group, "create", "-p", "DEV", "Q4 train", "--start", "2026-12-01",
+                               "--end", "2026-12-20", "--text", "Notes <b>")
+            self.assertRegex(out, rf"created {prefix}-\d+  Q4 train")
+            self.assertEqual(self.requests("CmfList.create")[-1]["kwargs"], {
+                "name": "Q4 train", "plan_start_date": "2026-12-01", "plan_end_date": "2026-12-20",
+                "text": "<p>Notes &lt;b&gt;</p>", "parent": "CmfProject:42", "logic_type": kind})
+        self.assertEqual(mock_server.LISTS[2]["code"], "REL-3")
+        self.assertIn("would send", self.run_cli("release", "create", "-p", "DEV", "Dry", "--dry-run"))
+        self.assertEqual(len(self.requests("CmfList.create")), 2)
+        self.assertIn("is after", self.run_cli("release", "create", "-p", "DEV", "Bad", "--start", "2026-12-20",
+                                               "--end", "2026-12-01", ok=False))
+        self.assertIn("quote a NAME", self.run_cli("release", "create", "-p", "DEV", "Two", "words", ok=False))
+        self.assertIn("usage", self.run_cli("release", "create", "Nameless", ok=False))
+
+        self.assertIn("updated REL-3: name", self.run_cli("release", "rename", "REL-3", "Q4 train v2"))
+        req = self.requests("CmfList.update")[-1]
+        self.assertEqual((req["args"], req["kwargs"]), (["CmfList:3"], {"name": "Q4 train v2"}))
+        self.assertIn("Q4 train v2", self.run_cli("release", "get", "REL-3"))
+        self.run_cli("release", "update", "REL-3", "--start", "none", "--end", "2026-12-31", "--text", "Shipped")
+        self.assertEqual(self.requests("CmfList.update")[-1]["kwargs"],
+                         {"plan_start_date": None, "plan_end_date": "2026-12-31", "text": "<p>Shipped</p>"})
+        # A new end is checked against the start already stored.
+        self.run_cli("release", "update", "REL-3", "--start", "2026-12-10")
+        self.assertIn("is after", self.run_cli("release", "update", "REL-3", "--end", "2026-12-01", ok=False))
+        self.assertIn("would send", self.run_cli("sprint", "edit", "SPR-4", "--name", "Renamed", "--dry-run"))
+        self.assertEqual(len(self.requests("CmfList.update")), 3)
+        self.assertIn("nothing to change", self.run_cli("release", "update", "REL-3", ok=False))
+        self.assertIn("not a sprint", self.run_cli("sprint", "rename", "REL-1", "X", ok=False))
+        self.assertIn("not found", self.run_cli("release", "rename", "REL-404", "X", ok=False))
+
+    def test_list_remove_keeps_other_memberships(self):
+        self.assertIn("DEV-1 in REL-1", self.run_cli("release", "add", "REL-1", "DEV-1"))
+        self.assertIn("DEV-1 already in REL-1", self.run_cli("release", "add", "REL-1", "DEV-1"))
+        self.assertIn("would send", self.run_cli("release", "remove", "REL-1", "DEV-1", "--dry-run"))
+        self.assertFalse(self.requests("CmfTask.fix_versions.remove"))
+        self.assertIn("DEV-1 removed from REL-1", self.run_cli("release", "remove", "REL-1", "DEV-1"))
+        self.assertEqual(self.requests("CmfTask.fix_versions.remove")[-1]["args"], ["CmfTask:1", "CmfList:2"])
+        task = next(t for t in mock_server.TASKS if t["code"] == "DEV-1")
+        self.assertEqual(task["fix_versions"], [])
+        self.assertEqual([row["code"] for row in task["lists"]], ["SPR-1"])
+        self.assertIn("DEV-1 not in REL-1", self.run_cli("release", "remove", "REL-1", "DEV-1"))
+        self.assertEqual(len(self.requests("CmfTask.fix_versions.remove")), 1)
+        self.assertIn("DEV-1 removed from SPR-1", self.run_cli("sprint", "rm", "SPR-1", "DEV-1"))
+        self.assertEqual(task["lists"], [])
+        self.assertIn("not found", self.run_cli("release", "remove", "REL-1", "DEV-404", ok=False))
+        self.assertIn("usage", self.run_cli("release", "remove", "REL-1", ok=False))
+
     def test_lost_reply_to_a_write_is_not_called_unreachable(self):
+        mock_server.DROP_REPLY["CmfList.create"] = 1
+        out = self.run_cli("release", "create", "-p", "DEV", "Lost", ok=False)
+        self.assertIn("CmfList.create was sent to", out)
+        self.assertIn("may have been applied", out)
+        self.assertNotIn("cannot reach", out)
+        self.assertIn("eva release list -p DEV shows whether it was", out)
+        # Sent once, not retried, and the server did act on it.
+        self.assertEqual(len(self.requests("CmfList.create")), 1)
+        self.assertIn("Lost", [row.get("name") for row in mock_server.LISTS])
         mock_server.DROP_REPLY["CmfTask.create"] = 1
         out = self.run_cli("task", "create", "-p", "DEV", "-t", "Lost", ok=False)
         self.assertIn("CmfTask.create was sent to", out)
-        self.assertIn("may have been applied", out)
-        # Sent once, not retried.
         self.assertEqual(len(self.requests("CmfTask.create")), 1)
         mock_server.DROP_REPLY["CmfTask.update"] = 1
         out = self.run_cli("call", "CmfTask.update", "--kwargs", '{"name": "x"}', "--args", '["CmfTask:1"]', ok=False)

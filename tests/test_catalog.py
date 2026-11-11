@@ -62,7 +62,9 @@ class Catalog(unittest.TestCase):
                          "task comment-edit", "task comment-delete", "task log", "task attach", "task watch",
                          "task unwatch", "task link", "task unlink", "task check", "time log", "time delete",
                          "doc create", "doc update", "doc publish", "doc comment", "doc comment-edit", "doc attach",
-                         "doc watch", "sprint add", "release add", "attachment delete", "trash restore", "call"]:
+                         "doc watch", "sprint add", "release add", "sprint remove", "release remove",
+                         "sprint create", "release create", "sprint update", "release update", "sprint rename",
+                         "release rename", "attachment delete", "trash restore", "call"]:
             self.assertEqual(classified[mutation], "ask", mutation)
 
 

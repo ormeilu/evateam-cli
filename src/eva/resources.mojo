@@ -1,6 +1,6 @@
-"""Read-only feeds and task list membership (sprints and releases)."""
+"""Read-only feeds, and sprints and releases: their tasks and the lists themselves."""
 from eva.args import Args
-from eva.client import Client, Reply
+from eva.client import Client, Reply, MAYBE_APPLIED
 from eva.common import (
     get_by_code,
     id_of,
@@ -12,11 +12,15 @@ from eva.common import (
     footer,
     print_json,
     want_json,
+    text_from,
+    body_html,
 )
 from eva.json import JsonDoc
 from eva.render import Out
-from eva.task_options import person_id
+from eva.task_options import person_id, valid_datetime
 from eva.dates import fmt_minutes, minutes_of
+from eva.validation import date_key, require_fields
+from eva.writes import preview_write
 
 
 def filter_eq(field: String, value: String) -> String:
@@ -102,6 +106,9 @@ def list_command(client: Client, args: Args, ui: Out) raises:
             split_csv("name,project.code,cache_status_type,cache_members_count"),
         )
         return
+    if sub == "create":
+        list_create(client, args, ui, group)
+        return
     var code = args.need(2, group + " code")
     var r = get_by_code(
         client,
@@ -128,37 +135,246 @@ def list_command(client: Client, args: Args, ui: Out) raises:
             "code",
             split_csv("status.name,name"),
         )
-    elif sub == "add":
-        args.check_known(["verbose", "v"])
-        if len(args.positionals) < 4:
-            raise Error("usage: eva " + group + " add CODE TASK [TASK...]")
-        # Resolve all targets before the first write.
-        var ids = List[String]()
-        for i in range(3, len(args.positionals)):
-            ids.append(id_of(client, "CmfTask", "code", args.positionals[i]))
-        var failures = 0
-        for i in range(len(ids)):
-            var task_code = args.positionals[i + 3]
-            try:
-                var before = get_by_code(client, "CmfTask", task_code, split_csv(field + ".id"))
-                var lid = r.doc.text_at(r.result, "id")
-                if not has_id(before, field, lid):
-                    _ = client.call(
-                        "CmfTask." + field + ".append",
-                        "",
-                        "[" + quote_str(ids[i]) + "," + quote_str(lid) + "]",
-                    )
-                    var got = get_by_code(client, "CmfTask", task_code, split_csv(field + ".id"))
-                    if not has_id(got, field, lid):
-                        raise Error("membership was not confirmed by readback")
-                print(task_code + " in " + code)
-            except e:
-                failures += 1
-                print("failed " + task_code + ": " + String(e))
-        if failures > 0:
-            raise Error(String(failures) + " tasks failed; successful changes were kept")
+    elif sub == "add" or sub == "remove":
+        list_membership(client, args, r, group, code, field, sub == "add")
+    elif sub == "update" or sub == "rename":
+        list_update(client, args, ui, r, group, code, sub == "rename")
     else:
         raise Error("unknown " + group + " command " + sub)
+
+
+def list_membership(
+    client: Client,
+    args: Args,
+    r: Reply,
+    group: String,
+    code: String,
+    field: String,
+    adding: Bool,
+) raises:
+    """`add` and `remove`, one task at a time through the field's own append
+    and remove, so the task's other sprints or releases stay as they are."""
+    args.check_known(["dry-run", "verbose", "v"])
+    var sub = "add" if adding else "remove"
+    if len(args.positionals) < 4:
+        raise Error("usage: eva " + group + " " + sub + " CODE TASK [TASK...]")
+    # Resolve all targets before the first write.
+    var ids = List[String]()
+    for i in range(3, len(args.positionals)):
+        ids.append(id_of(client, "CmfTask", "code", args.positionals[i]))
+    var lid = r.doc.text_at(r.result, "id")
+    var method = "CmfTask." + field + "." + ("append" if adding else "remove")
+    var failures = 0
+    for i in range(len(ids)):
+        var task_code = args.positionals[i + 3]
+        try:
+            var before = get_by_code(client, "CmfTask", task_code, split_csv(field + ".id"))
+            var call_args = "[" + quote_str(ids[i]) + "," + quote_str(lid) + "]"
+            if has_id(before, field, lid) == adding:
+                print(task_code + (" already in " if adding else " not in ") + code)
+            elif not preview_write(args.has("dry-run"), method, "", call_args):
+                _ = client.call(method, "", call_args)
+                var got = get_by_code(client, "CmfTask", task_code, split_csv(field + ".id"))
+                if has_id(got, field, lid) != adding:
+                    raise Error(("membership" if adding else "removal") + " was not confirmed by readback")
+                print(task_code + (" in " if adding else " removed from ") + code)
+        except e:
+            failures += 1
+            print("failed " + task_code + ": " + String(e))
+    if failures > 0:
+        raise Error(String(failures) + " tasks failed; successful changes were kept")
+
+
+def list_by_id(client: Client, id: String, fields: String) raises -> Reply:
+    var d = JsonDoc()
+    var kw = d.object()
+    var f = d.parse(filter_eq("id", id))
+    d.set(kw, "filter", f)
+    var fl = d.str_array(split_csv(fields))
+    d.set(kw, "fields", fl)
+    var r = client.call("CmfList.get", d.dump(kw))
+    if r.doc.text_at(r.result, "id") == "":
+        raise Error(id + ": not found")
+    return r^
+
+
+def check_dates(start: String, end: String) raises:
+    """Start no later than end; a date without a time stands for the whole day."""
+    var s = date_key(start)
+    var e = date_key(end)
+    if s == "" or e == "":
+        return
+    if s.byte_length() == 10 or e.byte_length() == 10:
+        var s_day = String(s[byte=0:10])
+        var e_day = String(e[byte=0:10])
+        s = s_day^
+        e = e_day^
+    if s > e:
+        raise Error("--start " + start + " is after --end " + end)
+
+
+def list_fields(args: Args, mut d: JsonDoc, kw: Int, stored_start: String, stored_end: String) raises:
+    """--start, --end and --text into `kw`; `none` clears a date."""
+    var options: List[String] = ["start", "end"]
+    var fields: List[String] = ["plan_start_date", "plan_end_date"]
+    var dates: List[String] = [stored_start, stored_end]
+    for i in range(len(options)):
+        var value = args.get(options[i])
+        if value == "":
+            continue
+        if value == "none" or value == "off":
+            var n = d.null()
+            d.set(kw, fields[i], n)
+            dates[i] = ""
+        else:
+            valid_datetime(value)
+            d.set_str(kw, fields[i], value)
+            dates[i] = value
+    check_dates(dates[0], dates[1])
+    var inline = args.get("text")
+    if inline == "":
+        inline = args.get("description", "d")
+    var text = text_from(args, inline, "the description")
+    if text != "":
+        d.set_str(kw, "text", body_html(args, text))
+
+
+def list_create(client: Client, args: Args, ui: Out, group: String) raises:
+    args.check_known(
+        [
+            "dry-run",
+            "project",
+            "p",
+            "start",
+            "end",
+            "text",
+            "description",
+            "d",
+            "file",
+            "F",
+            "md",
+            "html",
+            "verbose",
+            "v",
+        ]
+    )
+    var project = args.get("project", "p")
+    if project == "" or len(args.positionals) != 3:
+        raise Error(
+            "usage: eva "
+            + group
+            + " create -p PROJECT NAME [--start DATE] [--end DATE] [--text TEXT]; quote a NAME that has spaces"
+        )
+    var name = args.positionals[2]
+    if name.strip() == "":
+        raise Error("the " + group + " name is empty")
+    var d = JsonDoc()
+    var kw = d.object()
+    d.set_str(kw, "name", name)
+    list_fields(args, d, kw, "", "")
+    # What readback checks: the server fills in the project and type itself.
+    var wanted = d.dump(kw)
+    d.set_str(kw, "parent", id_of(client, "CmfProject", "code", project))
+    d.set_str(kw, "logic_type", id_of(client, "CmfLogicType", "code", list_kind(group)))
+    if preview_write(args.has("dry-run"), "CmfList.create", d.dump(kw)):
+        return
+    var id: String
+    try:
+        var r = client.call("CmfList.create", d.dump(kw))
+        id = r.doc.text(r.result)
+    except e:
+        var msg = String(e)
+        if msg.find(MAYBE_APPLIED) >= 0:
+            msg += "; eva " + group + " list -p " + project + " shows whether it was"
+        raise Error(msg)
+    try:
+        var code = created_list(client, id, wanted, group)
+        print("created " + ui.bold(code) + "  " + name)
+    except e:
+        raise Error(
+            id
+            + " was created, but "
+            + String(e)
+            + "; check eva "
+            + group
+            + " list -p "
+            + project
+            + " before creating it again"
+        )
+
+
+def created_list(client: Client, id: String, wanted: String, group: String) raises -> String:
+    """The code of a list just created, after checking it reads back as asked."""
+    var w = JsonDoc()
+    var kw = w.parse(wanted)
+    var fields = String("id,code,logic_type.code")
+    for i in range(w.len(kw)):
+        fields += "," + w.key_at(kw, i)
+    var got = list_by_id(client, id, fields)
+    var code = got.doc.text_at(got.result, "code")
+    if code == "":
+        code = id
+    if got.doc.text_at(got.result, "logic_type.code") != list_kind(group):
+        raise Error("it reads back as " + got.doc.text_at(got.result, "logic_type.code") + ", not a " + group)
+    require_fields(w, kw, got.doc, got.result, code)
+    return code
+
+
+def list_update(client: Client, args: Args, ui: Out, r: Reply, group: String, code: String, rename: Bool) raises:
+    args.check_known(
+        [
+            "dry-run",
+            "name",
+            "start",
+            "end",
+            "text",
+            "description",
+            "d",
+            "file",
+            "F",
+            "md",
+            "html",
+            "verbose",
+            "v",
+        ]
+    )
+    var name = args.get("name")
+    if rename:
+        if len(args.positionals) != 4 or args.has("name"):
+            raise Error("usage: eva " + group + " rename CODE NAME; quote a NAME that has spaces")
+        name = args.positionals[3]
+    elif len(args.positionals) > 3:
+        raise Error(
+            "usage: eva "
+            + group
+            + " update CODE [--name NAME] [--start DATE] [--end DATE] [--text TEXT]; quote a NAME that has spaces"
+        )
+    if (rename or args.has("name")) and name.strip() == "":
+        raise Error("the " + group + " name is empty")
+    var d = JsonDoc()
+    var kw = d.object()
+    if name != "":
+        d.set_str(kw, "name", name)
+    list_fields(
+        args,
+        d,
+        kw,
+        r.doc.text_at(r.result, "plan_start_date"),
+        r.doc.text_at(r.result, "plan_end_date"),
+    )
+    if d.len(kw) == 0:
+        raise Error("nothing to change: pass --name, --start, --end or --text")
+    var changed = List[String]()
+    for i in range(d.len(kw)):
+        changed.append(d.key_at(kw, i))
+    var id = r.doc.text_at(r.result, "id")
+    var call_args = "[" + quote_str(id) + "]"
+    if preview_write(args.has("dry-run"), "CmfList.update", d.dump(kw), call_args):
+        return
+    _ = client.call("CmfList.update", d.dump(kw), call_args)
+    print("updated " + ui.bold(code) + ": " + ", ".join(changed))
+    var got = list_by_id(client, id, "id," + ",".join(changed))
+    require_fields(d, kw, got.doc, got.result, code)
 
 
 def has_id(r: Reply, field: String, id: String) raises -> Bool:

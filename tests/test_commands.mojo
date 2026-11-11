@@ -17,6 +17,7 @@ from eva.common import (
 from eva.collaboration import comments_kwargs
 from eva.dates import local_now, parse_minutes
 from eva.task import status_condition
+from eva.resources import check_dates
 from eva.workflow import FROM_ANY, Transitions, shell_word
 from eva.json import JsonDoc
 from eva.upgrade import dirname, shell_quote
@@ -275,6 +276,19 @@ def test_shell_word() raises:
     assert_equal(shell_word("closed"), "closed")
     assert_equal(shell_word("In Review"), "'In Review'")
     assert_equal(shell_word("it's"), "'it'\\''s'")
+
+
+def test_check_dates() raises:
+    check_dates("2026-12-01", "2026-12-20")
+    check_dates("2026-12-01", "2026-12-01")
+    check_dates("2026-12-01T10:00:00+03:00", "2026-12-01")
+    check_dates("", "2026-12-01")
+    var raised = False
+    try:
+        check_dates("2026-12-20", "2026-12-01T00:00:00+03:00")
+    except e:
+        raised = String(e).find("is after") >= 0
+    assert_true(raised)
 
 
 def main() raises:

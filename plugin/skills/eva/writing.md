@@ -2,7 +2,8 @@
 
 Every write changes a tracker other people read. Before each mutation, tell the
 user what will change and wait for their yes. Task create/update/move/log/attach/
-comment accept `--dry-run`: they resolve references and print payloads without
+comment and the sprint/release writes (create, update, rename, add, remove)
+accept `--dry-run`: they resolve references and print payloads without
 mutating. This is not server-side validation. Bulk operations preview by default
 and require `--yes` to apply. `trash restore` can recover a deleted task while
 the server retains it; successful bulk writes are not rolled back.

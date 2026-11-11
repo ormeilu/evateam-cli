@@ -272,10 +272,18 @@ eva auth logout --profile sandbox
 | `eva doc watch CODE [--children] [--off] [--dry-run]` | Подписаться на документ от своего имени; `--children` добавляет вложенные страницы, `--off` отписывает |
 | `eva sprint list [-p PROJ] [-s open\|closed\|all]` | Найти спринты проекта |
 | `eva sprint get CODE [-n 25] [--page 1]` | Сведения о спринте и страница его задач |
-| `eva sprint add CODE TASK [TASK...]` | Добавить задачи, сохранив их остальные спринты |
+| `eva sprint create -p PROJ NAME [--start DATE] [--end DATE] [--text TEXT] [--dry-run]` | Создать спринт в проекте и вывести его код |
+| `eva sprint update CODE [--name NAME] [--start DATE\|none] [--end DATE\|none] [--text TEXT] [--dry-run]` | Изменить название, плановые даты или описание; `none` стирает дату |
+| `eva sprint rename CODE NAME [--dry-run]` | То же, что `update --name` |
+| `eva sprint add CODE TASK [TASK...] [--dry-run]` | Добавить задачи, сохранив их остальные спринты |
+| `eva sprint remove CODE TASK [TASK...] [--dry-run]` | Убрать задачи из спринта, сохранив их остальные спринты |
 | `eva release list [-p PROJ] [-s open\|closed\|all]` | Найти релизы проекта |
 | `eva release get CODE [-n 25] [--page 1]` | Сведения о релизе и страница его задач |
-| `eva release add CODE TASK [TASK...]` | Добавить задачи, сохранив их остальные релизы |
+| `eva release create -p PROJ NAME [--start DATE] [--end DATE] [--text TEXT] [--dry-run]` | Создать релиз в проекте и вывести его код |
+| `eva release update CODE [--name NAME] [--start DATE\|none] [--end DATE\|none] [--text TEXT] [--dry-run]` | Изменить название, плановые даты или описание; `none` стирает дату |
+| `eva release rename CODE NAME [--dry-run]` | То же, что `update --name` |
+| `eva release add CODE TASK [TASK...] [--dry-run]` | Добавить задачи, сохранив их остальные релизы |
+| `eva release remove CODE TASK [TASK...] [--dry-run]` | Убрать задачи из релиза, сохранив их остальные релизы |
 | `eva relation types [-n 25] [--page 1]` | Коды и названия типов связей |
 | `eva tag list [-q TEXT]` | Теги; --tag при изменении задачи заменяет весь набор |
 | `eva component list [-p PROJ] [-q TEXT]` | Компоненты проекта для фильтра --component |
@@ -316,8 +324,8 @@ eva auth logout --profile sandbox
 `task create/update` принимают `--priority`, `--story-points`, `--plan-start`,
 `--plan-end`, `--alarm`, `--co-assignee`, `--waiting-for` и `--tag`.
 `--co-assignee` и `--tag` заменяют набор, `none` его очищает. Повторение флага
-задаёт несколько значений. Команды `sprint/release add` добавляют задачи,
-не заменяя остальные списки.
+задаёт несколько значений. Команды `sprint/release add` и `remove` добавляют
+и убирают задачи, не трогая остальные списки.
 
 Плановые даты пишутся в карточку задачи. У диаграммы Ганта своё расписание,
 выровненное по рабочему календарю, и `--plan-start` его не двигает. `task get`
