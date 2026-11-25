@@ -138,6 +138,16 @@ COMMENTS = [
     {"id": "CmfComment:c4", "parent_id": "CmfTask:1", "log_level": 0,
      "cmf_created_at": "2026-11-03T09:00:00+03:00", "text": "<p>Из веб-интерфейса</p>",
      "cmf_author": {"name": "Илья"}},
+    # DOC-1's thread, three long, for paging over document comments.
+    {"id": "CmfComment:d1", "parent_id": "CmfDocument:1", "log_level": 0,
+     "cmf_created_at": "2026-11-04T10:00:00+03:00", "text": "<p>Первый к документу</p>",
+     "cmf_author": {"name": "QA"}},
+    {"id": "CmfComment:d2", "parent_id": "CmfDocument:1", "log_level": 0,
+     "cmf_created_at": "2026-11-04T11:00:00+03:00", "text": "<p>Второй к документу</p>",
+     "cmf_author": {"name": "QA"}},
+    {"id": "CmfComment:d3", "parent_id": "CmfDocument:1", "log_level": 0,
+     "cmf_created_at": "2026-11-04T12:00:00+03:00", "text": "<p>Третий к документу</p>",
+     "cmf_author": {"name": "QA"}},
 ]
 
 FILE_BYTES = b"PK\x03\x04 fake xlsx \x00\xff"

@@ -14,7 +14,7 @@ from eva.common import (
     text_from,
     want_json,
 )
-from eva.collaboration import comments_kwargs
+from eva.collaboration import comments_before, comments_kwargs
 from eva.dates import local_now, parse_minutes
 from eva.task import status_condition
 from eva.resources import check_dates
@@ -174,6 +174,17 @@ def test_comments_kwargs() raises:
         comments_kwargs("CmfTask:1", False, List[String]()),
         '{"filter":[["parent_id","==","CmfTask:1"]]}',
     )
+
+
+def test_comments_before() raises:
+    # 36 comments, 20 a page: page 1 is the newest 20, so its first one is #17.
+    assert_equal(comments_before(36, 1, 20, 20), 16)
+    # Page 2 holds the oldest 16 and starts the thread.
+    assert_equal(comments_before(36, 2, 20, 16), 0)
+    # A middle page of a longer thread.
+    assert_equal(comments_before(100, 2, 20, 20), 60)
+    # A count that went stale before the list call never numbers below 1.
+    assert_equal(comments_before(3, 1, 20, 5), 0)
 
 
 def add(mut tr: Transitions, to: String, froms: String, limit: String = ""):

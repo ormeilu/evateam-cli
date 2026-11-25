@@ -185,6 +185,15 @@ def comments_kwargs(task_id: String, human: Bool, fields: List[String]) raises -
     return d.dump(kw)
 
 
+def comments_before(total: Int, page: Int, limit: Int, shown: Int) -> Int:
+    """How many older comments precede a page, so its fences carry each
+    comment's place in the whole thread, as --all numbers them. Pages count
+    from the newest: page K is the K-th window of `limit` newest-first, printed
+    oldest first. A count that went stale before the list call can make this
+    negative; it never numbers a comment below 1."""
+    return max(0, total - (page - 1) * limit - shown)
+
+
 def task_comments(client: Client, args: Args, ui: Out) raises:
     args.check_known(
         [
@@ -251,6 +260,7 @@ def task_comments(client: Client, args: Args, ui: Out) raises:
         print_json(r)
         return
     var n = r.doc.len(r.result)
+    var before = 0 if args.has("all") else comments_before(total, page, limit, n)
     for i in range(n):
         var c = r.doc.at(r.result, i)
         var who = r.doc.text_at(c, "cmf_author.name")
@@ -261,7 +271,7 @@ def task_comments(client: Client, args: Args, ui: Out) raises:
         if parent != "":
             head += "  reply to " + parent
         print(head)
-        ui.untrusted(code + "/comments/" + String(i + 1), r.doc.text_at(c, "text"))
+        ui.untrusted(code + "/comments/" + String(before + i + 1), r.doc.text_at(c, "text"))
     var tally = String(n) + (" comment" if n == 1 else " comments")
     if human:
         var all = client.call("CmfComment.count", comments_kwargs(task_id, False, List[String]()))

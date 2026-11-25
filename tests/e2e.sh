@@ -180,6 +180,20 @@ check "comments oldest first"  "Статус изменен на Done
 check "comments human"         "3 comments by people, 2 workflow and system entries hidden" -- $eva task comments DEV-1 --human
 no    "human hides workflow"   "Статус изменен"                -- $eva task comments DEV-1 --human
 check "comments ids"           "QA  CmfComment:c1"             -- $eva task comments DEV-1 --ids
+# A fence's src is the comment's place in the whole thread, oldest first, so
+# every page names a comment the way --all does (#101). The thread is 5 long.
+check "page 1 numbered in thread" '<untrusted src="DEV-1/comments/4">
+Из веб-интерфейса'                                             -- $eva task comments DEV-1 -n 2
+check "page 2 numbered in thread" '<untrusted src="DEV-1/comments/2">
+Статус изменен на Done'                                        -- $eva task comments DEV-1 -n 2 --page 2
+check "last page numbered in thread" '<untrusted src="DEV-1/comments/1">
+Воспроизвёл'                                                   -- $eva task comments DEV-1 -n 2 --page 3
+check "all numbered the same"  '<untrusted src="DEV-1/comments/4">
+Из веб-интерфейса'                                             -- $eva task comments DEV-1 --all
+check "doc page 1 numbered"    '<untrusted src="DOC-1/comments/2">
+Второй к документу'                                            -- $eva doc comments DOC-1 -n 2
+check "doc page 2 numbered"    '<untrusted src="DOC-1/comments/1">
+Первый к документу'                                            -- $eva doc comments DOC-1 -n 2 --page 2
 check "comment needs text"     "missing comment text"          -- $eva task comment DEV-1
 printf 'from "file"\n\nsecond <para>\n' >"$log.note"
 check "comment from file"      "commented on DEV-1"            -- $eva task comment DEV-1 -F "$log.note"
