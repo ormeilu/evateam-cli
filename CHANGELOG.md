@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/ormeilu/evateam-cli/compare/v0.12.0...v0.12.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* number comment fences by place in the thread on every page ([#102](https://github.com/ormeilu/evateam-cli/issues/102)) ([839a75f](https://github.com/ormeilu/evateam-cli/commit/839a75f647e22d1a4db559b9d02ebcc7b6e66ca9)), closes [#101](https://github.com/ormeilu/evateam-cli/issues/101)
+
 ## [0.12.0](https://github.com/ormeilu/evateam-cli/compare/v0.11.1...v0.12.0) (2026-11-11)
 
 
