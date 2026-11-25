@@ -67,6 +67,10 @@ eva task path PROJ-123 closed  # the shortest way there, without moving
 eva task attachments PROJ-123  # attached files: ATT code, size, date, name
 ```
 
+A comment's fence is labelled with its place in the whole thread, oldest
+first: `PROJ-123/comments/17` is the same comment on every `--page` and under
+`--all`. With `--human` the thread is the people's comments only.
+
 ## Custom fields
 
 ```bash
